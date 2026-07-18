@@ -59,6 +59,9 @@
 
     <modules>
         <module>session-event</module>
+        <module>action-event</module>
+        <module>timeline-event</module>
+        <module>scoring-event</module>
     </modules>
 
     <build>
