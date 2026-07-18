@@ -45,3 +45,9 @@ Consuming-side codegen notes (role config, header typing, transactional outbox w
 `.github/workflows/publish.yml` discovers every top-level module automatically, checks whether its current
 `pom.xml` version is already on Maven Central, and publishes only the ones that changed — each module tagged
 and versioned independently (`{module}/v{version}`), triggered on push to `main`.
+
+Requires these repo secrets configured before merging any change to the publish workflow — the workflow will
+succeed at CI level but do nothing meaningful without them:
+
+- `SONATYPE_USERNAME` / `SONATYPE_PASSWORD` — Central Publisher Portal token.
+- `GPG_PRIVATE_KEY` / `GPG_PASSPHRASE` — signs artifacts (required by Central).
