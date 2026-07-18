@@ -153,15 +153,7 @@ components:
 
   schemas:
     EventEnvelopeHeaders:
-      type: object
-      properties:
-        eventId: { type: string, format: uuid }
-        aggregateId: { type: string, format: uuid }
-        aggregateType: { type: string }
-        gameId: { type: string, format: uuid }
-        occurredAt: { type: string, format: date-time }
-        version: { type: integer }
-      required: [ eventId, aggregateId, aggregateType, gameId, occurredAt, version ]
+      $ref: './shared/envelope-headers.yaml#/EventEnvelopeHeaders'
 
     ResolutionStartedPayload:
       type: object
@@ -199,8 +191,7 @@ components:
       required: [ gameId, eraNumber, eventStates ]
 
     ProbabilityBand:
-      type: string
-      enum: [ LOW, MEDIUM, HIGH ]
+      $ref: './shared/enums.yaml#/ProbabilityBand'
 
     BandedProbabilityPublishedOutcomeBandState:
       type: object
@@ -229,8 +220,7 @@ components:
       required: [ gameId, eraNumber, eventStates ]
 
     ParadoxType:
-      type: string
-      enum: [ DEAD_HEAT, IMPOSSIBLE_ERASURE, CHAIN_CONFLICT, SEAL_BREACH ]
+      $ref: './shared/enums.yaml#/ParadoxType'
 
     ParadoxDetectedParadox:
       type: object
@@ -266,8 +256,7 @@ components:
       required: [ gameId, eraNumber, paradoxIds, timerSeconds ]
 
     CardType:
-      type: string
-      enum: [ PUSH, SUPPRESS, SWING, AMPLIFY, INTERCEPT, SCAN, TRACE, DECOY, JAM, STALL, REDIRECT, NULLIFY, COLLIDE, STABILIZE, DETONATE ]
+      $ref: './shared/enums.yaml#/CardType'
 
     ParadoxResolutionCardPlayedPayload:
       type: object
