@@ -5,15 +5,15 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>io.github.temporal-rift.apis</groupId>
-        <artifactId>apis</artifactId>
-        <version>0-PARENT</version>
-        <relativePath>../pom.xml</relativePath>
+        <groupId>io.github.temporal-rift</groupId>
+        <artifactId>temporal-rift-bom</artifactId>
+        <version>1.4.0</version>
+        <relativePath/>
     </parent>
 
     <groupId>io.github.temporal-rift</groupId>
     <artifactId>action-event</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
     <packaging>jar</packaging>
 
     <name>Temporal Rift Action Events</name>
