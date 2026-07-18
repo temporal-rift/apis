@@ -35,7 +35,11 @@ Each module publishes as `io.github.temporal-rift:{module-name}` — e.g. a serv
    `gameId`, `occurredAt`, `version`), `payload` carries the event's own fields. This maps directly onto how
    consuming services' outbox envelope already works.
 3. Add the new module to `<modules>` in the root `pom.xml`.
-4. `mvn package` (never `mvn install`) to confirm the jar builds and contains the resource before committing.
+4. `mvn package` (never `mvn install`) to build the jar, then inspect its contents to confirm the spec is
+   actually bundled — a successful build only proves the lifecycle ran, not that the resource is present:
+   ```bash
+   jar tf {module}/target/{module}-{version}.jar | grep asyncapi.yml
+   ```
 
 Consuming-side codegen notes (role config, header typing, transactional outbox wiring) live in
 `temporal-rift-bom`, not here — see its README.
