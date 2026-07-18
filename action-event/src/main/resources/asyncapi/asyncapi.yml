@@ -27,6 +27,8 @@ channels:
         $ref: '#/components/messages/ActionRoundClosed'
       roundSummaryPublished:
         $ref: '#/components/messages/RoundSummaryPublished'
+      bandedProbabilityPublished:
+        $ref: '#/components/messages/BandedProbabilityPublished'
 
 operations:
   publishActionRoundStarted:
@@ -57,6 +59,10 @@ operations:
     action: send
     channel: { $ref: '#/channels/gameEvents' }
     messages: [ { $ref: '#/channels/gameEvents/messages/roundSummaryPublished' } ]
+  publishBandedProbabilityPublished:
+    action: send
+    channel: { $ref: '#/channels/gameEvents' }
+    messages: [ { $ref: '#/channels/gameEvents/messages/bandedProbabilityPublished' } ]
 
 components:
   messages:
@@ -95,6 +101,11 @@ components:
       title: Round summary published
       headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
       payload: { $ref: '#/components/schemas/RoundSummaryPublishedPayload' }
+    BandedProbabilityPublished:
+      name: BandedProbabilityPublished
+      title: Banded probability published
+      headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
+      payload: { $ref: '#/components/schemas/BandedProbabilityPublishedPayload' }
 
   schemas:
     EventEnvelopeHeaders:
@@ -191,6 +202,32 @@ components:
           items: { $ref: '#/components/schemas/ActionSummary' }
       required: [ gameId, eraNumber, roundNumber, actionSummaries ]
 
+    BandedProbabilityOutcomeBandState:
+      type: object
+      properties:
+        outcomeId: { type: string, format: uuid }
+        band: { $ref: '#/components/schemas/ProbabilityBand' }
+      required: [ outcomeId, band ]
+
+    BandedProbabilityEventBandState:
+      type: object
+      properties:
+        eventId: { type: string, format: uuid }
+        outcomes:
+          type: array
+          items: { $ref: '#/components/schemas/BandedProbabilityOutcomeBandState' }
+      required: [ eventId, outcomes ]
+
+    BandedProbabilityPublishedPayload:
+      type: object
+      properties:
+        gameId: { type: string, format: uuid }
+        eraNumber: { type: integer }
+        eventStates:
+          type: array
+          items: { $ref: '#/components/schemas/BandedProbabilityEventBandState' }
+      required: [ gameId, eraNumber, eventStates ]
+
     CardType:
       $ref: './shared/enums.yaml#/CardType'
 
@@ -199,3 +236,6 @@ components:
 
     SpecialAction:
       $ref: './shared/enums.yaml#/SpecialAction'
+
+    ProbabilityBand:
+      $ref: './shared/enums.yaml#/ProbabilityBand'
