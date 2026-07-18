@@ -17,9 +17,7 @@
     <packaging>jar</packaging>
 
     <name>Temporal Rift Action Events</name>
-    <description>AsyncAPI contract for the action bounded context, published to game.events. Consuming
-        services depend on this artifact and generate their own producer/consumer code from the bundled
-        asyncapi.yml via the zenwave-sdk-maven-plugin managed in temporal-rift-bom.</description>
+    <description>AsyncAPI contract for the action bounded context, published to game.events.</description>
 
     <licenses>
         <license>
