@@ -49,4 +49,16 @@
         <url>https://github.com/temporal-rift/apis</url>
         <tag>HEAD</tag>
     </scm>
+
+    <build>
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+            </resource>
+            <resource>
+                <directory>../shared-schemas</directory>
+                <targetPath>asyncapi/shared</targetPath>
+            </resource>
+        </resources>
+    </build>
 </project>

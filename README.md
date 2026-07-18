@@ -15,6 +15,9 @@ per-spec `<execution>` (role, inputSpec, target packages). Nothing about codegen
 ```text
 apis/
 ├── pom.xml              ← parent: shared build config (source/javadoc jars, central-publish profile)
+├── shared-schemas/       ← EventEnvelopeHeaders + shared enums, source of truth, not its own module
+│   ├── envelope-headers.yaml
+│   └── enums.yaml
 ├── session-event/       ← one AsyncAPI spec per bounded context
 │   ├── pom.xml           (own artifactId + version — published independently)
 │   └── src/main/resources/asyncapi/asyncapi.yml
@@ -32,17 +35,31 @@ exists ahead of the producer, same as it already did as a package in `domain-eve
 
 ## Adding a new bounded-context module
 
-1. Copy `session-event/pom.xml` as a starting point (parent block, packaging, description). No plugins
-   needed — this module's pom just needs its own artifactId/version and the spec resource.
+1. Copy `session-event/pom.xml` as a starting point (parent block, packaging, description, and the
+   `<build><resources>` block — that's what packages `shared-schemas/` alongside this module's own
+   `src/main/resources`, at `asyncapi/shared/` inside the jar).
 2. Write the spec at `src/main/resources/asyncapi/asyncapi.yml`. Model messages with `headers` and `payload`
    as separate schemas — `headers` carries envelope metadata (`eventId`, `aggregateId`, `aggregateType`,
    `gameId`, `occurredAt`, `version`), `payload` carries the event's own fields. This maps directly onto how
    consuming services' outbox envelope already works.
-3. Add the new module to `<modules>` in the root `pom.xml`.
-4. `mvn package` (never `mvn install`) to build the jar, then inspect its contents to confirm the spec is
-   actually bundled — a successful build only proves the lifecycle ran, not that the resource is present:
+3. For `EventEnvelopeHeaders` and any of the shared enums (`Faction`, `CardType`, `SpecialAction`,
+   `ParadoxType`, `ProbabilityBand`), don't inline the definition — reference the shared source instead:
+   ```yaml
+   EventEnvelopeHeaders:
+     $ref: './shared/envelope-headers.yaml#/EventEnvelopeHeaders'
+   Faction:
+     $ref: './shared/enums.yaml#/Faction'
+   ```
+   This is a plain relative-path JSON Reference, resolved by ZenWave against the packaged jar's own
+   `asyncapi/` directory — not a `classpath:` reference into a separate dependency, which doesn't resolve
+   (verified: it fails silently and the field falls back to an untyped `Object`). Adding a new shared enum
+   means editing `shared-schemas/enums.yaml` once, not touching every module that uses it.
+4. Add the new module to `<modules>` in the root `pom.xml`.
+5. `mvn package` (never `mvn install`) to build the jar, then inspect its contents to confirm both the spec
+   and the shared schemas are actually bundled — a successful build only proves the lifecycle ran, not that
+   the resources are present:
    ```bash
-   jar tf {module}/target/{module}-{version}.jar | grep asyncapi.yml
+   jar tf {module}/target/{module}-{version}.jar | grep asyncapi
    ```
 
 Consuming-side codegen notes (role config, header typing, transactional outbox wiring) live in

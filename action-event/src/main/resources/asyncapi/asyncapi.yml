@@ -120,15 +120,7 @@ components:
 
   schemas:
     EventEnvelopeHeaders:
-      type: object
-      properties:
-        eventId: { type: string, format: uuid }
-        aggregateId: { type: string, format: uuid }
-        aggregateType: { type: string }
-        gameId: { type: string, format: uuid }
-        occurredAt: { type: string, format: date-time }
-        version: { type: integer }
-      required: [ eventId, aggregateId, aggregateType, gameId, occurredAt, version ]
+      $ref: './shared/envelope-headers.yaml#/EventEnvelopeHeaders'
 
     ActionRoundStartedPayload:
       type: object
@@ -269,13 +261,10 @@ components:
       required: [ gameId, eraNumber, playerId, cards ]
 
     CardType:
-      type: string
-      enum: [ PUSH, SUPPRESS, SWING, AMPLIFY, INTERCEPT, SCAN, TRACE, DECOY, JAM, STALL, REDIRECT, NULLIFY, COLLIDE, STABILIZE, DETONATE ]
+      $ref: './shared/enums.yaml#/CardType'
 
     Faction:
-      type: string
-      enum: [ ERASERS, PROPHETS, REVISIONISTS, WEAVERS, ACTIVISTS ]
+      $ref: './shared/enums.yaml#/Faction'
 
     SpecialAction:
-      type: string
-      enum: [ ANNIHILATE, CORRUPT, CASCADE, FORESIGHT, SEAL, FULFILLMENT, REWRITE, MIMIC, OBSCURE, THREAD, TAPESTRY, UNRAVEL, RALLY, EXPOSE, MOMENTUM ]
+      $ref: './shared/enums.yaml#/SpecialAction'

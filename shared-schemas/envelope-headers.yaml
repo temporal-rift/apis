@@ -1,0 +1,10 @@
+EventEnvelopeHeaders:
+  type: object
+  properties:
+    eventId: { type: string, format: uuid }
+    aggregateId: { type: string, format: uuid }
+    aggregateType: { type: string }
+    gameId: { type: string, format: uuid }
+    occurredAt: { type: string, format: date-time }
+    version: { type: integer }
+  required: [ eventId, aggregateId, aggregateType, gameId, occurredAt, version ]
