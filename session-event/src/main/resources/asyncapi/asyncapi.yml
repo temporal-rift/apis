@@ -59,6 +59,8 @@ channels:
         $ref: '#/components/messages/EventsDrawn'
       handDealt:
         $ref: '#/components/messages/HandDealt'
+      resolutionStarted:
+        $ref: '#/components/messages/ResolutionStarted'
 
 operations:
   publishLobbyCreated:
@@ -153,6 +155,10 @@ operations:
     action: send
     channel: { $ref: '#/channels/gameEvents' }
     messages: [ { $ref: '#/channels/gameEvents/messages/handDealt' } ]
+  publishResolutionStarted:
+    action: send
+    channel: { $ref: '#/channels/gameEvents' }
+    messages: [ { $ref: '#/channels/gameEvents/messages/resolutionStarted' } ]
 
 components:
   messages:
@@ -271,6 +277,11 @@ components:
       title: Hand dealt
       headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
       payload: { $ref: '#/components/schemas/HandDealtPayload' }
+    ResolutionStarted:
+      name: ResolutionStarted
+      title: Resolution started
+      headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
+      payload: { $ref: '#/components/schemas/ResolutionStartedPayload' }
 
   schemas:
     EventEnvelopeHeaders:
@@ -540,6 +551,13 @@ components:
           type: array
           items: { $ref: '#/components/schemas/HandDealtCardInstance' }
       required: [ gameId, eraNumber, playerId, cards ]
+
+    ResolutionStartedPayload:
+      type: object
+      properties:
+        gameId: { type: string, format: uuid }
+        eraNumber: { type: integer }
+      required: [ gameId, eraNumber ]
 
     Faction:
       $ref: './shared/enums.yaml#/Faction'
