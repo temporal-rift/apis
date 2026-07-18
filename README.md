@@ -12,7 +12,7 @@ per-spec `<execution>` (role, inputSpec, target packages). Nothing about codegen
 
 ## Structure
 
-```
+```text
 apis/
 ├── pom.xml              ← parent: shared build config (source/javadoc jars, central-publish profile)
 ├── session-event/       ← one AsyncAPI spec per bounded context
