@@ -1,0 +1,70 @@
+asyncapi: 3.0.0
+info:
+  title: Session events
+  version: 1.0.0
+  description: Session module domain events published to game.events
+
+servers:
+  kafka:
+    host: localhost:9092
+    protocol: kafka
+
+channels:
+  gameEvents:
+    address: game.events
+    messages:
+      playerJoinedLobby:
+        $ref: '#/components/messages/PlayerJoinedLobby'
+
+operations:
+  publishPlayerJoinedLobby:
+    action: send
+    channel:
+      $ref: '#/channels/gameEvents'
+    messages:
+      - $ref: '#/channels/gameEvents/messages/playerJoinedLobby'
+
+components:
+  messages:
+    PlayerJoinedLobby:
+      name: PlayerJoinedLobby
+      title: Player joined lobby
+      headers:
+        $ref: '#/components/schemas/EventEnvelopeHeaders'
+      payload:
+        $ref: '#/components/schemas/PlayerJoinedLobbyPayload'
+
+  schemas:
+    EventEnvelopeHeaders:
+      type: object
+      properties:
+        eventId:
+          type: string
+          format: uuid
+        aggregateId:
+          type: string
+          format: uuid
+        aggregateType:
+          type: string
+        gameId:
+          type: string
+          format: uuid
+        occurredAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+      required: [eventId, aggregateId, aggregateType, gameId, occurredAt, version]
+
+    PlayerJoinedLobbyPayload:
+      type: object
+      properties:
+        lobbyId:
+          type: string
+          format: uuid
+        playerId:
+          type: string
+          format: uuid
+        playerName:
+          type: string
+      required: [lobbyId, playerId, playerName]
