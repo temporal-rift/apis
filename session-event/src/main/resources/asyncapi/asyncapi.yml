@@ -55,6 +55,10 @@ channels:
         $ref: '#/components/messages/WinConditionMet'
       factionRevealed:
         $ref: '#/components/messages/FactionRevealed'
+      eventsDrawn:
+        $ref: '#/components/messages/EventsDrawn'
+      handDealt:
+        $ref: '#/components/messages/HandDealt'
 
 operations:
   publishLobbyCreated:
@@ -141,6 +145,14 @@ operations:
     action: send
     channel: { $ref: '#/channels/gameEvents' }
     messages: [ { $ref: '#/channels/gameEvents/messages/factionRevealed' } ]
+  publishEventsDrawn:
+    action: send
+    channel: { $ref: '#/channels/gameEvents' }
+    messages: [ { $ref: '#/channels/gameEvents/messages/eventsDrawn' } ]
+  publishHandDealt:
+    action: send
+    channel: { $ref: '#/channels/gameEvents' }
+    messages: [ { $ref: '#/channels/gameEvents/messages/handDealt' } ]
 
 components:
   messages:
@@ -249,6 +261,16 @@ components:
       title: Faction revealed
       headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
       payload: { $ref: '#/components/schemas/FactionRevealedPayload' }
+    EventsDrawn:
+      name: EventsDrawn
+      title: Events drawn
+      headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
+      payload: { $ref: '#/components/schemas/EventsDrawnPayload' }
+    HandDealt:
+      name: HandDealt
+      title: Hand dealt
+      headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
+      payload: { $ref: '#/components/schemas/HandDealtPayload' }
 
   schemas:
     EventEnvelopeHeaders:
@@ -472,5 +494,55 @@ components:
           items: { $ref: '#/components/schemas/FactionRevealedPlayerFactionResult' }
       required: [ gameId, reveals ]
 
+    EventsDrawnOutcome:
+      type: object
+      properties:
+        outcomeId: { type: string, format: uuid }
+        description: { type: string }
+        initialProbability: { type: integer }
+      required: [ outcomeId, description, initialProbability ]
+
+    EventsDrawnFutureEvent:
+      type: object
+      properties:
+        eventId: { type: string, format: uuid }
+        title: { type: string }
+        outcomes:
+          type: array
+          items: { $ref: '#/components/schemas/EventsDrawnOutcome' }
+        isCascaded: { type: boolean }
+      required: [ eventId, title, outcomes, isCascaded ]
+
+    EventsDrawnPayload:
+      type: object
+      properties:
+        gameId: { type: string, format: uuid }
+        eraNumber: { type: integer }
+        events:
+          type: array
+          items: { $ref: '#/components/schemas/EventsDrawnFutureEvent' }
+      required: [ gameId, eraNumber, events ]
+
+    HandDealtCardInstance:
+      type: object
+      properties:
+        cardInstanceId: { type: string, format: uuid }
+        cardType: { $ref: '#/components/schemas/CardType' }
+      required: [ cardInstanceId, cardType ]
+
+    HandDealtPayload:
+      type: object
+      properties:
+        gameId: { type: string, format: uuid }
+        eraNumber: { type: integer }
+        playerId: { type: string, format: uuid }
+        cards:
+          type: array
+          items: { $ref: '#/components/schemas/HandDealtCardInstance' }
+      required: [ gameId, eraNumber, playerId, cards ]
+
     Faction:
       $ref: './shared/enums.yaml#/Faction'
+
+    CardType:
+      $ref: './shared/enums.yaml#/CardType'

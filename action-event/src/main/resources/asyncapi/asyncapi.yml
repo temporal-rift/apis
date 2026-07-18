@@ -27,10 +27,6 @@ channels:
         $ref: '#/components/messages/ActionRoundClosed'
       roundSummaryPublished:
         $ref: '#/components/messages/RoundSummaryPublished'
-      eventsDrawn:
-        $ref: '#/components/messages/EventsDrawn'
-      handDealt:
-        $ref: '#/components/messages/HandDealt'
 
 operations:
   publishActionRoundStarted:
@@ -61,14 +57,6 @@ operations:
     action: send
     channel: { $ref: '#/channels/gameEvents' }
     messages: [ { $ref: '#/channels/gameEvents/messages/roundSummaryPublished' } ]
-  publishEventsDrawn:
-    action: send
-    channel: { $ref: '#/channels/gameEvents' }
-    messages: [ { $ref: '#/channels/gameEvents/messages/eventsDrawn' } ]
-  publishHandDealt:
-    action: send
-    channel: { $ref: '#/channels/gameEvents' }
-    messages: [ { $ref: '#/channels/gameEvents/messages/handDealt' } ]
 
 components:
   messages:
@@ -107,16 +95,6 @@ components:
       title: Round summary published
       headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
       payload: { $ref: '#/components/schemas/RoundSummaryPublishedPayload' }
-    EventsDrawn:
-      name: EventsDrawn
-      title: Events drawn
-      headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
-      payload: { $ref: '#/components/schemas/EventsDrawnPayload' }
-    HandDealt:
-      name: HandDealt
-      title: Hand dealt
-      headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
-      payload: { $ref: '#/components/schemas/HandDealtPayload' }
 
   schemas:
     EventEnvelopeHeaders:
@@ -212,53 +190,6 @@ components:
           type: array
           items: { $ref: '#/components/schemas/ActionSummary' }
       required: [ gameId, eraNumber, roundNumber, actionSummaries ]
-
-    EventsDrawnOutcome:
-      type: object
-      properties:
-        outcomeId: { type: string, format: uuid }
-        description: { type: string }
-        initialProbability: { type: integer }
-      required: [ outcomeId, description, initialProbability ]
-
-    EventsDrawnFutureEvent:
-      type: object
-      properties:
-        eventId: { type: string, format: uuid }
-        title: { type: string }
-        outcomes:
-          type: array
-          items: { $ref: '#/components/schemas/EventsDrawnOutcome' }
-        isCascaded: { type: boolean }
-      required: [ eventId, title, outcomes, isCascaded ]
-
-    EventsDrawnPayload:
-      type: object
-      properties:
-        gameId: { type: string, format: uuid }
-        eraNumber: { type: integer }
-        events:
-          type: array
-          items: { $ref: '#/components/schemas/EventsDrawnFutureEvent' }
-      required: [ gameId, eraNumber, events ]
-
-    HandDealtCardInstance:
-      type: object
-      properties:
-        cardInstanceId: { type: string, format: uuid }
-        cardType: { $ref: '#/components/schemas/CardType' }
-      required: [ cardInstanceId, cardType ]
-
-    HandDealtPayload:
-      type: object
-      properties:
-        gameId: { type: string, format: uuid }
-        eraNumber: { type: integer }
-        playerId: { type: string, format: uuid }
-        cards:
-          type: array
-          items: { $ref: '#/components/schemas/HandDealtCardInstance' }
-      required: [ gameId, eraNumber, playerId, cards ]
 
     CardType:
       $ref: './shared/enums.yaml#/CardType'
