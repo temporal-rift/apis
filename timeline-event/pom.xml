@@ -17,7 +17,7 @@
     <packaging>jar</packaging>
 
     <name>Temporal Rift Timeline Events</name>
-    <description>AsyncAPI contract for timeline events, published to timeline.events.</description>
+    <description>AsyncAPI contract for timeline events.</description>
 
     <licenses>
         <license>
