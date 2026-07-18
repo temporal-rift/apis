@@ -17,8 +17,38 @@
     <packaging>jar</packaging>
 
     <name>Temporal Rift Action Events</name>
-    <description>AsyncAPI contract for the action bounded context, published to game.events. Spec only — no
-        generated code is compiled or published here. Consuming services depend on this artifact and generate
-        their own producer/consumer code from the bundled asyncapi.yml via the zenwave-sdk-maven-plugin managed
-        in temporal-rift-bom.</description>
+    <description>AsyncAPI contract for the action bounded context, published to game.events. Consuming
+        services depend on this artifact and generate their own producer/consumer code from the bundled
+        asyncapi.yml via the zenwave-sdk-maven-plugin managed in temporal-rift-bom.</description>
+
+    <licenses>
+        <license>
+            <name>GNU General Public License v3.0</name>
+            <url>https://www.gnu.org/licenses/gpl-3.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <id>kronen</id>
+            <name>Alberto Gonzalez Lagos</name>
+            <email>kronenr@gmail.com</email>
+            <url>https://github.com/kronen</url>
+            <roles>
+                <role>architect</role>
+                <role>developer</role>
+            </roles>
+            <timezone>Europe/Madrid</timezone>
+        </developer>
+    </developers>
+
+    <url>https://github.com/temporal-rift/apis</url>
+
+    <scm>
+        <connection>scm:git:git@github.com:temporal-rift/apis.git</connection>
+        <developerConnection>scm:git:git@github.com:temporal-rift/apis.git</developerConnection>
+        <url>https://github.com/temporal-rift/apis</url>
+        <tag>HEAD</tag>
+    </scm>
 </project>
