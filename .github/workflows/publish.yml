@@ -1,0 +1,96 @@
+name: Publish API contracts
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  discover-modules:
+    runs-on: ubuntu-latest
+    outputs:
+      modules: ${{ steps.list.outputs.modules }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: list
+        run: |
+          # Every top-level directory with its own pom.xml is a bounded-context module.
+          MODULES=$(find . -mindepth 2 -maxdepth 2 -name pom.xml -exec dirname {} \; | sed 's|^\./||' | sort | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          echo "modules=$MODULES" >> "$GITHUB_OUTPUT"
+          echo "Discovered modules: $MODULES"
+
+  publish:
+    needs: discover-modules
+    if: needs.discover-modules.outputs.modules != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        module: ${{ fromJson(needs.discover-modules.outputs.modules) }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Setup Maven Action
+        uses: s4u/setup-maven-action@v1.20.0
+        with:
+          java-version: 26
+          java-distribution: temurin
+          maven-version: 3.9.13
+          settings-servers: |
+            [
+              {
+                "id": "central",
+                "username": "${{ secrets.SONATYPE_USERNAME }}",
+                "password": "${{ secrets.SONATYPE_PASSWORD }}"
+              }
+            ]
+
+      - name: Import GPG key
+        uses: crazy-max/ghaction-import-gpg@v6
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+
+      - name: Check if ${{ matrix.module }} version already published
+        id: version_check
+        working-directory: ${{ matrix.module }}
+        run: |
+          echo "--- Resolving ${{ matrix.module }} artifactId + version ---"
+          ARTIFACT_ID=$(mvn help:evaluate -Dexpression=project.artifactId -DforceStdout -q -N)
+          VERSION=$(mvn help:evaluate -Dexpression=project.version -DforceStdout -q -N)
+          echo "Resolved: $ARTIFACT_ID:$VERSION"
+          echo "ARTIFACT_ID=$ARTIFACT_ID" >> "$GITHUB_ENV"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+          REGISTRY_URL="https://repo1.maven.org/maven2/io/github/temporal-rift/${ARTIFACT_ID}/${VERSION}/${ARTIFACT_ID}-${VERSION}.pom"
+          echo "--- Checking Maven Central ---"
+          echo "URL: $REGISTRY_URL"
+
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -L "$REGISTRY_URL") || true
+          echo "HTTP status: $RESPONSE"
+
+          if [ "$RESPONSE" = "200" ]; then
+            echo "Version $VERSION already exists in Maven Central — skipping publish"
+            echo "VERSION_CHANGED=false" >> "$GITHUB_ENV"
+          else
+            echo "Version $VERSION not found in Maven Central (HTTP $RESPONSE) — will publish"
+            echo "VERSION_CHANGED=true" >> "$GITHUB_ENV"
+          fi
+
+      - name: Publish ${{ matrix.module }} to Maven Central
+        if: env.VERSION_CHANGED == 'true'
+        run: mvn --batch-mode -pl ${{ matrix.module }} -am deploy -Pcentral
+
+      - name: Create and push tag
+        if: env.VERSION_CHANGED == 'true'
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          TAG="${{ matrix.module }}/v${VERSION}"
+          git tag "$TAG"
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/temporal-rift/apis.git "$TAG"

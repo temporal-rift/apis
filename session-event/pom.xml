@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.github.temporal-rift.apis</groupId>
+        <artifactId>apis</artifactId>
+        <version>0-PARENT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <groupId>io.github.temporal-rift</groupId>
+    <artifactId>session-event</artifactId>
+    <version>1.0.0</version>
+    <packaging>jar</packaging>
+
+    <name>Temporal Rift Session Events</name>
+    <description>AsyncAPI contract for the session bounded context, published to game.events. Generated
+        producer/consumer code, JSON payload and header models.</description>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>io.zenwave360.sdk</groupId>
+                <artifactId>zenwave-sdk-maven-plugin</artifactId>
+                <configuration>
+                    <inputSpec>${project.basedir}/src/main/resources/asyncapi/asyncapi.yml</inputSpec>
+                    <addCompileSourceRoot>true</addCompileSourceRoot>
+                    <addTestCompileSourceRoot>true</addTestCompileSourceRoot>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>generate-asyncapi</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                        <configuration>
+                            <generatorName>AsyncAPIGenerator</generatorName>
+                            <configOptions>
+                                <role>provider</role>
+                                <templates>SpringCloudStream</templates>
+                                <transactionalOutbox>modulith</transactionalOutbox>
+                                <generateMessageHeaders>true</generateMessageHeaders>
+                                <modelPackage>io.github.temporalrift.apis.session.model</modelPackage>
+                                <producerApiPackage>io.github.temporalrift.apis.session.producer</producerApiPackage>
+                            </configOptions>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
