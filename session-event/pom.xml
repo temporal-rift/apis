@@ -17,7 +17,7 @@
     <packaging>jar</packaging>
 
     <name>Temporal Rift Session Events</name>
-    <description>AsyncAPI contract for the session bounded context, published to game.events.</description>
+    <description>AsyncAPI contract for session events, published to game.events.</description>
 
     <licenses>
         <license>
