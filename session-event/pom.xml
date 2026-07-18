@@ -17,40 +17,8 @@
     <packaging>jar</packaging>
 
     <name>Temporal Rift Session Events</name>
-    <description>AsyncAPI contract for the session bounded context, published to game.events. Generated
-        producer/consumer code, JSON payload and header models.</description>
-
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>io.zenwave360.sdk</groupId>
-                <artifactId>zenwave-sdk-maven-plugin</artifactId>
-                <configuration>
-                    <inputSpec>${project.basedir}/src/main/resources/asyncapi/asyncapi.yml</inputSpec>
-                    <addCompileSourceRoot>true</addCompileSourceRoot>
-                    <addTestCompileSourceRoot>true</addTestCompileSourceRoot>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>generate-asyncapi</id>
-                        <phase>generate-sources</phase>
-                        <goals>
-                            <goal>generate</goal>
-                        </goals>
-                        <configuration>
-                            <generatorName>AsyncAPIGenerator</generatorName>
-                            <configOptions>
-                                <role>provider</role>
-                                <templates>SpringCloudStream</templates>
-                                <transactionalOutbox>modulith</transactionalOutbox>
-                                <generateMessageHeaders>true</generateMessageHeaders>
-                                <modelPackage>io.github.temporalrift.apis.session.model</modelPackage>
-                                <producerApiPackage>io.github.temporalrift.apis.session.producer</producerApiPackage>
-                            </configOptions>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-        </plugins>
-    </build>
+    <description>AsyncAPI contract for the session bounded context, published to game.events. Spec only — no
+        generated code is compiled or published here. Consuming services depend on this artifact and generate
+        their own producer/consumer code from the bundled asyncapi.yml via the zenwave-sdk-maven-plugin managed
+        in temporal-rift-bom.</description>
 </project>

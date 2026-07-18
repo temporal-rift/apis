@@ -8,7 +8,7 @@
     <parent>
         <groupId>io.github.temporal-rift</groupId>
         <artifactId>temporal-rift-bom</artifactId>
-        <version>1.2.1</version>
+        <version>1.4.0</version>
         <relativePath/>
     </parent>
 
@@ -55,7 +55,6 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.release>25</maven.compiler.release>
-        <zenwave.version>2.5.4</zenwave.version>
     </properties>
 
     <modules>
@@ -90,21 +89,6 @@
                     <configuration>
                         <doclint>none</doclint>
                     </configuration>
-                </plugin>
-                <!-- Every context module (session-event, action-event, ...) declares this plugin with its
-                     own <executions> — inputSpec/modelPackage/configOptions differ per spec, so only the
-                     plugin identity + required generator dependency are centralized here. -->
-                <plugin>
-                    <groupId>io.zenwave360.sdk</groupId>
-                    <artifactId>zenwave-sdk-maven-plugin</artifactId>
-                    <version>${zenwave.version}</version>
-                    <dependencies>
-                        <dependency>
-                            <groupId>io.zenwave360.sdk.plugins</groupId>
-                            <artifactId>asyncapi-generator</artifactId>
-                            <version>${zenwave.version}</version>
-                        </dependency>
-                    </dependencies>
                 </plugin>
             </plugins>
         </pluginManagement>
