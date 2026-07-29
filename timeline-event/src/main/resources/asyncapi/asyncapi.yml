@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Timeline events
-  version: 1.0.0
+  version: 1.0.2
   description: Timeline service domain events published to timeline.events
 
 servers:
@@ -31,6 +31,8 @@ channels:
         $ref: '#/components/messages/ParadoxCascaded'
       outcomeApplied:
         $ref: '#/components/messages/OutcomeApplied'
+      eraResolutionCompleted:
+        $ref: '#/components/messages/EraResolutionCompleted'
       chainLinkAdded:
         $ref: '#/components/messages/ChainLinkAdded'
       chainCompleted:
@@ -75,6 +77,10 @@ operations:
     action: send
     channel: { $ref: '#/channels/timelineEvents' }
     messages: [ { $ref: '#/channels/timelineEvents/messages/outcomeApplied' } ]
+  publishEraResolutionCompleted:
+    action: send
+    channel: { $ref: '#/channels/timelineEvents' }
+    messages: [ { $ref: '#/channels/timelineEvents/messages/eraResolutionCompleted' } ]
   publishChainLinkAdded:
     action: send
     channel: { $ref: '#/channels/timelineEvents' }
@@ -135,6 +141,15 @@ components:
       title: Outcome applied
       headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
       payload: { $ref: '#/components/schemas/OutcomeAppliedPayload' }
+    EraResolutionCompleted:
+      name: EraResolutionCompleted
+      title: Era resolution completed
+      description: >-
+        The ordered terminal-resolution barrier for an era. It is emitted once after all individual
+        OutcomeApplied and ParadoxCascaded facts for that era are durably produced. It is service
+        coordination data and is not a standalone player notification.
+      headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
+      payload: { $ref: '#/components/schemas/EraResolutionCompletedPayload' }
     ChainLinkAdded:
       name: ChainLinkAdded
       title: Chain link added
@@ -316,6 +331,36 @@ components:
           type: array
           items: { $ref: '#/components/schemas/OutcomeAppliedProbabilityState' }
       required: [ gameId, eraNumber, eventId, winningOutcomeId, finalProbabilities ]
+
+    EraResolutionTerminalState:
+      type: string
+      enum: [ OUTCOME_APPLIED, CASCADED ]
+
+    EraTerminalResolution:
+      type: object
+      description: >-
+        One terminal result, in the source EventsDrawn.events reveal order. winningOutcomeId is present
+        only when terminalState is OUTCOME_APPLIED.
+      properties:
+        eventId: { type: string, format: uuid }
+        terminalState: { $ref: '#/components/schemas/EraResolutionTerminalState' }
+        winningOutcomeId: { type: string, format: uuid }
+      required: [ eventId, terminalState ]
+
+    EraResolutionCompletedPayload:
+      type: object
+      description: >-
+        Contains every active event for the era exactly once, in the EventsDrawn.events reveal order,
+        including carried-over events. Consumers use this barrier rather than individual cascade arrival
+        order to determine timeline collapse and completed scoring input.
+      properties:
+        gameId: { type: string, format: uuid }
+        eraNumber: { type: integer }
+        terminalResolutions:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/EraTerminalResolution' }
+      required: [ gameId, eraNumber, terminalResolutions ]
 
     ChainLinkAddedPayload:
       type: object
