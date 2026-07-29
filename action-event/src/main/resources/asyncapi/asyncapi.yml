@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Action events
-  version: 1.0.0
+  version: 1.0.3
   description: Action module domain events published to game.events
 
 servers:
@@ -29,6 +29,12 @@ channels:
         $ref: '#/components/messages/RoundSummaryPublished'
       bandedProbabilityPublished:
         $ref: '#/components/messages/BandedProbabilityPublished'
+      activistDeclarationRecorded:
+        $ref: '#/components/messages/ActivistDeclarationRecorded'
+      exposeSignatureRevealed:
+        $ref: '#/components/messages/ExposeSignatureRevealed'
+      exposeBehaviorChanged:
+        $ref: '#/components/messages/ExposeBehaviorChanged'
 
 operations:
   publishActionRoundStarted:
@@ -63,6 +69,18 @@ operations:
     action: send
     channel: { $ref: '#/channels/gameEvents' }
     messages: [ { $ref: '#/channels/gameEvents/messages/bandedProbabilityPublished' } ]
+  publishActivistDeclarationRecorded:
+    action: send
+    channel: { $ref: '#/channels/gameEvents' }
+    messages: [ { $ref: '#/channels/gameEvents/messages/activistDeclarationRecorded' } ]
+  publishExposeSignatureRevealed:
+    action: send
+    channel: { $ref: '#/channels/gameEvents' }
+    messages: [ { $ref: '#/channels/gameEvents/messages/exposeSignatureRevealed' } ]
+  publishExposeBehaviorChanged:
+    action: send
+    channel: { $ref: '#/channels/gameEvents' }
+    messages: [ { $ref: '#/channels/gameEvents/messages/exposeBehaviorChanged' } ]
 
 components:
   messages:
@@ -106,6 +124,21 @@ components:
       title: Banded probability published
       headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
       payload: { $ref: '#/components/schemas/BandedProbabilityPublishedPayload' }
+    ActivistDeclarationRecorded:
+      name: ActivistDeclarationRecorded
+      title: Activist declaration recorded
+      headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
+      payload: { $ref: '#/components/schemas/ActivistDeclarationRecordedPayload' }
+    ExposeSignatureRevealed:
+      name: ExposeSignatureRevealed
+      title: Expose signature revealed
+      headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
+      payload: { $ref: '#/components/schemas/ExposeSignatureRevealedPayload' }
+    ExposeBehaviorChanged:
+      name: ExposeBehaviorChanged
+      title: Expose behaviour changed
+      headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
+      payload: { $ref: '#/components/schemas/ExposeBehaviorChangedPayload' }
 
   schemas:
     EventEnvelopeHeaders:
@@ -227,6 +260,56 @@ components:
           type: array
           items: { $ref: '#/components/schemas/BandedProbabilityEventBandState' }
       required: [ gameId, eraNumber, eventStates ]
+
+    ActivistDeclarationMode:
+      type: string
+      enum: [ RALLY, MOMENTUM ]
+
+    InfluenceSignatureType:
+      type: string
+      enum: [ PUSH, SUPPRESS, SWING ]
+
+    ActivistDeclarationRecordedPayload:
+      type: object
+      properties:
+        gameId: { type: string, format: uuid }
+        eraNumber: { type: integer }
+        roundNumber: { type: integer, enum: [ 1 ] }
+        playerId: { type: string, format: uuid }
+        mode: { $ref: '#/components/schemas/ActivistDeclarationMode' }
+        targetEventId: { type: string, format: uuid }
+        targetOutcomeId: { type: string, format: uuid }
+      required: [ gameId, eraNumber, roundNumber, playerId, mode, targetEventId, targetOutcomeId ]
+
+    ExposeInfluenceSignature:
+      type: object
+      properties:
+        type: { $ref: '#/components/schemas/InfluenceSignatureType' }
+        targetEventId: { type: string, format: uuid }
+        sourceOutcomeId: { type: string, format: uuid }
+        targetOutcomeId: { type: string, format: uuid }
+      required: [ type, targetEventId, targetOutcomeId ]
+
+    ExposeSignatureRevealedPayload:
+      type: object
+      properties:
+        gameId: { type: string, format: uuid }
+        eraNumber: { type: integer }
+        roundNumber: { type: integer, enum: [ 2 ] }
+        activistPlayerId: { type: string, format: uuid }
+        targetPlayerId: { type: string, format: uuid }
+        signature: { $ref: '#/components/schemas/ExposeInfluenceSignature' }
+      required: [ gameId, eraNumber, roundNumber, activistPlayerId, targetPlayerId, signature ]
+
+    ExposeBehaviorChangedPayload:
+      type: object
+      properties:
+        gameId: { type: string, format: uuid }
+        eraNumber: { type: integer }
+        roundNumber: { type: integer, enum: [ 3 ] }
+        activistPlayerId: { type: string, format: uuid }
+        targetPlayerId: { type: string, format: uuid }
+      required: [ gameId, eraNumber, roundNumber, activistPlayerId, targetPlayerId ]
 
     CardType:
       $ref: './shared/enums.yaml#/CardType'
