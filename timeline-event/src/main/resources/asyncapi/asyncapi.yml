@@ -337,22 +337,37 @@ components:
       enum: [ OUTCOME_APPLIED, CASCADED ]
 
     EraTerminalResolution:
-      type: object
       description: >-
-        One terminal result, in the source EventsDrawn.events reveal order. winningOutcomeId is present
-        only when terminalState is OUTCOME_APPLIED.
-      properties:
-        eventId: { type: string, format: uuid }
-        terminalState: { $ref: '#/components/schemas/EraResolutionTerminalState' }
-        winningOutcomeId: { type: string, format: uuid }
-      required: [ eventId, terminalState ]
+        One terminal result. revealIndex is the zero-based index of eventId in the source
+        EventsDrawn.events list. The terminalResolutions array MUST use those same ascending indexes.
+      oneOf:
+        - type: object
+          description: A resolved event with its winning outcome.
+          properties:
+            eventId: { type: string, format: uuid }
+            revealIndex: { type: integer, minimum: 0 }
+            terminalState: { type: string, const: OUTCOME_APPLIED }
+            winningOutcomeId: { type: string, format: uuid }
+          required: [ eventId, revealIndex, terminalState, winningOutcomeId ]
+        - type: object
+          description: A cascaded event, which has no winning outcome.
+          properties:
+            eventId: { type: string, format: uuid }
+            revealIndex: { type: integer, minimum: 0 }
+            terminalState: { type: string, const: CASCADED }
+          required: [ eventId, revealIndex, terminalState ]
+          not:
+            required: [ winningOutcomeId ]
 
     EraResolutionCompletedPayload:
       type: object
       description: >-
         Contains every active event for the era exactly once, in the EventsDrawn.events reveal order,
-        including carried-over events. Consumers use this barrier rather than individual cascade arrival
-        order to determine timeline collapse and completed scoring input.
+        including carried-over events. Each revealIndex MUST equal the entry's zero-based source-list index,
+        and the array MUST use those indexes in ascending order. Producers and consumers validate these
+        invariants; JSON Schema cannot compare this message to the separate EventsDrawn payload. Consumers
+        use this barrier rather than individual cascade arrival order to determine timeline collapse and
+        completed scoring input.
       properties:
         gameId: { type: string, format: uuid }
         eraNumber: { type: integer }
