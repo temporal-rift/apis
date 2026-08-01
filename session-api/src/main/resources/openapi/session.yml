@@ -1,0 +1,337 @@
+openapi: 3.0.3
+info:
+  title: Temporal Rift — Session API
+  description: Lobby management and game session endpoints
+  version: 1.0.0
+
+servers:
+  - url: /api/v1
+
+security:
+  - bearerAuth: [ ]
+
+tags:
+  - name: Session
+
+paths:
+  /lobbies:
+    post:
+      tags: [ Session ]
+      operationId: createLobby
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLobbyRequest'
+      responses:
+        '201':
+          description: Lobby created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateLobbyResponse'
+
+  /lobbies/{lobbyId}/join:
+    post:
+      tags: [ Session ]
+      operationId: joinLobby
+      parameters:
+        - name: lobbyId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/JoinLobbyRequest'
+      responses:
+        '200':
+          description: Joined lobby
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JoinLobbyResponse'
+        '404':
+          description: |
+            Lobby not found (`code: 404-01`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: |
+            Lobby already started (`code: 409-01`) or player already in the lobby (`code: 409-02`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
+          description: |
+            Lobby full, 5 players maximum (`code: 422-01`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /lobbies/{lobbyId}/players/me:
+    delete:
+      tags: [ Session ]
+      operationId: leaveLobby
+      parameters:
+        - name: lobbyId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Left lobby
+        '404':
+          description: |
+            Lobby not found (`code: 404-01`) or player not in the lobby (`code: 404-03`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /lobbies/{lobbyId}/start:
+    post:
+      tags: [ Session ]
+      operationId: startGame
+      parameters:
+        - name: lobbyId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '202':
+          description: Game starting asynchronously
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StartGameResponse'
+        '403':
+          description: |
+            Not host (`code: 403-02`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: |
+            One or more players are disconnected (`code: 409-03`). The problem detail carries a
+            `disconnectedPlayerIds` array with the players blocking the start.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/DisconnectedPlayersProblemDetail'
+        '422':
+          description: |
+            Fewer than 3 players (`code: 422-02`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /games/{gameId}:
+    get:
+      tags: [ Session ]
+      operationId: getGame
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Game summary (public state only)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameSummaryResponse'
+        '404':
+          description: |
+            Game not found (`code: 404-02`). Also returned when the requesting player is not a
+            participant of the game, so game existence is never disclosed to outsiders.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    CreateLobbyRequest:
+      type: object
+      required: [ playerName ]
+      properties:
+        playerName:
+          type: string
+
+    CreateLobbyResponse:
+      type: object
+      required: [ lobbyId, hostPlayerId, joinCode ]
+      properties:
+        lobbyId:
+          type: string
+          format: uuid
+        hostPlayerId:
+          type: string
+          format: uuid
+        joinCode:
+          type: string
+
+    JoinLobbyRequest:
+      type: object
+      required: [ playerName ]
+      properties:
+        playerName:
+          type: string
+
+    PlayerInLobby:
+      type: object
+      required: [ playerId, playerName, isHost ]
+      properties:
+        playerId:
+          type: string
+          format: uuid
+        playerName:
+          type: string
+        isHost:
+          type: boolean
+
+    JoinLobbyResponse:
+      type: object
+      required: [ lobbyId, playerId, currentPlayers ]
+      properties:
+        lobbyId:
+          type: string
+          format: uuid
+        playerId:
+          type: string
+          format: uuid
+        currentPlayers:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlayerInLobby'
+
+    StartGameResponse:
+      type: object
+      required: [ gameId ]
+      properties:
+        gameId:
+          type: string
+          format: uuid
+
+    GameStatus:
+      type: string
+      enum:
+        - IN_PROGRESS
+        - GAME_ENDED
+
+    GameSummaryResponse:
+      type: object
+      required: [ gameId, status, eraNumber, playerCount, cascadedParadoxCount ]
+      properties:
+        gameId:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/GameStatus'
+        eraNumber:
+          type: integer
+        playerCount:
+          type: integer
+        cascadedParadoxCount:
+          type: integer
+
+    DisconnectedPlayersProblemDetail:
+      allOf:
+        - $ref: '#/components/schemas/ProblemDetail'
+        - type: object
+          required: [ disconnectedPlayerIds ]
+          properties:
+            disconnectedPlayerIds:
+              type: array
+              description: Players whose disconnection is blocking the game start.
+              items:
+                type: string
+                format: uuid
+
+    ProblemDetail:
+      type: object
+      properties:
+        type:
+          type: string
+          description: A URI reference that identifies the problem type.
+          format: uri
+          maxLength: 1024
+        status:
+          type: integer
+          description: The HTTP status code generated by the origin server for this occurrence of the problem.
+          format: int32
+          minimum: 100
+          maximum: 599
+        title:
+          type: string
+          description: A short, human-readable summary of the problem type. It should not change from occurrence to occurrence of the problem, except for purposes of localization.
+          maxLength: 1024
+        detail:
+          type: string
+          description: A human-readable explanation specific to this occurrence of the problem.
+          maxLength: 4096
+        instance:
+          type: string
+          description: A URI reference that identifies the specific occurrence of the problem. It may or may not yield further information if dereferenced.
+          maxLength: 1024
+        code:
+          type: string
+          description: An API specific error code aiding the provider team understand the error based on their own potential taxonomy or registry.
+          maxLength: 50
+        errors:
+          type: array
+          description: An array of error details to accompany a problem details response.
+          maxItems: 1000
+          items:
+            type: object
+            description: An object to provide explicit details on a problem towards an API consumer.
+            properties:
+              detail:
+                type: string
+                description: A granular description on the specific error related to a body property, query parameter, path parameters, and/or header.
+                maxLength: 4096
+              pointer:
+                type: string
+                description: A JSON Pointer to a specific request body property that is the source of error.
+                maxLength: 1024
+              parameter:
+                type: string
+                description: The name of the query or path parameter that is the source of error.
+                maxLength: 1024
+              header:
+                type: string
+                description: The name of the header that is the source of error.
+                maxLength: 1024
+              code:
+                type: string
+                description: A string containing additional provider specific codes to identify the error context.
+                maxLength: 50
+            required:
+              - detail
+      required:
+        - detail
