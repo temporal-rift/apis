@@ -1,7 +1,7 @@
 # apis
 
-Spec-first API contracts (AsyncAPI today, OpenAPI later) — one module per bounded context, each an
-independently versioned, independently publishable dependency. Replaces `domain-events`.
+Spec-first API contracts (OpenAPI and AsyncAPI) — one module per bounded context, each an independently versioned,
+independently publishable dependency. Replaces `domain-events`.
 
 **This repo is spec-only.** No code is generated or compiled here. Each module is a thin jar whose only
 content is its `asyncapi.yml` (or `openapi.yml`), packaged as a plain classpath resource. Services that
@@ -18,22 +18,32 @@ apis/
 ├── shared-schemas/       ← EventEnvelopeHeaders + shared enums, source of truth, not its own module
 │   ├── envelope-headers.yaml
 │   └── enums.yaml
-├── session-event/       ← one AsyncAPI spec per bounded context
+├── session-event/       ← AsyncAPI contract for session events
 │   ├── pom.xml           (own artifactId + version — published independently)
 │   └── src/main/resources/asyncapi/asyncapi.yml
 ├── action-event/
 ├── timeline-event/
-└── scoring-event/
+├── scoring-event/
+├── session-api/         ← OpenAPI contract for game-service session endpoints
+│   └── src/main/resources/openapi/session.yml
+├── action-api/          ← OpenAPI contract for game-service action endpoints
+│   └── src/main/resources/openapi/action.yml
+├── scoring-api/         ← OpenAPI contract for game-service scoring endpoints
+│   └── src/main/resources/openapi/scoring.yml
+└── projection-api/      ← OpenAPI contract for read-service projection endpoints
+    └── src/main/resources/openapi/projection.yml
 ```
 
-Each module publishes as `io.github.temporal-rift:{module-name}` — e.g. a service that only needs
-`timeline.events` depends on `timeline-event` alone, not a monolithic library of every event in the system.
+Each module publishes as `io.github.temporal-rift:{module-name}`. A service consumes only the contracts it needs, not
+a monolithic library of every event and REST API. For example, `game-service` consumes `session-event`,
+`action-event`, and `scoring-event` for Kafka generation, plus `session-api`, `action-api`, and `scoring-api` for REST
+interface generation.
 
 `session-event`, `action-event`, and `scoring-event` publish to `game.events` (produced by `game-service`);
 `timeline-event` publishes to `timeline.events` (produced by `timeline-service`, not yet built — the contract
 exists ahead of the producer, same as it already did as a package in `domain-events`).
 
-## Adding a new bounded-context module
+## Adding a new AsyncAPI contract module
 
 1. Copy `session-event/pom.xml` as a starting point (parent block, packaging, description, and the
    `<build><resources>` block — that's what packages `shared-schemas/` alongside this module's own
@@ -64,6 +74,18 @@ exists ahead of the producer, same as it already did as a package in `domain-eve
 
 Consuming-side codegen notes (role config, header typing, transactional outbox wiring) live in
 `temporal-rift-bom`, not here — see its README.
+
+## Adding a new OpenAPI contract module
+
+1. Copy an existing `*-api/pom.xml` and give the module its own artifact ID and version.
+2. Place the OpenAPI spec under `src/main/resources/openapi/`. The resource path is part of the consumer build
+   contract, so use a stable module-specific filename.
+3. Add the module to the root `<modules>` list.
+4. Run `mvn package` (never `mvn install`) and inspect the jar to confirm that the OpenAPI resource is bundled.
+5. Publish the module through the normal `main`-branch release workflow before changing a consumer to depend on it.
+
+Consumers must unpack the bundled resource during Maven's lifecycle before invoking OpenAPI Generator. They must not
+copy the spec into the consuming repository or depend on a sibling checkout.
 
 ## Publishing
 
