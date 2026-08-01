@@ -19,5 +19,6 @@
         <module>action-event</module>
         <module>timeline-event</module>
         <module>scoring-event</module>
+        <module>projection-api</module>
     </modules>
 </project>
