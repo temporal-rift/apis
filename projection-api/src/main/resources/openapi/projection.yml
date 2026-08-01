@@ -1,0 +1,214 @@
+openapi: 3.0.3
+info:
+  title: Temporal Rift — Projection API
+  description: Per-player game state queries
+  version: 1.0.0
+
+servers:
+  - url: /api/v1
+
+security:
+  - bearerAuth: [ ]
+
+tags:
+  - name: Projection
+
+paths:
+  /games/{gameId}/state:
+    get:
+      tags: [ Projection ]
+      operationId: getGameState
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Full current game state for the requesting player
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlayerGameStateResponse'
+        '404':
+          description: |
+            Game not found, or the requesting player is not a participant of the game (game existence is
+            never disclosed to non-participants).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Phase:
+      type: string
+      enum:
+        - LOBBY
+        - ERA_START
+        - ACTION_ROUND_1
+        - ACTION_ROUND_2
+        - ACTION_ROUND_3
+        - PARADOX_RESOLUTION
+        - RESOLUTION
+        - ERA_END
+        - GAME_ENDED
+
+    HandCard:
+      type: object
+      required: [ cardInstanceId, cardType ]
+      properties:
+        cardInstanceId:
+          type: string
+          format: uuid
+        cardType:
+          type: string
+
+    EventOutcome:
+      type: object
+      required: [ outcomeId, description ]
+      properties:
+        outcomeId:
+          type: string
+          format: uuid
+        description:
+          type: string
+
+    ActiveEvent:
+      type: object
+      required: [ eventId, title, isCascaded, outcomes ]
+      properties:
+        eventId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        isCascaded:
+          type: boolean
+        outcomes:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventOutcome'
+
+    PlayerInGame:
+      type: object
+      required: [ playerId, score, isConnected ]
+      properties:
+        playerId:
+          type: string
+          format: uuid
+        playerName:
+          type: string
+          nullable: true
+          description: Not populated until a later slice.
+        score:
+          type: integer
+        isConnected:
+          type: boolean
+        faction:
+          type: string
+          nullable: true
+          description: Null until FactionRevealed.
+
+    ActionSummary:
+      type: object
+      required: [ playerId, actionCategory, actionFamily, skipped ]
+      properties:
+        playerId:
+          type: string
+          format: uuid
+        actionCategory:
+          type: string
+        actionFamily:
+          type: string
+        skipped:
+          type: boolean
+
+    RoundSummary:
+      type: object
+      required: [ roundNumber, actionSummaries ]
+      properties:
+        roundNumber:
+          type: integer
+        actionSummaries:
+          type: array
+          items:
+            $ref: '#/components/schemas/ActionSummary'
+
+    PlayerGameStateResponse:
+      type: object
+      required: [ gameId, eraNumber, phase, myHand, myScore, activeEvents, players ]
+      properties:
+        gameId:
+          type: string
+          format: uuid
+        eraNumber:
+          type: integer
+        phase:
+          $ref: '#/components/schemas/Phase'
+        myFaction:
+          type: string
+          nullable: true
+        myHand:
+          type: array
+          items:
+            $ref: '#/components/schemas/HandCard'
+        myScore:
+          type: integer
+        mySpecialActions:
+          type: array
+          nullable: true
+          description: Deferred to a later slice.
+          items:
+            type: string
+        myJammedUntilRound:
+          type: integer
+          nullable: true
+          description: Deferred to a later slice.
+        activeEvents:
+          type: array
+          items:
+            $ref: '#/components/schemas/ActiveEvent'
+        players:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlayerInGame'
+        lastRoundSummary:
+          allOf:
+            - $ref: '#/components/schemas/RoundSummary'
+          nullable: true
+          description: Deferred to a later slice.
+
+    ProblemDetail:
+      type: object
+      properties:
+        type:
+          type: string
+          description: A URI reference that identifies the problem type.
+          format: uri
+          maxLength: 1024
+        status:
+          type: integer
+          description: The HTTP status code generated by the origin server for this occurrence of the problem.
+          format: int32
+          minimum: 100
+          maximum: 599
+        title:
+          type: string
+          description: A short, human-readable summary of the problem type.
+        detail:
+          type: string
+          description: A human-readable explanation specific to this occurrence of the problem.
+        instance:
+          type: string
+          description: A URI reference that identifies the specific occurrence of the problem.
+          format: uri
+          maxLength: 1024
