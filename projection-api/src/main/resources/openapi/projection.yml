@@ -32,6 +32,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PlayerGameStateResponse'
+        '401':
+          description: Missing, invalid, or expired bearer token
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
         '404':
           description: |
             Game not found, or the requesting player is not a participant of the game (game existence is
@@ -184,6 +190,7 @@ components:
         lastRoundSummary:
           allOf:
             - $ref: '#/components/schemas/RoundSummary'
+          type: object
           nullable: true
           description: Deferred to a later slice.
 
