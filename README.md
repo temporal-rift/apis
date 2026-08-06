@@ -25,14 +25,21 @@ apis/
 ├── timeline-event/
 ├── scoring-event/
 ├── session-api/         ← OpenAPI contract for game-service session endpoints
-│   └── src/main/resources/openapi/session.yml
+│   └── src/main/resources/openapi/v1/session.yml
 ├── action-api/          ← OpenAPI contract for game-service action endpoints
-│   └── src/main/resources/openapi/action.yml
+│   └── src/main/resources/openapi/v1/action.yml
 ├── scoring-api/         ← OpenAPI contract for game-service scoring endpoints
-│   └── src/main/resources/openapi/scoring.yml
+│   └── src/main/resources/openapi/v1/scoring.yml
 └── projection-api/      ← OpenAPI contract for read-service projection endpoints
-    └── src/main/resources/openapi/projection.yml
+    └── src/main/resources/openapi/v1/projection.yml
 ```
+
+OpenAPI modules version their URL path prefix as a folder under `openapi/` (`v1/`, later `v2/`, ...), never
+replacing the previous version's file. The prefix is written literally into each spec's `paths:` keys (e.g.
+`/api/v1/lobbies`) — `openapi-generator-maven-plugin`'s `spring` generator does not apply `servers:` to the
+generated `@RequestMapping` paths, only to springdoc documentation, so `servers:` must not be relied on for
+routing. See "Adding a new OpenAPI contract module" below for how a consumer selects which version(s) to
+generate.
 
 Each module publishes as `io.github.temporal-rift:{module-name}`. A service consumes only the contracts it needs, not
 a monolithic library of every event and REST API. For example, `game-service` consumes `session-event`,
@@ -78,14 +85,28 @@ Consuming-side codegen notes (role config, header typing, transactional outbox w
 ## Adding a new OpenAPI contract module
 
 1. Copy an existing `*-api/pom.xml` and give the module its own artifact ID and version.
-2. Place the OpenAPI spec under `src/main/resources/openapi/`. The resource path is part of the consumer build
-   contract, so use a stable module-specific filename.
-3. Add the module to the root `<modules>` list.
-4. Run `mvn package` (never `mvn install`) and inspect the jar to confirm that the OpenAPI resource is bundled.
-5. Publish the module through the normal `main`-branch release workflow before changing a consumer to depend on it.
+2. Place the OpenAPI spec under `src/main/resources/openapi/v1/`. The resource path is part of the consumer build
+   contract, so use a stable module-specific filename (`v1/{name}.yml`).
+3. Write every operation's `paths:` key with the version prefix included literally (e.g. `/api/v1/lobbies`), and
+   set `servers: - url: /` — the prefix must live in `paths:`, not `servers:`, because the generator ignores
+   `servers:` for routing.
+4. Add the module to the root `<modules>` list.
+5. Run `mvn package` (never `mvn install`) and inspect the jar to confirm that the OpenAPI resource is bundled
+   under `openapi/v1/`.
+6. Publish the module through the normal `main`-branch release workflow before changing a consumer to depend on it.
 
 Consumers must unpack the bundled resource during Maven's lifecycle before invoking OpenAPI Generator. They must not
 copy the spec into the consuming repository or depend on a sibling checkout.
+
+### Adding a second coexisting version (`v2`, ...)
+
+Add `src/main/resources/openapi/v2/{name}.yml` alongside the existing `v1/{name}.yml` — never replace or move the
+prior version's file; both are published together in the same module release. A consuming service chooses which
+version(s) to generate by pointing a generator execution's `inputSpec` at the extracted `v{n}` resource and giving
+that execution's `apiPackage`/`modelPackage` a matching `.v{n}` suffix (see `temporal-rift-bom`'s README for the
+extraction/unpack mechanics). A service that only wants `v1` simply never adds a `v2` execution; a service
+migrating between versions can run both executions at once so the two generated interfaces coexist without
+collision.
 
 ## Publishing
 
