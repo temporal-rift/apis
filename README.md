@@ -21,13 +21,13 @@ apis/
 ├── action-event/
 ├── timeline-event/
 ├── scoring-event/
-├── session-api/         ← OpenAPI contract for game-service session endpoints
+├── session-api/         ← OpenAPI contract for lobby/session endpoints
 │   └── src/main/resources/openapi/v1/session.yml
-├── action-api/          ← OpenAPI contract for game-service action endpoints
+├── action-api/          ← OpenAPI contract for action-round endpoints
 │   └── src/main/resources/openapi/v1/action.yml
-├── scoring-api/         ← OpenAPI contract for game-service scoring endpoints
+├── scoring-api/         ← OpenAPI contract for scoring endpoints
 │   └── src/main/resources/openapi/v1/scoring.yml
-└── projection-api/      ← OpenAPI contract for read-service projection endpoints
+└── projection-api/      ← OpenAPI contract for per-player game-state projection endpoints
     └── src/main/resources/openapi/v1/projection.yml
 ```
 
@@ -38,13 +38,11 @@ generated `@RequestMapping` paths, only to springdoc documentation, so `servers:
 routing. See "Adding a new OpenAPI contract module" below for how a consumer selects which version(s) to
 generate.
 
-Each module publishes as `io.github.temporal-rift:{module-name}`. A service consumes only the contracts it needs, not
-a monolithic library of every event and REST API. For example, `game-service` consumes `session-event`,
-`action-event`, and `scoring-event` for Kafka generation, plus `session-api`, `action-api`, and `scoring-api` for REST
-interface generation.
+Each module publishes as `io.github.temporal-rift:{module-name}`. A consumer depends on only the contracts it
+needs, not a monolithic library of every event and REST API.
 
-`session-event`, `action-event`, and `scoring-event` publish to `game.events` (produced by `game-service`);
-`timeline-event` publishes to `timeline.events` (produced by `timeline-service`).
+`session-event`, `action-event`, and `scoring-event` publish to the `game.events` topic; `timeline-event`
+publishes to `timeline.events`.
 
 ## Adding a new AsyncAPI contract module
 
