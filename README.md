@@ -1,7 +1,7 @@
 # apis
 
 Spec-first API contracts (OpenAPI and AsyncAPI) — one module per bounded context, each an independently versioned,
-independently publishable dependency. Replaces `domain-events`.
+independently publishable dependency.
 
 **This repo is spec-only.** No code is generated or compiled here. Each module is a thin jar whose only
 content is its `asyncapi.yml` (or `openapi.yml`), packaged as a plain classpath resource. Services that
