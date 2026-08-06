@@ -5,10 +5,7 @@ independently publishable dependency. Replaces `domain-events`.
 
 **This repo is spec-only.** No code is generated or compiled here. Each module is a thin jar whose only
 content is its `asyncapi.yml` (or `openapi.yml`), packaged as a plain classpath resource. Services that
-depend on a module generate their own producer/consumer code from that bundled spec at their own build time,
-via the `zenwave-sdk-maven-plugin` centralized in `temporal-rift-bom`'s `pluginManagement` — see
-`temporal-rift-bom`'s README/pom for the plugin identity, and a consuming service's `pom.xml` for the
-per-spec `<execution>` (role, inputSpec, target packages). Nothing about codegen belongs in this repo.
+depend on a module generate their own producer/consumer code from that bundled spec at their own build time.
 
 ## Structure
 
@@ -67,7 +64,7 @@ exists ahead of the producer, same as it already did as a package in `domain-eve
    Faction:
      $ref: './shared/enums.yaml#/Faction'
    ```
-   This is a plain relative-path JSON Reference, resolved by ZenWave against the packaged jar's own
+   This is a plain relative-path JSON Reference, resolved against the packaged jar's own
    `asyncapi/` directory — not a `classpath:` reference into a separate dependency, which doesn't resolve
    (verified: it fails silently and the field falls back to an untyped `Object`). Adding a new shared enum
    means editing `shared-schemas/enums.yaml` once, not touching every module that uses it.
