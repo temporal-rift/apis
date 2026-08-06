@@ -44,8 +44,7 @@ a monolithic library of every event and REST API. For example, `game-service` co
 interface generation.
 
 `session-event`, `action-event`, and `scoring-event` publish to `game.events` (produced by `game-service`);
-`timeline-event` publishes to `timeline.events` (produced by `timeline-service`, not yet built — the contract
-exists ahead of the producer, same as it already did as a package in `domain-events`).
+`timeline-event` publishes to `timeline.events` (produced by `timeline-service`).
 
 ## Adding a new AsyncAPI contract module
 
