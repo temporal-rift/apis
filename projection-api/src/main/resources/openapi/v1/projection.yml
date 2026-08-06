@@ -5,7 +5,7 @@ info:
   version: 1.0.0
 
 servers:
-  - url: /api/v1
+  - url: /
 
 security:
   - bearerAuth: [ ]
@@ -14,7 +14,7 @@ tags:
   - name: Projection
 
 paths:
-  /games/{gameId}/state:
+  /api/v1/games/{gameId}/state:
     get:
       tags: [ Projection ]
       operationId: getGameState
@@ -190,7 +190,6 @@ components:
         lastRoundSummary:
           allOf:
             - $ref: '#/components/schemas/RoundSummary'
-          type: object
           nullable: true
           description: Deferred to a later slice.
 
