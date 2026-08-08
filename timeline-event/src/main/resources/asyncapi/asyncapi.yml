@@ -334,7 +334,7 @@ components:
 
     EraResolutionTerminalState:
       type: string
-      enum: [ OUTCOME_APPLIED, CASCADED ]
+      enum: [ OUTCOME_APPLIED, CASCADED, STALLED ]
 
     EraTerminalResolution:
       description: >-
@@ -355,6 +355,18 @@ components:
             eventId: { type: string, format: uuid }
             revealIndex: { type: integer, minimum: 0 }
             terminalState: { type: string, const: CASCADED }
+          required: [ eventId, revealIndex, terminalState ]
+          not:
+            required: [ winningOutcomeId ]
+        - type: object
+          description: >-
+            A STALL-delayed event, carried into the next era instead of resolving this era. Distinct from
+            CASCADED: an ordinary disruption card, not a paradox — consumers must not treat it as
+            paradox-collapse pressure.
+          properties:
+            eventId: { type: string, format: uuid }
+            revealIndex: { type: integer, minimum: 0 }
+            terminalState: { type: string, const: STALLED }
           required: [ eventId, revealIndex, terminalState ]
           not:
             required: [ winningOutcomeId ]
