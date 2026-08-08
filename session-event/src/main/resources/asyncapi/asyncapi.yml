@@ -521,25 +521,11 @@ components:
         outcomes:
           type: array
           items: { $ref: '#/components/schemas/EventsDrawnOutcome' }
-        isCascaded:
-          type: boolean
-          description: True only when this event carries forward from a paradox cascade.
         carryOverState:
           type: string
-          enum: [ CASCADED, STALLED ]
-          description: Present only for a carried-over event; distinguishes paradox cascades from ordinary stalls.
-      required: [ eventId, title, outcomes, isCascaded ]
-      allOf:
-        - oneOf:
-            - not: { required: [ carryOverState ] }
-            - properties:
-                isCascaded: { const: true }
-                carryOverState: { const: CASCADED }
-              required: [ carryOverState ]
-            - properties:
-                isCascaded: { const: false }
-                carryOverState: { const: STALLED }
-              required: [ carryOverState ]
+          enum: [ FRESH, CASCADED, STALLED ]
+          description: Whether the event was freshly drawn or carried forward from the preceding era.
+      required: [ eventId, title, outcomes, carryOverState ]
 
     EventsDrawnPayload:
       type: object
