@@ -90,15 +90,16 @@ components:
 
     ActiveEvent:
       type: object
-      required: [ eventId, title, isCascaded, outcomes ]
+      required: [ eventId, title, carryOverState, outcomes ]
       properties:
         eventId:
           type: string
           format: uuid
         title:
           type: string
-        isCascaded:
-          type: boolean
+        carryOverState:
+          type: string
+          enum: [ FRESH, CASCADED, STALLED ]
         outcomes:
           type: array
           items:
