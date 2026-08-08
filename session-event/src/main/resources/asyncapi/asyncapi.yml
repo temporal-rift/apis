@@ -529,6 +529,17 @@ components:
           enum: [ CASCADED, STALLED ]
           description: Present only for a carried-over event; distinguishes paradox cascades from ordinary stalls.
       required: [ eventId, title, outcomes, isCascaded ]
+      allOf:
+        - oneOf:
+            - not: { required: [ carryOverState ] }
+            - properties:
+                isCascaded: { const: true }
+                carryOverState: { const: CASCADED }
+              required: [ carryOverState ]
+            - properties:
+                isCascaded: { const: false }
+                carryOverState: { const: STALLED }
+              required: [ carryOverState ]
 
     EventsDrawnPayload:
       type: object
