@@ -22,11 +22,12 @@ class EraResolutionCompletedContractTest {
 
     @Test
     void asyncApiModelsMutuallyExclusiveTerminalStatesAndTheRevealOrderSource() throws IOException {
-        var specification = Files.readString(Path.of("src/main/resources/asyncapi/asyncapi.yml"));
+        var specification = String.join("\n", Files.readAllLines(Path.of("src/main/resources/asyncapi/asyncapi.yml")));
 
         assertTrue(specification.contains("oneOf:"));
         assertTrue(specification.contains("const: OUTCOME_APPLIED"));
         assertTrue(specification.contains("const: CASCADED"));
+        assertTrue(specification.contains("const: STALLED"));
         assertTrue(specification.contains("not:\n            required: [ winningOutcomeId ]"));
         assertTrue(specification.contains("EventsDrawn.events"));
         assertTrue(specification.contains("revealIndex"));
@@ -64,6 +65,27 @@ class EraResolutionCompletedContractTest {
         assertThrows(IllegalArgumentException.class, () -> verifyAgainstEventsDrawn(eventsDrawnOrder, terminalResolutions));
     }
 
+    @Test
+    void acceptsStalledAlongsideOutcomeAppliedAndCascaded() {
+        var eventsDrawnOrder = List.of(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID());
+        var terminalResolutions = List.of(
+                TerminalResolution.outcomeApplied(eventsDrawnOrder.getFirst(), 0),
+                TerminalResolution.stalled(eventsDrawnOrder.get(1), 1),
+                TerminalResolution.cascaded(eventsDrawnOrder.get(2), 2));
+
+        assertDoesNotThrow(() -> verifyAgainstEventsDrawn(eventsDrawnOrder, terminalResolutions));
+    }
+
+    @Test
+    void rejectsStalledWithAWinningOutcomeId() {
+        var eventId = UUID.randomUUID();
+        var eventsDrawnOrder = List.of(eventId);
+        var terminalResolutions =
+                List.of(new TerminalResolution(eventId, 0, TerminalState.STALLED, UUID.randomUUID()));
+
+        assertThrows(IllegalArgumentException.class, () -> verifyAgainstEventsDrawn(eventsDrawnOrder, terminalResolutions));
+    }
+
     private static void verifyAgainstEventsDrawn(
             List<UUID> eventsDrawnOrder, List<TerminalResolution> terminalResolutions) {
         if (eventsDrawnOrder.size() != terminalResolutions.size()) {
@@ -80,6 +102,9 @@ class EraResolutionCompletedContractTest {
             if (resolution.terminalState() == TerminalState.CASCADED && resolution.winningOutcomeId() != null) {
                 throw new IllegalArgumentException("CASCADED forbids winningOutcomeId");
             }
+            if (resolution.terminalState() == TerminalState.STALLED && resolution.winningOutcomeId() != null) {
+                throw new IllegalArgumentException("STALLED forbids winningOutcomeId");
+            }
         }
     }
 
@@ -94,10 +119,14 @@ class EraResolutionCompletedContractTest {
             return new TerminalResolution(eventId, revealIndex, TerminalState.CASCADED, null);
         }
 
+        static TerminalResolution stalled(UUID eventId, int revealIndex) {
+            return new TerminalResolution(eventId, revealIndex, TerminalState.STALLED, null);
+        }
     }
 
     private enum TerminalState {
         OUTCOME_APPLIED,
-        CASCADED
+        CASCADED,
+        STALLED
     }
 }
