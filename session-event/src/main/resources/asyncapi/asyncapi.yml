@@ -389,13 +389,13 @@ components:
       properties:
         gameId: { type: string, format: uuid }
         eraNumber: { type: integer }
-        cascadedEventIds:
+        carryOverEventIds:
           type: array
           items: { type: string, format: uuid }
         playerIds:
           type: array
           items: { type: string, format: uuid }
-      required: [ gameId, eraNumber, cascadedEventIds, playerIds ]
+      required: [ gameId, eraNumber, carryOverEventIds, playerIds ]
 
     EraEndedPayload:
       type: object
