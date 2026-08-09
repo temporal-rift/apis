@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
   title: Temporal Rift — Projection API
-  description: Per-player game state queries
-  version: 1.0.0
+  description: Per-player game state and shared game history queries
+  version: 1.1.0
 
 servers:
   - url: /
@@ -42,6 +42,37 @@ paths:
           description: |
             Game not found, or the requesting player is not a participant of the game (game existence is
             never disclosed to non-participants).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /api/v1/games/{gameId}/history:
+    get:
+      tags: [ Projection ]
+      operationId: getGameHistory
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Full era-by-era history of resolved outcomes and cascaded paradoxes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameHistoryResponse'
+        '401':
+          description: Missing, invalid, or expired bearer token
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: Game history not found
           content:
             application/problem+json:
               schema:
@@ -193,6 +224,68 @@ components:
             - $ref: '#/components/schemas/RoundSummary'
           nullable: true
           description: Deferred to a later slice.
+
+    ResolvedOutcome:
+      type: object
+      required: [ eventId, title, winningOutcomeId, winningOutcomeDescription ]
+      properties:
+        eventId:
+          type: string
+          format: uuid
+        title:
+          type: string
+          minLength: 1
+        winningOutcomeId:
+          type: string
+          format: uuid
+        winningOutcomeDescription:
+          type: string
+          minLength: 1
+
+    CascadedEvent:
+      type: object
+      required: [ eventId, title ]
+      properties:
+        eventId:
+          type: string
+          format: uuid
+        title:
+          type: string
+          minLength: 1
+
+    GameHistoryEra:
+      type: object
+      required: [ eraNumber, outcomes, paradoxesCascaded ]
+      properties:
+        eraNumber:
+          type: integer
+          minimum: 1
+        outcomes:
+          type: array
+          description: Resolved outcomes in the corresponding EventsDrawn reveal order.
+          items:
+            $ref: '#/components/schemas/ResolvedOutcome'
+        paradoxesCascaded:
+          type: integer
+          minimum: 0
+        cascadedEvents:
+          type: array
+          description: Cascaded events in reveal order; omitted when the era has no cascades.
+          items:
+            $ref: '#/components/schemas/CascadedEvent'
+
+    GameHistoryResponse:
+      type: object
+      required: [ gameId, eras ]
+      properties:
+        gameId:
+          type: string
+          format: uuid
+        eras:
+          type: array
+          description: Era histories ordered by ascending eraNumber.
+          items:
+            $ref: '#/components/schemas/GameHistoryEra'
 
     ProblemDetail:
       type: object
