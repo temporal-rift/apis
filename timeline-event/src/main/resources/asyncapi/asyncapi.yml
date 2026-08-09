@@ -366,6 +366,7 @@ components:
             the effect does not stack. Consumers apply their own scoring multiplier; this field is a fact,
             not a computed score.
           type: array
+          uniqueItems: true
           items: { type: string, format: uuid }
           default: [ ]
       required: [ gameId, eraNumber, paradoxId, affectedEventId, carryForwardProbabilityState ]
