@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Timeline events
-  version: 1.0.2
+  version: 1.0.5
   description: Timeline service domain events published to timeline.events
 
 servers:
@@ -39,6 +39,8 @@ channels:
         $ref: '#/components/messages/ChainCompleted'
       chainBroken:
         $ref: '#/components/messages/ChainBroken'
+      corruptInversionConfirmed:
+        $ref: '#/components/messages/CorruptInversionConfirmed'
 
 operations:
   publishResolutionStarted:
@@ -93,6 +95,10 @@ operations:
     action: send
     channel: { $ref: '#/channels/timelineEvents' }
     messages: [ { $ref: '#/channels/timelineEvents/messages/chainBroken' } ]
+  publishCorruptInversionConfirmed:
+    action: send
+    channel: { $ref: '#/channels/timelineEvents' }
+    messages: [ { $ref: '#/channels/timelineEvents/messages/corruptInversionConfirmed' } ]
 
 components:
   messages:
@@ -165,6 +171,16 @@ components:
       title: Chain broken
       headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
       payload: { $ref: '#/components/schemas/ChainBrokenPayload' }
+    CorruptInversionConfirmed:
+      name: CorruptInversionConfirmed
+      title: Corrupt inversion confirmed
+      description: >-
+        Confirms, once a round's priority-ordered resolution has run, whether a CORRUPT's inversion of its
+        correlated PUSH/SUPPRESS/SWING actually took effect (tookEffect true) or was voided by a same-round
+        SEAL on the correlated card's target outcome (tookEffect false). game-service's scoring module
+        consumes this to credit CORRUPTED_OPPONENT_CARD only when tookEffect is true.
+      headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
+      payload: { $ref: '#/components/schemas/CorruptInversionConfirmedPayload' }
 
   schemas:
     EventEnvelopeHeaders:
@@ -311,6 +327,15 @@ components:
         carryForwardProbabilityState:
           type: array
           items: { $ref: '#/components/schemas/ParadoxCascadedProbabilityState' }
+        detonatedByPlayerIds:
+          description: >-
+            Player ids whose DETONATE targeted this cascade (GDD "Group 4 — Paradox"). Empty when no DETONATE
+            was submitted for this event. Multiple DETONATEs on the same event collapse into this one set —
+            the effect does not stack. Consumers apply their own scoring multiplier; this field is a fact,
+            not a computed score.
+          type: array
+          items: { type: string, format: uuid }
+          default: [ ]
       required: [ gameId, eraNumber, paradoxId, affectedEventId, carryForwardProbabilityState ]
 
     OutcomeAppliedProbabilityState:
@@ -431,3 +456,16 @@ components:
         targetPlayerId: { type: string, format: uuid }
         chainLengthAtBreak: { type: integer }
       required: [ gameId, eraNumber, chainId, brokenByPlayerId, targetPlayerId, chainLengthAtBreak ]
+
+    CorruptInversionConfirmedPayload:
+      type: object
+      properties:
+        gameId: { type: string, format: uuid }
+        eraNumber: { type: integer }
+        roundNumber: { type: integer }
+        corruptingPlayerId: { type: string, format: uuid }
+        targetEventId: { type: string, format: uuid }
+        targetOutcomeId: { type: string, format: uuid }
+        tookEffect: { type: boolean }
+      required:
+        [ gameId, eraNumber, roundNumber, corruptingPlayerId, targetEventId, targetOutcomeId, tookEffect ]
