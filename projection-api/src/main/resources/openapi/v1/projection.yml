@@ -270,7 +270,9 @@ components:
           minimum: 0
         cascadedEvents:
           type: array
-          description: Cascaded events in reveal order; omitted when the era has no cascades.
+          description: >-
+            Present when paradoxesCascaded is greater than zero; omitted when it is zero. Entries are in reveal order.
+          minItems: 1
           items:
             $ref: '#/components/schemas/CascadedEvent'
 
