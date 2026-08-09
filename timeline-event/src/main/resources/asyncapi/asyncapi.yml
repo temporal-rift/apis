@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Timeline events
-  version: 1.0.5
+  version: 2.0.0
   description: Timeline service domain events published to timeline.events
 
 servers:
@@ -23,8 +23,6 @@ channels:
         $ref: '#/components/messages/ParadoxDetected'
       paradoxResolutionPhaseStarted:
         $ref: '#/components/messages/ParadoxResolutionPhaseStarted'
-      paradoxResolutionCardPlayed:
-        $ref: '#/components/messages/ParadoxResolutionCardPlayed'
       paradoxResolved:
         $ref: '#/components/messages/ParadoxResolved'
       paradoxCascaded:
@@ -67,10 +65,6 @@ operations:
     action: send
     channel: { $ref: '#/channels/timelineEvents' }
     messages: [ { $ref: '#/channels/timelineEvents/messages/paradoxResolutionPhaseStarted' } ]
-  publishParadoxResolutionCardPlayed:
-    action: send
-    channel: { $ref: '#/channels/timelineEvents' }
-    messages: [ { $ref: '#/channels/timelineEvents/messages/paradoxResolutionCardPlayed' } ]
   publishParadoxResolved:
     action: send
     channel: { $ref: '#/channels/timelineEvents' }
@@ -139,11 +133,6 @@ components:
       title: Paradox resolution phase started
       headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
       payload: { $ref: '#/components/schemas/ParadoxResolutionPhaseStartedPayload' }
-    ParadoxResolutionCardPlayed:
-      name: ParadoxResolutionCardPlayed
-      title: Paradox resolution card played
-      headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
-      payload: { $ref: '#/components/schemas/ParadoxResolutionCardPlayedPayload' }
     ParadoxResolved:
       name: ParadoxResolved
       title: Paradox resolved
@@ -317,21 +306,6 @@ components:
           items: { type: string, format: uuid }
         timerSeconds: { type: integer }
       required: [ gameId, eraNumber, paradoxIds, timerSeconds ]
-
-    CardType:
-      $ref: './shared/enums.yaml#/CardType'
-
-    ParadoxResolutionCardPlayedPayload:
-      type: object
-      properties:
-        gameId: { type: string, format: uuid }
-        eraNumber: { type: integer }
-        playerId: { type: string, format: uuid }
-        cardInstanceId: { type: string, format: uuid }
-        cardType: { $ref: '#/components/schemas/CardType' }
-        targetEventId: { type: string, format: uuid }
-        targetOutcomeId: { type: string, format: uuid }
-      required: [ gameId, eraNumber, playerId, cardInstanceId, cardType, targetEventId, targetOutcomeId ]
 
     ParadoxResolvedPayload:
       type: object
