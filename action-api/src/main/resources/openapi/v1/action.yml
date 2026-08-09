@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
   title: Temporal Rift — Action API
-  description: Action round submission endpoints
-  version: 1.0.0
+  description: Action round and paradox-resolution submission endpoints
+  version: 1.1.0
 
 servers:
   - url: /
@@ -123,6 +123,58 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
 
+  /api/v1/games/{gameId}/eras/{eraNumber}/paradox-resolution/actions:
+    post:
+      tags: [ Action ]
+      operationId: submitParadoxResolutionCard
+      description: |
+        Submits the authenticated player's single card for an open paradox-resolution phase. This phase is scoped to
+        the era rather than an action round, so the operation has no roundNumber. The server validates phase state,
+        card ownership and eligibility, target membership, and whether the player already submitted.
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eraNumber
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParadoxResolutionCardRequest'
+      responses:
+        '202':
+          description: Paradox-resolution card submitted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParadoxResolutionCardResponse'
+        '409':
+          description: |
+            Paradox-resolution phase is not open for the requested game and era (`code: 409-06`), or the player
+            already submitted during that phase (`code: 409-07`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
+          description: |
+            Validation error:
+            - Card not in hand (`code: 422-01`)
+            - Target event or outcome does not belong to the current game/era (`code: 422-06`)
+            - Card type is not eligible during paradox resolution (`code: 422-10`)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
   /api/v1/games/{gameId}/eras/{eraNumber}/rounds/{roundNumber}/status:
     get:
       tags: [ Action ]
@@ -302,6 +354,38 @@ components:
         status:
           type: string
           enum: [ DECLARED ]
+
+    ParadoxResolutionCardRequest:
+      type: object
+      required: [ cardInstanceId, targetEventId, targetOutcomeId ]
+      properties:
+        cardInstanceId:
+          type: string
+          format: uuid
+        targetEventId:
+          type: string
+          format: uuid
+          description: An event affected by the currently open paradox-resolution phase.
+        targetOutcomeId:
+          type: string
+          format: uuid
+          description: An outcome belonging to targetEventId; event-targeted cards may ignore it.
+
+    ParadoxResolutionCardResponse:
+      type: object
+      required: [ gameId, eraNumber, playerId, status ]
+      properties:
+        gameId:
+          type: string
+          format: uuid
+        eraNumber:
+          type: integer
+          minimum: 1
+        playerId:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/ActionSubmissionStatus'
 
     SubmitActionResponse:
       type: object

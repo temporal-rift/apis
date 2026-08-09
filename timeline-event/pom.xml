@@ -6,7 +6,7 @@
 
     <groupId>io.github.temporal-rift</groupId>
     <artifactId>timeline-event</artifactId>
-    <version>1.0.5</version>
+    <version>2.0.0</version>
     <packaging>jar</packaging>
 
     <properties>

@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Action events
-  version: 1.0.3
+  version: 1.1.0
   description: Action module domain events published to game.events
 
 servers:
@@ -17,6 +17,8 @@ channels:
         $ref: '#/components/messages/ActionRoundStarted'
       cardPlayed:
         $ref: '#/components/messages/CardPlayed'
+      paradoxResolutionCardPlayed:
+        $ref: '#/components/messages/ParadoxResolutionCardPlayed'
       specialActionPlayed:
         $ref: '#/components/messages/SpecialActionPlayed'
       actionRoundTimerExpired:
@@ -45,6 +47,10 @@ operations:
     action: send
     channel: { $ref: '#/channels/gameEvents' }
     messages: [ { $ref: '#/channels/gameEvents/messages/cardPlayed' } ]
+  publishParadoxResolutionCardPlayed:
+    action: send
+    channel: { $ref: '#/channels/gameEvents' }
+    messages: [ { $ref: '#/channels/gameEvents/messages/paradoxResolutionCardPlayed' } ]
   publishSpecialActionPlayed:
     action: send
     channel: { $ref: '#/channels/gameEvents' }
@@ -94,6 +100,12 @@ components:
       title: Card played
       headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
       payload: { $ref: '#/components/schemas/CardPlayedPayload' }
+    ParadoxResolutionCardPlayed:
+      name: ParadoxResolutionCardPlayed
+      title: Paradox resolution card played
+      description: Private fact recording one player's card submission during an open paradox-resolution phase.
+      headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
+      payload: { $ref: '#/components/schemas/ParadoxResolutionCardPlayedPayload' }
     SpecialActionPlayed:
       name: SpecialActionPlayed
       title: Special action played
@@ -169,6 +181,18 @@ components:
         sourceOutcomeId: { type: string, format: uuid }
         targetOutcomeId: { type: string, format: uuid }
       required: [ gameId, eraNumber, roundNumber, playerId, cardInstanceId, cardType, targetEventId ]
+
+    ParadoxResolutionCardPlayedPayload:
+      type: object
+      properties:
+        gameId: { type: string, format: uuid }
+        eraNumber: { type: integer }
+        playerId: { type: string, format: uuid }
+        cardInstanceId: { type: string, format: uuid }
+        cardType: { $ref: '#/components/schemas/CardType' }
+        targetEventId: { type: string, format: uuid }
+        targetOutcomeId: { type: string, format: uuid }
+      required: [ gameId, eraNumber, playerId, cardInstanceId, cardType, targetEventId, targetOutcomeId ]
 
     SpecialActionPlayedPayload:
       type: object
