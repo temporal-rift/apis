@@ -96,6 +96,17 @@ paths:
           description: |
             Lobby not found (`code: 404-01`) or player not in the lobby (`code: 404-03`).
           content:
+            # Declared alongside application/problem+json (not just there) because codegen
+            # synthesizes this operation's produces clause as the union of every response's
+            # declared media types, and this is the only response on this operation with any
+            # content at all — the 204 above correctly declares none. Every other operation in
+            # this spec avoids the same trap incidentally, because its success response already
+            # declares application/json. Omitting it here previously left produces restricted to
+            # application/problem+json only, so any client sending a plain Accept: application/json
+            # — the normal case — got a 406 before the real response was ever computed.
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
