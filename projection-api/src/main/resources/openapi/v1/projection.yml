@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Temporal Rift — Projection API
   description: Per-player game state and shared game history queries
-  version: 1.1.0
+  version: 1.2.0
 
 servers:
   - url: /
@@ -225,6 +225,18 @@ components:
           nullable: true
           description: Deferred to a later slice.
 
+    DealtHandCard:
+      type: object
+      required: [ cardInstanceId, cardType, grade ]
+      properties:
+        cardInstanceId:
+          type: string
+          format: uuid
+        cardType:
+          type: string
+        grade:
+          type: string
+
     ResolvedOutcome:
       type: object
       required: [ eventId, title, winningOutcomeId, winningOutcomeDescription ]
@@ -255,7 +267,7 @@ components:
 
     GameHistoryEra:
       type: object
-      required: [ eraNumber, outcomes, paradoxesCascaded ]
+      required: [ eraNumber, outcomes, paradoxesCascaded, myHand ]
       properties:
         eraNumber:
           type: integer
@@ -275,6 +287,13 @@ components:
           minItems: 1
           items:
             $ref: '#/components/schemas/CascadedEvent'
+        myHand:
+          type: array
+          description: >-
+            Cards dealt to the authenticated caller for this era. Always present; empty when the caller has no
+            recorded hand for the era. Never contains another player's cards.
+          items:
+            $ref: '#/components/schemas/DealtHandCard'
 
     GameHistoryResponse:
       type: object
