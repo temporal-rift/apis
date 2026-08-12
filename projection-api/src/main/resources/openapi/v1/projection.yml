@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Temporal Rift — Projection API
   description: Per-player game state and shared game history queries
-  version: 1.2.0
+  version: 1.3.0
 
 servers:
   - url: /
@@ -227,14 +227,12 @@ components:
 
     DealtHandCard:
       type: object
-      required: [ cardInstanceId, cardType, grade ]
+      required: [ cardInstanceId, cardType ]
       properties:
         cardInstanceId:
           type: string
           format: uuid
         cardType:
-          type: string
-        grade:
           type: string
 
     ResolvedOutcome:
