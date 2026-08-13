@@ -248,7 +248,7 @@ components:
         actionCategory: { type: string }
         actionFamily: { type: string }
         skipped: { type: boolean }
-      required: [ playerId, actionCategory, actionFamily, skipped ]
+      required: [ playerId, skipped ]
 
     RoundSummaryPublishedPayload:
       type: object
