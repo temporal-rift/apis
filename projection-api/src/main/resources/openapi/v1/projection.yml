@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Temporal Rift — Projection API
   description: Per-player game state and shared game history queries
-  version: 1.3.0
+  version: 1.5.0
 
 servers:
   - url: /
@@ -101,13 +101,15 @@ components:
 
     HandCard:
       type: object
-      required: [ cardInstanceId, cardType ]
+      required: [ cardInstanceId, cardType, grade ]
       properties:
         cardInstanceId:
           type: string
           format: uuid
         cardType:
           type: string
+        grade:
+          $ref: '#/components/schemas/CardGrade'
 
     EventOutcome:
       type: object
@@ -199,6 +201,8 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/HandCard'
+        pendingHandSelection:
+          $ref: '#/components/schemas/PendingHandSelection'
         myScore:
           type: integer
         mySpecialActions:
@@ -227,13 +231,40 @@ components:
 
     DealtHandCard:
       type: object
-      required: [ cardInstanceId, cardType ]
+      required: [ cardInstanceId, cardType, grade, dealSlot ]
       properties:
         cardInstanceId:
           type: string
           format: uuid
         cardType:
           type: string
+        grade:
+          $ref: '#/components/schemas/CardGrade'
+        dealSlot:
+          type: integer
+          minimum: 1
+          maximum: 7
+
+    PendingHandSelection:
+      type: object
+      required: [ cards, requiredSelectionCount, expiresAt ]
+      properties:
+        cards:
+          type: array
+          description: The authenticated player's private pending deal, ordered by dealSlot.
+          minItems: 7
+          maxItems: 7
+          items:
+            $ref: '#/components/schemas/DealtHandCard'
+        requiredSelectionCount:
+          type: integer
+          enum: [ 5 ]
+        expiresAt:
+          type: string
+          format: date-time
+
+    CardGrade:
+      $ref: '../shared/enums.yaml#/CardGrade'
 
     ResolvedOutcome:
       type: object
