@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Session events
-  version: 1.0.0
+  version: 1.1.0
   description: Session module domain events published to game.events
 
 servers:
@@ -59,6 +59,8 @@ channels:
         $ref: '#/components/messages/EventsDrawn'
       handDealt:
         $ref: '#/components/messages/HandDealt'
+      handSelected:
+        $ref: '#/components/messages/HandSelected'
       resolutionStarted:
         $ref: '#/components/messages/ResolutionStarted'
 
@@ -155,6 +157,10 @@ operations:
     action: send
     channel: { $ref: '#/channels/gameEvents' }
     messages: [ { $ref: '#/channels/gameEvents/messages/handDealt' } ]
+  publishHandSelected:
+    action: send
+    channel: { $ref: '#/channels/gameEvents' }
+    messages: [ { $ref: '#/channels/gameEvents/messages/handSelected' } ]
   publishResolutionStarted:
     action: send
     channel: { $ref: '#/channels/gameEvents' }
@@ -277,6 +283,11 @@ components:
       title: Hand dealt
       headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
       payload: { $ref: '#/components/schemas/HandDealtPayload' }
+    HandSelected:
+      name: HandSelected
+      title: Hand selected
+      headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
+      payload: { $ref: '#/components/schemas/HandSelectedPayload' }
     ResolutionStarted:
       name: ResolutionStarted
       title: Resolution started
@@ -543,7 +554,8 @@ components:
         cardInstanceId: { type: string, format: uuid }
         cardType: { $ref: '#/components/schemas/CardType' }
         grade: { $ref: '#/components/schemas/CardGrade' }
-      required: [ cardInstanceId, cardType, grade ]
+        dealSlot: { type: integer, minimum: 1, maximum: 7 }
+      required: [ cardInstanceId, cardType, grade, dealSlot ]
 
     HandDealtPayload:
       type: object
@@ -551,10 +563,31 @@ components:
         gameId: { type: string, format: uuid }
         eraNumber: { type: integer }
         playerId: { type: string, format: uuid }
+        selectionExpiresAt: { type: string, format: date-time }
         cards:
           type: array
+          minItems: 7
+          maxItems: 7
           items: { $ref: '#/components/schemas/HandDealtCardInstance' }
-      required: [ gameId, eraNumber, playerId, cards ]
+      required: [ gameId, eraNumber, playerId, selectionExpiresAt, cards ]
+
+    HandSelectionOrigin:
+      type: string
+      enum: [ PLAYER, TIMEOUT_RANDOM ]
+
+    HandSelectedPayload:
+      type: object
+      properties:
+        gameId: { type: string, format: uuid }
+        eraNumber: { type: integer }
+        playerId: { type: string, format: uuid }
+        selectionOrigin: { $ref: '#/components/schemas/HandSelectionOrigin' }
+        cards:
+          type: array
+          minItems: 5
+          maxItems: 5
+          items: { $ref: '#/components/schemas/HandDealtCardInstance' }
+      required: [ gameId, eraNumber, playerId, selectionOrigin, cards ]
 
     ResolutionStartedPayload:
       type: object
