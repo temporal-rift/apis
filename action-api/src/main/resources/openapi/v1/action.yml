@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Temporal Rift — Action API
   description: Action round and paradox-resolution submission endpoints
-  version: 1.1.0
+  version: 1.2.0
 
 servers:
   - url: /
@@ -14,6 +14,57 @@ tags:
   - name: Action
 
 paths:
+  /api/v1/games/{gameId}/eras/{eraNumber}/hand-selection:
+    post:
+      tags: [ Action ]
+      operationId: selectHand
+      description: |
+        Selects the five cards that become the authenticated player's playable hand from that player's open,
+        seven-card current-era deal. The selection window is established by the private HandDealt event and ends at
+        its selectionExpiresAt timestamp.
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eraNumber
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HandSelectionRequest'
+      responses:
+        '202':
+          description: Hand selection accepted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HandSelectionResponse'
+        '409':
+          description: |
+            The hand-selection window is not open or has expired (`code: 409-08`), or the player's hand selection
+            was already resolved (`code: 409-09`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
+          description: |
+            Invalid selection: one or more identifiers do not belong to the authenticated player's open seven-card
+            deal (`code: 422-11`). The request schema requires exactly five distinct identifiers.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
   /api/v1/games/{gameId}/eras/{eraNumber}/declarations:
     post:
       tags: [ Action ]
@@ -253,6 +304,40 @@ components:
     RoundStatus:
       type: string
       enum: [ OPEN, CLOSED ]
+
+    HandSelectionStatus:
+      type: string
+      enum: [ SELECTED ]
+
+    HandSelectionRequest:
+      type: object
+      required: [ keptCardInstanceIds ]
+      properties:
+        keptCardInstanceIds:
+          type: array
+          description: Exactly five distinct cards from the authenticated player's pending seven-card deal.
+          minItems: 5
+          maxItems: 5
+          uniqueItems: true
+          items:
+            type: string
+            format: uuid
+
+    HandSelectionResponse:
+      type: object
+      required: [ gameId, eraNumber, playerId, status ]
+      properties:
+        gameId:
+          type: string
+          format: uuid
+        eraNumber:
+          type: integer
+          minimum: 1
+        playerId:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/HandSelectionStatus'
 
     SubmitActionRequest:
       type: object
