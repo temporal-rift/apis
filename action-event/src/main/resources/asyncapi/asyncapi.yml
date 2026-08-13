@@ -177,10 +177,11 @@ components:
         playerId: { type: string, format: uuid }
         cardInstanceId: { type: string, format: uuid }
         cardType: { $ref: '#/components/schemas/CardType' }
+        grade: { $ref: '#/components/schemas/CardGrade' }
         targetEventId: { type: string, format: uuid }
         sourceOutcomeId: { type: string, format: uuid }
         targetOutcomeId: { type: string, format: uuid }
-      required: [ gameId, eraNumber, roundNumber, playerId, cardInstanceId, cardType, targetEventId ]
+      required: [ gameId, eraNumber, roundNumber, playerId, cardInstanceId, cardType, grade, targetEventId ]
 
     ParadoxResolutionCardPlayedPayload:
       type: object
@@ -190,9 +191,10 @@ components:
         playerId: { type: string, format: uuid }
         cardInstanceId: { type: string, format: uuid }
         cardType: { $ref: '#/components/schemas/CardType' }
+        grade: { $ref: '#/components/schemas/CardGrade' }
         targetEventId: { type: string, format: uuid }
         targetOutcomeId: { type: string, format: uuid }
-      required: [ gameId, eraNumber, playerId, cardInstanceId, cardType, targetEventId, targetOutcomeId ]
+      required: [ gameId, eraNumber, playerId, cardInstanceId, cardType, grade, targetEventId, targetOutcomeId ]
 
     SpecialActionPlayedPayload:
       type: object
@@ -337,6 +339,9 @@ components:
 
     CardType:
       $ref: './shared/enums.yaml#/CardType'
+
+    CardGrade:
+      $ref: './shared/enums.yaml#/CardGrade'
 
     Faction:
       $ref: './shared/enums.yaml#/Faction'

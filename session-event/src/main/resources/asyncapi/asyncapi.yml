@@ -542,7 +542,8 @@ components:
       properties:
         cardInstanceId: { type: string, format: uuid }
         cardType: { $ref: '#/components/schemas/CardType' }
-      required: [ cardInstanceId, cardType ]
+        grade: { $ref: '#/components/schemas/CardGrade' }
+      required: [ cardInstanceId, cardType, grade ]
 
     HandDealtPayload:
       type: object
@@ -567,3 +568,6 @@ components:
 
     CardType:
       $ref: './shared/enums.yaml#/CardType'
+
+    CardGrade:
+      $ref: './shared/enums.yaml#/CardGrade'
