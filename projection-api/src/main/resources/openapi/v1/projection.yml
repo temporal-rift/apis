@@ -101,7 +101,7 @@ components:
 
     HandCard:
       type: object
-      required: [ cardInstanceId, cardType, grade ]
+      required: [ cardInstanceId, cardType, grade, isPlayableThisRound ]
       properties:
         cardInstanceId:
           type: string
@@ -110,6 +110,12 @@ components:
           type: string
         grade:
           $ref: '#/components/schemas/CardGrade'
+        isPlayableThisRound:
+          type: boolean
+          description: >-
+            Whether this card can be played in the current round. Scoped to the current round only — it can change
+            as rounds advance without a new HandDealt event. Advisory only: the authoritative check is
+            game-service's rejection of the submission.
 
     EventOutcome:
       type: object
