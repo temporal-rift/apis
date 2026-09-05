@@ -170,6 +170,9 @@ components:
 
     CardPlayedPayload:
       type: object
+      description: >-
+        Exactly one of targetEventId / targetPlayerId is present, determined by cardType. NULLIFY, REDIRECT,
+        AMPLIFY, JAM and INTERCEPT target a player; every other card targets an event.
       properties:
         gameId: { type: string, format: uuid }
         eraNumber: { type: integer }
@@ -179,9 +182,17 @@ components:
         cardType: { $ref: '#/components/schemas/CardType' }
         grade: { $ref: '#/components/schemas/CardGrade' }
         targetEventId: { type: string, format: uuid }
+        targetPlayerId: { type: string, format: uuid }
         sourceOutcomeId: { type: string, format: uuid }
         targetOutcomeId: { type: string, format: uuid }
-      required: [ gameId, eraNumber, roundNumber, playerId, cardInstanceId, cardType, grade, targetEventId ]
+      required: [ gameId, eraNumber, roundNumber, playerId, cardInstanceId, cardType, grade ]
+      oneOf:
+        - required: [ targetEventId ]
+          not:
+            required: [ targetPlayerId ]
+        - required: [ targetPlayerId ]
+          not:
+            required: [ targetEventId ]
 
     ParadoxResolutionCardPlayedPayload:
       type: object
