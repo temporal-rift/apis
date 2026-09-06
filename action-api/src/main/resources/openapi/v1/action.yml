@@ -381,30 +381,42 @@ components:
                 Required for player-targeting card types (NULLIFY, REDIRECT, AMPLIFY, JAM, INTERCEPT); must be
                 omitted for every other card type. Must name a participant in the game other than the submitting
                 player.
+          oneOf:
+            - required: [ targetEventId ]
+              not:
+                required: [ targetPlayerId ]
+            - required: [ targetPlayerId ]
+              not:
+                required: [ targetEventId ]
 
     SpecialActionRequest:
       allOf:
         - $ref: '#/components/schemas/SubmitActionRequest'
         - type: object
-          required: [ specialAction, targetEventId, targetOutcomeId ]
+          required: [ specialAction ]
           properties:
             specialAction:
               $ref: '#/components/schemas/SpecialAction'
               description: |
                 Rally and Momentum are accepted only by the declaration endpoint during the pre-Round-1 declaration
-                window. Expose is valid only in Round 2 and requires targetPlayerId to identify a player with a
-                qualifying Round-1 probability-influence signature. The generic action request still requires
-                targetEventId and targetOutcomeId for Expose, but Expose ignores those values and targets only the
-                named player.
+                window. Corrupt and Expose are player-targeting: both require targetPlayerId and must omit
+                targetEventId. Expose is additionally valid only in Round 2, and targetPlayerId must identify a
+                player with a qualifying Round-1 probability-influence signature. Every other special action
+                requires targetEventId and targetOutcomeId and must omit targetPlayerId.
             targetEventId:
               type: string
               format: uuid
+              description: Required for event-targeting special actions; must be omitted for Corrupt and Expose.
             targetOutcomeId:
               type: string
               format: uuid
+              description: Required for event-targeting special actions; ignored if present for Corrupt or Expose.
             targetPlayerId:
               type: string
               format: uuid
+              description: >-
+                Required for player-targeting special actions (Corrupt, Expose); must be omitted for every other
+                special action.
 
     ActivistDeclarationMode:
       type: string
