@@ -355,7 +355,7 @@ components:
       allOf:
         - $ref: '#/components/schemas/SubmitActionRequest'
         - type: object
-          required: [ cardInstanceId, targetEventId, targetOutcomeId ]
+          required: [ cardInstanceId ]
           properties:
             cardInstanceId:
               type: string
@@ -363,6 +363,9 @@ components:
             targetEventId:
               type: string
               format: uuid
+              description: >-
+                Required for event-targeting card types; must be omitted for player-targeting types (NULLIFY,
+                REDIRECT, AMPLIFY, JAM, INTERCEPT).
             sourceOutcomeId:
               type: string
               format: uuid
@@ -370,7 +373,14 @@ components:
             targetOutcomeId:
               type: string
               format: uuid
-              description: Required for card submissions and, for SWING, must differ from sourceOutcomeId.
+              description: Required for event-targeting card submissions, and for SWING must differ from sourceOutcomeId.
+            targetPlayerId:
+              type: string
+              format: uuid
+              description: >-
+                Required for player-targeting card types (NULLIFY, REDIRECT, AMPLIFY, JAM, INTERCEPT); must be
+                omitted for every other card type. Must name a participant in the game other than the submitting
+                player.
 
     SpecialActionRequest:
       allOf:
