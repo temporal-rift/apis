@@ -31,9 +31,12 @@ class CardActionRequestTargetingContractTest {
         assertTrue(specification.contains("required: [ targetPlayerId ]"));
         assertTrue(specification.contains("not:\n                required: [ targetPlayerId ]"));
         assertTrue(specification.contains(
-                "not:\n                anyOf:\n                  - required: [ targetEventId ]\n"
-                        + "                  - required: [ sourceOutcomeId ]\n"
-                        + "                  - required: [ targetOutcomeId ]"));
+                """
+                not:
+                                anyOf:
+                                  - required: [ targetEventId ]
+                                  - required: [ sourceOutcomeId ]
+                                  - required: [ targetOutcomeId ]"""));
     }
 
     @Test
