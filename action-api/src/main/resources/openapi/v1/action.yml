@@ -369,14 +369,16 @@ components:
             sourceOutcomeId:
               type: string
               format: uuid
-              description: Required when the submitted card resolves as SWING and must differ from targetOutcomeId.
+              description: >-
+                Required when the submitted card resolves as SWING and must differ from targetOutcomeId; must be
+                omitted for player-targeting card types (NULLIFY, REDIRECT, AMPLIFY, JAM, INTERCEPT).
             targetOutcomeId:
               type: string
               format: uuid
               description: >-
-                Required for event-targeting card submissions, and for SWING must differ from sourceOutcomeId.
-                Not applicable for player-targeting card types (NULLIFY, REDIRECT, AMPLIFY, JAM, INTERCEPT); if
-                present, it is ignored rather than rejected, matching how those types ignore sourceOutcomeId too.
+                Required for event-targeting card submissions, and for SWING must differ from sourceOutcomeId;
+                must be omitted for player-targeting card types (NULLIFY, REDIRECT, AMPLIFY, JAM, INTERCEPT) — it
+                only identifies an outcome of a targeted event, which those types don't have.
             targetPlayerId:
               type: string
               format: uuid
@@ -390,7 +392,10 @@ components:
                 required: [ targetPlayerId ]
             - required: [ targetPlayerId ]
               not:
-                required: [ targetEventId ]
+                anyOf:
+                  - required: [ targetEventId ]
+                  - required: [ sourceOutcomeId ]
+                  - required: [ targetOutcomeId ]
 
     SpecialActionRequest:
       allOf:
@@ -403,9 +408,10 @@ components:
               description: |
                 Rally and Momentum are accepted only by the declaration endpoint during the pre-Round-1 declaration
                 window. Corrupt and Expose are player-targeting: both require targetPlayerId and must omit
-                targetEventId. Expose is additionally valid only in Round 2, and targetPlayerId must identify a
-                player with a qualifying Round-1 probability-influence signature. Every other special action
-                requires targetEventId and targetOutcomeId and must omit targetPlayerId.
+                targetEventId and targetOutcomeId. Expose is additionally valid only in Round 2, and
+                targetPlayerId must identify a player with a qualifying Round-1 probability-influence signature.
+                Every other special action requires targetEventId and targetOutcomeId and must omit
+                targetPlayerId.
             targetEventId:
               type: string
               format: uuid
@@ -413,7 +419,7 @@ components:
             targetOutcomeId:
               type: string
               format: uuid
-              description: Required for event-targeting special actions; ignored if present for Corrupt or Expose.
+              description: Required for event-targeting special actions; must be omitted for Corrupt and Expose.
             targetPlayerId:
               type: string
               format: uuid
