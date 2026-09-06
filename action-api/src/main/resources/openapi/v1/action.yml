@@ -373,7 +373,10 @@ components:
             targetOutcomeId:
               type: string
               format: uuid
-              description: Required for event-targeting card submissions, and for SWING must differ from sourceOutcomeId.
+              description: >-
+                Required for event-targeting card submissions, and for SWING must differ from sourceOutcomeId.
+                Not applicable for player-targeting card types (NULLIFY, REDIRECT, AMPLIFY, JAM, INTERCEPT); if
+                present, it is ignored rather than rejected, matching how those types ignore sourceOutcomeId too.
             targetPlayerId:
               type: string
               format: uuid
