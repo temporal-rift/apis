@@ -9,6 +9,19 @@
     <version>2.4.0</version>
     <packaging>jar</packaging>
 
+    <properties>
+        <maven.compiler.release>26</maven.compiler.release>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>5.11.4</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
     <name>Temporal Rift Action API</name>
     <description>OpenAPI contract for game-service's action module REST endpoints.</description>
 
