@@ -187,8 +187,7 @@ components:
       title: Resolution failed
       description: >-
         A FutureEvent's outcome probabilities did not sum to 100 after a round's priority-ordered actions
-        were applied (sagas.md Resolution Saga compensation table) — a programming-error class of bug, not
-        an expected runtime path. game-service's EraSaga consumes this to publish its own EraFailed
+        were applied — a programming-error class of bug, not an expected runtime path. game-service's EraSaga consumes this to publish its own EraFailed
         (reason "resolution-failed") and trigger GameEndedAbnormally; timeline-service does not publish
         either of those itself, since both belong to session-event's contract.
       headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
