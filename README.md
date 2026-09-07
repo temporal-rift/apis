@@ -52,9 +52,7 @@ version:
 | Backward-compatible addition | Minor (`x.y+1.0`) | Add an optional field, endpoint, or event |
 | Backward-incompatible change | Major (`x+1.0.0`) | Remove or rename a field/event, change type or requiredness incompatibly, or alter existing semantics incompatibly |
 
-Do not use a minor version for a patch fix or for a breaking change. A major release must be accompanied by coordinated
-downstream migration issues. After any compatible release is published, update every existing consumer declaration in
-the workspace to the new version.
+Choose the increment based on the compatibility of the change with consumers of the previously published version.
 
 `session-event`, `action-event`, and `scoring-event` publish to the `game.events` topic; `timeline-event`
 publishes to `timeline.events`.
