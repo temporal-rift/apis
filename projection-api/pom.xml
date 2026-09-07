@@ -6,8 +6,21 @@
 
     <groupId>io.github.temporal-rift</groupId>
     <artifactId>projection-api</artifactId>
-    <version>2.7.1</version>
+    <version>2.7.2</version>
     <packaging>jar</packaging>
+
+    <properties>
+        <maven.compiler.release>26</maven.compiler.release>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>5.11.4</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
 
     <name>Temporal Rift Projection API</name>
     <description>OpenAPI contract for read-service's projection module REST endpoints.</description>
