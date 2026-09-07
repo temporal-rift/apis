@@ -214,7 +214,9 @@ components:
         mySpecialActions:
           type: array
           nullable: true
-          description: Deferred to a later slice.
+          description: >-
+            The authenticated player's static set of three faction special actions. Null until a faction is assigned;
+            availability is governed by game-service rules and is not represented here.
           items:
             type: string
         myJammedUntilRound:
@@ -241,7 +243,7 @@ components:
           allOf:
             - $ref: '#/components/schemas/RoundSummary'
           nullable: true
-          description: Deferred to a later slice.
+          description: The most recently completed action round summary, or null before the first round closes.
 
     DealtHandCard:
       type: object
