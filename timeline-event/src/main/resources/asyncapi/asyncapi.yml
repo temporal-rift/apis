@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Timeline events
-  version: 2.0.0
+  version: 2.1.0
   description: Timeline service domain events published to timeline.events
 
 servers:
@@ -17,6 +17,8 @@ channels:
         $ref: '#/components/messages/ResolutionStarted'
       probabilityStateCalculated:
         $ref: '#/components/messages/ProbabilityStateCalculated'
+      probabilityStateRevealed:
+        $ref: '#/components/messages/ProbabilityStateRevealed'
       bandedProbabilityPublished:
         $ref: '#/components/messages/BandedProbabilityPublished'
       paradoxDetected:
@@ -53,6 +55,10 @@ operations:
     action: send
     channel: { $ref: '#/channels/timelineEvents' }
     messages: [ { $ref: '#/channels/timelineEvents/messages/probabilityStateCalculated' } ]
+  publishProbabilityStateRevealed:
+    action: send
+    channel: { $ref: '#/channels/timelineEvents' }
+    messages: [ { $ref: '#/channels/timelineEvents/messages/probabilityStateRevealed' } ]
   publishBandedProbabilityPublished:
     action: send
     channel: { $ref: '#/channels/timelineEvents' }
@@ -118,6 +124,15 @@ components:
       title: Probability state calculated
       headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
       payload: { $ref: '#/components/schemas/ProbabilityStateCalculatedPayload' }
+    ProbabilityStateRevealed:
+      name: ProbabilityStateRevealed
+      title: Probability state revealed
+      description: >-
+        Private per-player reveal of the exact probability state bought with SCAN. The playerId payload field identifies
+        the viewer who receives this message, not the player who caused the reveal. One message is emitted per scanned
+        event; the message is never broadcast.
+      headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
+      payload: { $ref: '#/components/schemas/ProbabilityStateRevealedPayload' }
     BandedProbabilityPublished:
       name: BandedProbabilityPublished
       title: Banded probability published
@@ -240,6 +255,28 @@ components:
           type: array
           items: { $ref: '#/components/schemas/ProbabilityStateCalculatedEventState' }
       required: [ gameId, eraNumber, eventStates ]
+
+    ProbabilityStateRevealedOutcomeState:
+      type: object
+      properties:
+        outcomeId: { type: string, format: uuid }
+        probability: { type: integer }
+        isAnnihilated: { type: boolean }
+        isSealed: { type: boolean }
+      required: [ outcomeId, probability, isAnnihilated, isSealed ]
+
+    ProbabilityStateRevealedPayload:
+      type: object
+      properties:
+        gameId: { type: string, format: uuid }
+        eraNumber: { type: integer }
+        roundNumber: { type: integer }
+        playerId: { type: string, format: uuid }
+        eventId: { type: string, format: uuid }
+        outcomes:
+          type: array
+          items: { $ref: '#/components/schemas/ProbabilityStateRevealedOutcomeState' }
+      required: [ gameId, eraNumber, roundNumber, playerId, eventId, outcomes ]
 
     ProbabilityBand:
       $ref: './shared/enums.yaml#/ProbabilityBand'
