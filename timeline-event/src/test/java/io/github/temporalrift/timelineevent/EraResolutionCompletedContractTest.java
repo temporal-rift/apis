@@ -34,6 +34,17 @@ class EraResolutionCompletedContractTest {
     }
 
     @Test
+    void modelsPrivateProbabilityRevealsAsOneMessagePerScannedEvent() throws IOException {
+        var specification = String.join("\n", Files.readAllLines(Path.of("src/main/resources/asyncapi/asyncapi.yml")));
+
+        assertTrue(specification.contains("ProbabilityStateRevealed"));
+        assertTrue(specification.contains("roundNumber, playerId, eventId, outcomes"));
+        assertTrue(specification.contains("ProbabilityStateRevealedOutcomeState"));
+        assertTrue(specification.contains("isAnnihilated, isSealed"));
+        assertTrue(specification.contains("One message is emitted per scanned"));
+    }
+
+    @Test
     void acceptsTerminalEntriesInTheirSourceRevealOrder() {
         var eventsDrawnOrder = List.of(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID());
         var terminalResolutions = List.of(

@@ -221,6 +221,14 @@ components:
           type: integer
           nullable: true
           description: Deferred to a later slice.
+        myRevealedIntel:
+          type: array
+          nullable: true
+          description: >-
+            Exact information this player has bought with Information cards in the current era. Empty when none;
+            entries are refreshed or replaced according to the reveal event that produced them.
+          items:
+            $ref: '#/components/schemas/RevealedIntel'
         activeEvents:
           type: array
           items:
@@ -268,6 +276,62 @@ components:
         expiresAt:
           type: string
           format: date-time
+
+    RevealedIntel:
+      type: object
+      required: [ kind, observedInRound, eventId ]
+      properties:
+        kind:
+          type: string
+          enum: [ PROBABILITY, INFLUENCE, HAND_CARD ]
+        observedInRound:
+          type: integer
+          minimum: 1
+        eventId:
+          type: string
+          format: uuid
+        outcomes:
+          type: array
+          items:
+            $ref: '#/components/schemas/RevealedProbabilityOutcome'
+        influencerPlayerIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        targetPlayerId:
+          type: string
+          format: uuid
+        revealedCards:
+          type: array
+          items:
+            $ref: '#/components/schemas/RevealedHandCard'
+
+    RevealedProbabilityOutcome:
+      type: object
+      required: [ outcomeId, probability, isAnnihilated, isSealed ]
+      properties:
+        outcomeId:
+          type: string
+          format: uuid
+        probability:
+          type: integer
+        isAnnihilated:
+          type: boolean
+        isSealed:
+          type: boolean
+
+    RevealedHandCard:
+      type: object
+      required: [ cardInstanceId, cardType, grade ]
+      properties:
+        cardInstanceId:
+          type: string
+          format: uuid
+        cardType:
+          type: string
+        grade:
+          $ref: '#/components/schemas/CardGrade'
 
     CardGrade:
       $ref: '../shared/enums.yaml#/CardGrade'

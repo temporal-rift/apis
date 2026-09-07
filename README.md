@@ -41,6 +41,21 @@ generate.
 Each module publishes as `io.github.temporal-rift:{module-name}`. A consumer depends on only the contracts it
 needs, not a monolithic library of every event and REST API.
 
+## Contract versioning
+
+Each `*-api` and `*-event` module uses Semantic Versioning independently, relative to its previously published
+version:
+
+| Change | Version increment | Examples |
+|---|---:|---|
+| Backward-compatible bug fix or documentation-only correction | Patch (`x.y.z+1`) | Correct a schema description without changing the generated contract shape |
+| Backward-compatible addition | Minor (`x.y+1.0`) | Add an optional field, endpoint, or event |
+| Backward-incompatible change | Major (`x+1.0.0`) | Remove or rename a field/event, change type or requiredness incompatibly, or alter existing semantics incompatibly |
+
+Do not use a minor version for a patch fix or for a breaking change. A major release must be accompanied by coordinated
+downstream migration issues. After any compatible release is published, update every existing consumer declaration in
+the workspace to the new version.
+
 `session-event`, `action-event`, and `scoring-event` publish to the `game.events` topic; `timeline-event`
 publishes to `timeline.events`.
 
