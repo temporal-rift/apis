@@ -191,7 +191,7 @@ components:
 
     PlayerGameStateResponse:
       type: object
-      required: [ gameId, eraNumber, phase, myHand, myScore, activeEvents, players ]
+      required: [ gameId, eraNumber, phase, myHand, myScore, myRevealedIntel, activeEvents, players ]
       properties:
         gameId:
           type: string
@@ -225,10 +225,9 @@ components:
           description: Deferred to a later slice.
         myRevealedIntel:
           type: array
-          nullable: true
           description: >-
-            Exact information this player has bought with Information cards in the current era. Empty when none;
-            entries are refreshed or replaced according to the reveal event that produced them.
+            Exact information this player has bought with Information cards in the current era. Always present and
+            empty when none; entries are refreshed or replaced according to the reveal event that produced them.
           items:
             $ref: '#/components/schemas/RevealedIntel'
         activeEvents:
