@@ -154,8 +154,9 @@ paths:
                 $ref: '#/components/schemas/SubmitActionResponse'
         '409':
           description: |
-            Round already closed (`code: 409-01`), player already submitted (`code: 409-02`), or Expose was already
-            used in this era (`code: 409-05`).
+            Round already closed (`code: 409-01`), player already submitted (`code: 409-02`), Expose was already
+            used in this era (`code: 409-05`), or a once-per-era-budgeted special action was already used in this
+            era (`code: 409-10`).
           content:
             application/problem+json:
               schema:
