@@ -6,7 +6,7 @@
 
     <groupId>io.github.temporal-rift</groupId>
     <artifactId>action-api</artifactId>
-    <version>2.5.0</version>
+    <version>3.0.0</version>
     <packaging>jar</packaging>
 
     <properties>

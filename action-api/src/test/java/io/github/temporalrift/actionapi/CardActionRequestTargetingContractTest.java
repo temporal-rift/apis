@@ -6,82 +6,74 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
-/**
- * Contract invariant for {@code CardActionRequest}: exactly one of {@code targetEventId} /
- * {@code targetPlayerId} is present, and a player target excludes every event-coordinate field
- * ({@code targetEventId}, {@code sourceOutcomeId}, {@code targetOutcomeId}) — an outcome only means
- * something in the context of an event, so a stray outcome id alongside a player target is malformed,
- * not harmless. The OpenAPI schema encodes this with a sibling {@code oneOf}, mirroring
- * {@code action-event}'s {@code CardPlayedPayload}; these examples make the same rule executable,
- * mirroring that module's {@code CardPlayedTargetingContractTest}.
- */
 class CardActionRequestTargetingContractTest {
 
     @Test
-    void openApiModelsExactlyOneOfTargetEventIdOrTargetPlayerId() throws IOException {
+    void openApiModelsThreeExclusiveTargetModes() throws IOException {
         var specification =
                 String.join("\n", Files.readAllLines(Path.of("src/main/resources/openapi/v1/action.yml")));
 
-        assertTrue(specification.contains("oneOf:"));
         assertTrue(specification.contains("required: [ targetEventId ]"));
+        assertTrue(specification.contains("required: [ targetEventIds ]"));
         assertTrue(specification.contains("required: [ targetPlayerId ]"));
-        assertTrue(specification.contains("not:\n                required: [ targetPlayerId ]"));
-        assertTrue(specification.contains(
-                """
-                not:
-                                anyOf:
-                                  - required: [ targetEventId ]
-                                  - required: [ sourceOutcomeId ]
-                                  - required: [ targetOutcomeId ]"""));
+        assertTrue(specification.contains("minItems: 1"));
+        assertTrue(specification.contains("maxItems: 3"));
+        assertTrue(specification.contains("uniqueItems: true"));
     }
 
     @Test
-    void acceptsAnEventTargetingPlay() {
-        assertTrue(isValid(new CardActionRequest(UUID.randomUUID(), null, null, null)));
+    void acceptsScalarEventListAndPlayerTargetingRequests() {
+        assertTrue(isValid(new CardActionRequest(UUID.randomUUID(), null, null, null, null)));
+        assertTrue(isValid(new CardActionRequest(
+                null, List.of(UUID.randomUUID(), UUID.randomUUID()), null, null, null)));
+        assertTrue(isValid(new CardActionRequest(null, null, null, null, UUID.randomUUID())));
     }
 
     @Test
-    void acceptsAnEventTargetingPlayWithOutcomes() {
-        assertTrue(isValid(new CardActionRequest(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), null)));
-    }
+    void rejectsInvalidListMode() {
+        var duplicateId = UUID.randomUUID();
 
-    @Test
-    void acceptsAPlayerTargetingPlay() {
-        assertTrue(isValid(new CardActionRequest(null, null, null, UUID.randomUUID())));
-    }
-
-    @Test
-    void rejectsAPlayWithNeitherTarget() {
-        assertFalse(isValid(new CardActionRequest(null, null, null, null)));
-    }
-
-    @Test
-    void rejectsAPlayWithBothEventAndPlayerTargets() {
-        assertFalse(isValid(new CardActionRequest(UUID.randomUUID(), null, null, UUID.randomUUID())));
-    }
-
-    @Test
-    void rejectsAPlayerTargetCarryingASourceOutcome() {
-        assertFalse(isValid(new CardActionRequest(null, UUID.randomUUID(), null, UUID.randomUUID())));
-    }
-
-    @Test
-    void rejectsAPlayerTargetCarryingATargetOutcome() {
-        assertFalse(isValid(new CardActionRequest(null, null, UUID.randomUUID(), UUID.randomUUID())));
+        assertFalse(isValid(new CardActionRequest(null, List.of(), null, null, null)));
+        assertFalse(isValid(new CardActionRequest(null, List.of(duplicateId, duplicateId), null, null, null)));
+        assertFalse(isValid(new CardActionRequest(
+                null, List.of(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID()), null, null, null)));
+        assertFalse(isValid(new CardActionRequest(
+                UUID.randomUUID(), List.of(UUID.randomUUID()), null, null, null)));
+        assertFalse(isValid(new CardActionRequest(
+                null, List.of(UUID.randomUUID()), UUID.randomUUID(), null, null)));
+        assertFalse(isValid(new CardActionRequest(
+                null, List.of(UUID.randomUUID()), null, UUID.randomUUID(), null)));
+        assertFalse(isValid(new CardActionRequest(
+                null, List.of(UUID.randomUUID()), null, null, UUID.randomUUID())));
     }
 
     private static boolean isValid(CardActionRequest request) {
-        var hasEventCoordinate = request.targetEventId() != null
-                || request.sourceOutcomeId() != null
-                || request.targetOutcomeId() != null;
-        var hasPlayerCoordinate = request.targetPlayerId() != null;
-        return hasEventCoordinate != hasPlayerCoordinate;
+        var hasEvent = request.targetEventId() != null;
+        var hasList = request.targetEventIds() != null;
+        var hasPlayer = request.targetPlayerId() != null;
+        if (hasList) {
+            var ids = request.targetEventIds();
+            return ids.size() >= 1
+                    && ids.size() <= 3
+                    && ids.stream().distinct().count() == ids.size()
+                    && !hasEvent
+                    && !hasPlayer
+                    && request.sourceOutcomeId() == null
+                    && request.targetOutcomeId() == null;
+        }
+        return hasEvent != hasPlayer
+                && (!hasPlayer || (request.sourceOutcomeId() == null && request.targetOutcomeId() == null));
     }
 
     private record CardActionRequest(
-            UUID targetEventId, UUID sourceOutcomeId, UUID targetOutcomeId, UUID targetPlayerId) {}
+            UUID targetEventId,
+            List<UUID> targetEventIds,
+            UUID sourceOutcomeId,
+            UUID targetOutcomeId,
+            UUID targetPlayerId) {}
 }

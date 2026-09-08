@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Action events
-  version: 1.1.0
+  version: 2.0.0
   description: Action module domain events published to game.events
 
 servers:
@@ -171,8 +171,9 @@ components:
     CardPlayedPayload:
       type: object
       description: >-
-        Exactly one of targetEventId / targetPlayerId is present, determined by cardType. NULLIFY, REDIRECT,
-        AMPLIFY, JAM and INTERCEPT target a player; every other card targets an event.
+        Exactly one target mode is present: targetEventId, targetEventIds, or targetPlayerId. A multi-event list
+        contains one to three distinct event ids and cannot include player or outcome targets. Card-specific
+        target semantics are validated by game-service after it resolves the submitted card instance.
       properties:
         gameId: { type: string, format: uuid }
         eraNumber: { type: integer }
@@ -182,6 +183,12 @@ components:
         cardType: { $ref: '#/components/schemas/CardType' }
         grade: { $ref: '#/components/schemas/CardGrade' }
         targetEventId: { type: string, format: uuid }
+        targetEventIds:
+          type: array
+          minItems: 1
+          maxItems: 3
+          uniqueItems: true
+          items: { type: string, format: uuid }
         targetPlayerId: { type: string, format: uuid }
         sourceOutcomeId: { type: string, format: uuid }
         targetOutcomeId: { type: string, format: uuid }
@@ -189,10 +196,21 @@ components:
       oneOf:
         - required: [ targetEventId ]
           not:
-            required: [ targetPlayerId ]
+            anyOf:
+              - required: [ targetEventIds ]
+              - required: [ targetPlayerId ]
+        - required: [ targetEventIds ]
+          not:
+            anyOf:
+              - required: [ targetEventId ]
+              - required: [ targetPlayerId ]
+              - required: [ sourceOutcomeId ]
+              - required: [ targetOutcomeId ]
         - required: [ targetPlayerId ]
           not:
-            required: [ targetEventId ]
+            anyOf:
+              - required: [ targetEventId ]
+              - required: [ targetEventIds ]
 
     ParadoxResolutionCardPlayedPayload:
       type: object
