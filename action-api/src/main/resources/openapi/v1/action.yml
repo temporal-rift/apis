@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Temporal Rift — Action API
   description: Action round and paradox-resolution submission endpoints
-  version: 1.2.0
+  version: 3.0.0
 
 servers:
   - url: /
@@ -367,6 +367,18 @@ components:
               description: >-
                 Required for event-targeting card types; must be omitted for player-targeting types (NULLIFY,
                 REDIRECT, AMPLIFY, JAM, INTERCEPT).
+            targetEventIds:
+              type: array
+              minItems: 1
+              maxItems: 3
+              uniqueItems: true
+              items:
+                type: string
+                format: uuid
+              description: >-
+                A one-to-three item distinct event selection. It must be the sole target mode and cannot be
+                combined with scalar event, player, or outcome targets. game-service validates card-specific list
+                semantics after resolving cardInstanceId.
             sourceOutcomeId:
               type: string
               format: uuid
@@ -390,11 +402,21 @@ components:
           oneOf:
             - required: [ targetEventId ]
               not:
-                required: [ targetPlayerId ]
+                anyOf:
+                  - required: [ targetEventIds ]
+                  - required: [ targetPlayerId ]
+            - required: [ targetEventIds ]
+              not:
+                anyOf:
+                  - required: [ targetEventId ]
+                  - required: [ targetPlayerId ]
+                  - required: [ sourceOutcomeId ]
+                  - required: [ targetOutcomeId ]
             - required: [ targetPlayerId ]
               not:
                 anyOf:
                   - required: [ targetEventId ]
+                  - required: [ targetEventIds ]
                   - required: [ sourceOutcomeId ]
                   - required: [ targetOutcomeId ]
 
