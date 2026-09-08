@@ -27,6 +27,20 @@ class CardActionRequestTargetingContractTest {
     }
 
     @Test
+    void targetEventIdsIsNullableSoOmittingItPassesGeneratedBeanValidation() throws IOException {
+        var specification =
+                String.join("\n", Files.readAllLines(Path.of("src/main/resources/openapi/v1/action.yml")));
+
+        var targetEventIdsBlock =
+                specification.substring(specification.indexOf("targetEventIds:\n              type: array"));
+        assertTrue(
+                targetEventIdsBlock.startsWith("targetEventIds:\n              type: array\n              nullable: true"),
+                "targetEventIds must stay nullable: true, otherwise the generated Spring model eagerly "
+                        + "initializes it to an empty Set and the generated @Size(min = 1) rejects every "
+                        + "non-SCAN request that omits the field");
+    }
+
+    @Test
     void acceptsScalarEventListAndPlayerTargetingRequests() {
         assertTrue(isValid(new CardActionRequest(UUID.randomUUID(), null, null, null, null)));
         assertTrue(isValid(new CardActionRequest(
