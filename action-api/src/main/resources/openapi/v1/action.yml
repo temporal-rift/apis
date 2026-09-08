@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Temporal Rift — Action API
   description: Action round and paradox-resolution submission endpoints
-  version: 3.0.0
+  version: 3.0.1
 
 servers:
   - url: /
@@ -365,8 +365,8 @@ components:
               type: string
               format: uuid
               description: >-
-                Required for event-targeting card types; must be omitted for player-targeting types (NULLIFY,
-                REDIRECT, AMPLIFY, JAM, INTERCEPT).
+                Required for scalar-event-targeting card types; must be omitted for SCAN and player-targeting types
+                (NULLIFY, REDIRECT, AMPLIFY, JAM, INTERCEPT).
             targetEventIds:
               type: array
               minItems: 1

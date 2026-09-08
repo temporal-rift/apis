@@ -28,9 +28,19 @@ class CardPlayedTargetingContractTest {
     @Test
     void acceptsScalarEventListAndPlayerTargetingPlays() {
         assertTrue(isValid(new CardPlayed(UUID.randomUUID(), null, null, null, null)));
+        assertTrue(isValid(new CardPlayed(
+                UUID.randomUUID(), null, null, UUID.randomUUID(), UUID.randomUUID())));
         assertTrue(
                 isValid(new CardPlayed(null, List.of(UUID.randomUUID(), UUID.randomUUID()), null, null, null)));
         assertTrue(isValid(new CardPlayed(null, null, UUID.randomUUID(), null, null)));
+    }
+
+    @Test
+    void rejectsMissingMixedAndPlayerOutcomeTargets() {
+        assertFalse(isValid(new CardPlayed(null, null, null, null, null)));
+        assertFalse(isValid(new CardPlayed(UUID.randomUUID(), null, UUID.randomUUID(), null, null)));
+        assertFalse(isValid(new CardPlayed(null, null, UUID.randomUUID(), UUID.randomUUID(), null)));
+        assertFalse(isValid(new CardPlayed(null, null, UUID.randomUUID(), null, UUID.randomUUID())));
     }
 
     @Test
@@ -65,7 +75,9 @@ class CardPlayedTargetingContractTest {
                     && cardPlayed.sourceOutcomeId() == null
                     && cardPlayed.targetOutcomeId() == null;
         }
-        return hasEvent != hasPlayer;
+        return hasEvent != hasPlayer
+                && (!hasPlayer
+                        || (cardPlayed.sourceOutcomeId() == null && cardPlayed.targetOutcomeId() == null));
     }
 
     private record CardPlayed(
