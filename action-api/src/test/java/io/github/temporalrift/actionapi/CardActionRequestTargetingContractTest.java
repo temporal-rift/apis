@@ -30,8 +30,21 @@ class CardActionRequestTargetingContractTest {
     void acceptsScalarEventListAndPlayerTargetingRequests() {
         assertTrue(isValid(new CardActionRequest(UUID.randomUUID(), null, null, null, null)));
         assertTrue(isValid(new CardActionRequest(
+                UUID.randomUUID(), null, UUID.randomUUID(), UUID.randomUUID(), null)));
+        assertTrue(isValid(new CardActionRequest(
                 null, List.of(UUID.randomUUID(), UUID.randomUUID()), null, null, null)));
         assertTrue(isValid(new CardActionRequest(null, null, null, null, UUID.randomUUID())));
+    }
+
+    @Test
+    void rejectsMissingMixedAndPlayerOutcomeTargets() {
+        assertFalse(isValid(new CardActionRequest(null, null, null, null, null)));
+        assertFalse(isValid(new CardActionRequest(
+                UUID.randomUUID(), null, null, null, UUID.randomUUID())));
+        assertFalse(isValid(new CardActionRequest(
+                null, null, UUID.randomUUID(), null, UUID.randomUUID())));
+        assertFalse(isValid(new CardActionRequest(
+                null, null, null, UUID.randomUUID(), UUID.randomUUID())));
     }
 
     @Test
