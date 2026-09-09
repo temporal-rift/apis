@@ -166,15 +166,19 @@ components:
 
     ActionSummary:
       type: object
-      required: [ playerId, actionCategory, actionFamily, skipped ]
+      required: [ playerId, skipped ]
       properties:
         playerId:
           type: string
           format: uuid
         actionCategory:
           type: string
+          nullable: true
+          description: Null when skipped is true.
         actionFamily:
           type: string
+          nullable: true
+          description: Null when skipped is true.
         skipped:
           type: boolean
 
