@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Action events
-  version: 2.0.1
+  version: 2.1.0
   description: Action module domain events published to game.events
 
 servers:
@@ -21,6 +21,10 @@ channels:
         $ref: '#/components/messages/ParadoxResolutionCardPlayed'
       specialActionPlayed:
         $ref: '#/components/messages/SpecialActionPlayed'
+      playerJammed:
+        $ref: '#/components/messages/PlayerJammed'
+      influenceTraced:
+        $ref: '#/components/messages/InfluenceTraced'
       actionRoundTimerExpired:
         $ref: '#/components/messages/ActionRoundTimerExpired'
       playerSkipped:
@@ -55,6 +59,14 @@ operations:
     action: send
     channel: { $ref: '#/channels/gameEvents' }
     messages: [ { $ref: '#/channels/gameEvents/messages/specialActionPlayed' } ]
+  publishPlayerJammed:
+    action: send
+    channel: { $ref: '#/channels/gameEvents' }
+    messages: [ { $ref: '#/channels/gameEvents/messages/playerJammed' } ]
+  publishInfluenceTraced:
+    action: send
+    channel: { $ref: '#/channels/gameEvents' }
+    messages: [ { $ref: '#/channels/gameEvents/messages/influenceTraced' } ]
   publishActionRoundTimerExpired:
     action: send
     channel: { $ref: '#/channels/gameEvents' }
@@ -111,6 +123,22 @@ components:
       title: Special action played
       headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
       payload: { $ref: '#/components/schemas/SpecialActionPlayedPayload' }
+    PlayerJammed:
+      name: PlayerJammed
+      title: Player jammed
+      description: >-
+        Private per-player reveal addressed to the suppressed player. The playerId payload field identifies that
+        viewer; the message never identifies the player who caused the Jam.
+      headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
+      payload: { $ref: '#/components/schemas/PlayerJammedPayload' }
+    InfluenceTraced:
+      name: InfluenceTraced
+      title: Influence traced
+      description: >-
+        Private per-player reveal addressed to the tracing player. The playerId payload field identifies that viewer;
+        the message reveals only who influenced the target event in the preceding round.
+      headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
+      payload: { $ref: '#/components/schemas/InfluenceTracedPayload' }
     ActionRoundTimerExpired:
       name: ActionRoundTimerExpired
       title: Action round timer expired
@@ -240,6 +268,37 @@ components:
         targetOutcomeId: { type: string, format: uuid }
         targetPlayerId: { type: string, format: uuid }
       required: [ gameId, eraNumber, roundNumber, playerId, faction, specialAction, targetEventId, targetOutcomeId ]
+
+    PlayerJammedPayload:
+      type: object
+      additionalProperties: false
+      properties:
+        gameId: { type: string, format: uuid }
+        eraNumber: { type: integer, minimum: 1 }
+        playerId:
+          type: string
+          format: uuid
+          description: The suppressed player and sole viewer of this private reveal.
+        jammedUntilRound: { type: integer, minimum: 1, maximum: 3 }
+      required: [ gameId, eraNumber, playerId, jammedUntilRound ]
+
+    InfluenceTracedPayload:
+      type: object
+      additionalProperties: false
+      properties:
+        gameId: { type: string, format: uuid }
+        eraNumber: { type: integer, minimum: 1 }
+        roundNumber: { type: integer, minimum: 1, maximum: 3 }
+        playerId:
+          type: string
+          format: uuid
+          description: The tracing player and sole viewer of this private reveal.
+        targetEventId: { type: string, format: uuid }
+        influencerPlayerIds:
+          type: array
+          uniqueItems: true
+          items: { type: string, format: uuid }
+      required: [ gameId, eraNumber, roundNumber, playerId, targetEventId, influencerPlayerIds ]
 
     ActionRoundTimerExpiredPayload:
       type: object

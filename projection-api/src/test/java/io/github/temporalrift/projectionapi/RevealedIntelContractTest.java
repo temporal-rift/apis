@@ -22,4 +22,19 @@ class RevealedIntelContractTest {
         assertFalse(revealedIntelSchema.startsWith("        myRevealedIntel:\n          type: array\n          nullable: true"));
         assertTrue(revealedIntelSchema.contains("Always present and\n            empty when none"));
     }
+
+    @Test
+    void jamStateDescribesItsFinalPrivateRoundScopedSemantics() throws IOException {
+        var specification = String.join(
+                "\n", Files.readAllLines(Path.of("src/main/resources/openapi/v1/projection.yml")));
+
+        var jamSchema = specification.substring(
+                specification.indexOf("        myJammedUntilRound:"),
+                specification.indexOf("        myRevealedIntel:"));
+        assertTrue(jamSchema.contains("authenticated player's faction specials are blocked"));
+        assertTrue(jamSchema.contains("private to that player"));
+        assertTrue(jamSchema.contains("cleared after the round passes"));
+        assertTrue(jamSchema.contains("never carried across an era"));
+        assertFalse(jamSchema.contains("Deferred to a later slice"));
+    }
 }
