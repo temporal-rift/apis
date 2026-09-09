@@ -23,7 +23,24 @@ class CardActionRequestTargetingContractTest {
         assertTrue(specification.contains("required: [ targetPlayerId ]"));
         assertTrue(specification.contains("minItems: 1"));
         assertTrue(specification.contains("maxItems: 3"));
-        assertTrue(specification.contains("uniqueItems: true"));
+    }
+
+    @Test
+    void targetEventIdsIsNotUniqueItemsSoJacksonCannotSilentlyDropDuplicates() throws IOException {
+        var specification =
+                String.join("\n", Files.readAllLines(Path.of("src/main/resources/openapi/v1/action.yml")));
+
+        var targetEventIdsBlock = specification.substring(
+                specification.indexOf("targetEventIds:\n              type: array"),
+                specification.indexOf("sourceOutcomeId:"));
+        assertFalse(
+                targetEventIdsBlock.contains("uniqueItems"),
+                "targetEventIds must stay a plain array without uniqueItems: true. OpenAPI Generator maps a "
+                        + "uniqueItems array to Set<UUID>, and Jackson silently collapses a duplicate-id JSON "
+                        + "array into that Set before any validation runs — hiding exactly the duplicate "
+                        + "submissions this field needs game-service to reject. Distinctness must stay a "
+                        + "game-service domain concern operating on a List<UUID> that still contains the "
+                        + "duplicates the client actually sent.");
     }
 
     @Test
