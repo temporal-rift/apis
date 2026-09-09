@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Temporal Rift — Action API
   description: Action round and paradox-resolution submission endpoints
-  version: 3.0.2
+  version: 3.0.3
 
 servers:
   - url: /
@@ -372,14 +372,14 @@ components:
               nullable: true
               minItems: 1
               maxItems: 3
-              uniqueItems: true
               items:
                 type: string
                 format: uuid
               description: >-
-                A one-to-three item distinct event selection. It must be the sole target mode and cannot be
-                combined with scalar event, player, or outcome targets. game-service validates card-specific list
-                semantics after resolving cardInstanceId.
+                A one-to-three item event selection, distinct by convention though not schema-enforced (see below).
+                It must be the sole target mode and cannot be combined with scalar event, player, or outcome
+                targets. game-service validates distinctness and card-specific list semantics after resolving
+                cardInstanceId.
             sourceOutcomeId:
               type: string
               format: uuid
