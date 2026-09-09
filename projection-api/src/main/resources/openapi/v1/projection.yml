@@ -225,7 +225,10 @@ components:
         myJammedUntilRound:
           type: integer
           nullable: true
-          description: Deferred to a later slice.
+          description: >-
+            Round through which the authenticated player's faction specials are blocked. Null when that player is
+            not jammed; private to that player, cleared after the round passes, and never carried across an era
+            boundary.
         myRevealedIntel:
           type: array
           description: >-
