@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Action events
-  version: 2.1.0
+  version: 2.2.0
   description: Action module domain events published to game.events
 
 servers:
@@ -25,6 +25,8 @@ channels:
         $ref: '#/components/messages/PlayerJammed'
       influenceTraced:
         $ref: '#/components/messages/InfluenceTraced'
+      handCardIntercepted:
+        $ref: '#/components/messages/HandCardIntercepted'
       actionRoundTimerExpired:
         $ref: '#/components/messages/ActionRoundTimerExpired'
       playerSkipped:
@@ -67,6 +69,10 @@ operations:
     action: send
     channel: { $ref: '#/channels/gameEvents' }
     messages: [ { $ref: '#/channels/gameEvents/messages/influenceTraced' } ]
+  publishHandCardIntercepted:
+    action: send
+    channel: { $ref: '#/channels/gameEvents' }
+    messages: [ { $ref: '#/channels/gameEvents/messages/handCardIntercepted' } ]
   publishActionRoundTimerExpired:
     action: send
     channel: { $ref: '#/channels/gameEvents' }
@@ -139,6 +145,14 @@ components:
         the message reveals only who influenced the target event in the preceding round.
       headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
       payload: { $ref: '#/components/schemas/InfluenceTracedPayload' }
+    HandCardIntercepted:
+      name: HandCardIntercepted
+      title: Hand card intercepted
+      description: >-
+        Private per-player reveal addressed to the intercepting player. The playerId payload field identifies that
+        viewer; the message reveals only the sampled cards from the target player's hand.
+      headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
+      payload: { $ref: '#/components/schemas/HandCardInterceptedPayload' }
     ActionRoundTimerExpired:
       name: ActionRoundTimerExpired
       title: Action round timer expired
@@ -299,6 +313,33 @@ components:
           uniqueItems: true
           items: { type: string, format: uuid }
       required: [ gameId, eraNumber, roundNumber, playerId, targetEventId, influencerPlayerIds ]
+
+    HandCardInterceptedPayload:
+      type: object
+      additionalProperties: false
+      properties:
+        gameId: { type: string, format: uuid }
+        eraNumber: { type: integer, minimum: 1 }
+        roundNumber: { type: integer, minimum: 1, maximum: 3 }
+        playerId:
+          type: string
+          format: uuid
+          description: The intercepting player and sole viewer of this private reveal.
+        targetPlayerId: { type: string, format: uuid }
+        revealedCards:
+          type: array
+          maxItems: 2
+          items: { $ref: '#/components/schemas/InterceptedHandCard' }
+      required: [ gameId, eraNumber, roundNumber, playerId, targetPlayerId, revealedCards ]
+
+    InterceptedHandCard:
+      type: object
+      additionalProperties: false
+      properties:
+        cardInstanceId: { type: string, format: uuid }
+        cardType: { $ref: '#/components/schemas/CardType' }
+        grade: { $ref: '#/components/schemas/CardGrade' }
+      required: [ cardInstanceId, cardType, grade ]
 
     ActionRoundTimerExpiredPayload:
       type: object
