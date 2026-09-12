@@ -193,6 +193,18 @@ components:
           items:
             $ref: '#/components/schemas/ActionSummary'
 
+    ChainState:
+      type: object
+      required: [ status, length ]
+      properties:
+        status:
+          type: string
+          enum: [ ACTIVE, COMPLETED, BROKEN ]
+        length:
+          type: integer
+          minimum: 0
+          description: Current number of links in the chain.
+
     PlayerGameStateResponse:
       type: object
       required: [ gameId, eraNumber, phase, myHand, myScore, myRevealedIntel, activeEvents, players ]
@@ -249,6 +261,14 @@ components:
             - $ref: '#/components/schemas/RoundSummary'
           nullable: true
           description: The most recently completed action round summary, or null before the first round closes.
+        chain:
+          allOf:
+            - $ref: '#/components/schemas/ChainState'
+          nullable: true
+          description: >-
+            The current Weaver chain's status and link count, identical for every participant. Null when no chain
+            has been created yet, or after the game has ended. Never includes any player-identifying field, before
+            or after FactionRevealed.
 
     DealtHandCard:
       type: object
