@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Timeline events
-  version: 2.1.0
+  version: 2.2.0
   description: Timeline service domain events published to timeline.events
 
 servers:
@@ -39,6 +39,10 @@ channels:
         $ref: '#/components/messages/ChainCompleted'
       chainBroken:
         $ref: '#/components/messages/ChainBroken'
+      chainLinkInvalidated:
+        $ref: '#/components/messages/ChainLinkInvalidated'
+      threadRejected:
+        $ref: '#/components/messages/ThreadRejected'
       corruptInversionConfirmed:
         $ref: '#/components/messages/CorruptInversionConfirmed'
       resolutionFailed:
@@ -99,6 +103,14 @@ operations:
     action: send
     channel: { $ref: '#/channels/timelineEvents' }
     messages: [ { $ref: '#/channels/timelineEvents/messages/chainBroken' } ]
+  publishChainLinkInvalidated:
+    action: send
+    channel: { $ref: '#/channels/timelineEvents' }
+    messages: [ { $ref: '#/channels/timelineEvents/messages/chainLinkInvalidated' } ]
+  publishThreadRejected:
+    action: send
+    channel: { $ref: '#/channels/timelineEvents' }
+    messages: [ { $ref: '#/channels/timelineEvents/messages/threadRejected' } ]
   publishCorruptInversionConfirmed:
     action: send
     channel: { $ref: '#/channels/timelineEvents' }
@@ -187,6 +199,23 @@ components:
       title: Chain broken
       headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
       payload: { $ref: '#/components/schemas/ChainBrokenPayload' }
+    ChainLinkInvalidated:
+      name: ChainLinkInvalidated
+      title: Chain link invalidated
+      description: >-
+        Public chain-progress fact: an ANNIHILATE removed a linked outcome that TAPESTRY did not protect,
+        so that link is removed and the chain length decremented. The chain stays open for rebuilding.
+      headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
+      payload: { $ref: '#/components/schemas/ChainLinkInvalidatedPayload' }
+    ThreadRejected:
+      name: ThreadRejected
+      title: Thread rejected
+      description: >-
+        Private rejection of one THREAD play whose referenced past event/outcome never resolved as claimed.
+        The playerId payload field identifies the viewer who receives this message. Chain length does not
+        change and the message is never broadcast.
+      headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
+      payload: { $ref: '#/components/schemas/ThreadRejectedPayload' }
     CorruptInversionConfirmed:
       name: CorruptInversionConfirmed
       title: Corrupt inversion confirmed
@@ -499,6 +528,31 @@ components:
         targetPlayerId: { type: string, format: uuid }
         chainLengthAtBreak: { type: integer }
       required: [ gameId, eraNumber, chainId, brokenByPlayerId, targetPlayerId, chainLengthAtBreak ]
+
+    ChainLinkInvalidatedPayload:
+      type: object
+      properties:
+        gameId: { type: string, format: uuid }
+        eraNumber: { type: integer }
+        chainId: { type: string, format: uuid }
+        playerId: { type: string, format: uuid }
+        invalidatedEventId: { type: string, format: uuid }
+        invalidatedOutcomeId: { type: string, format: uuid }
+        chainLength: { type: integer }
+      required:
+        [ gameId, eraNumber, chainId, playerId, invalidatedEventId, invalidatedOutcomeId, chainLength ]
+
+    ThreadRejectedPayload:
+      type: object
+      properties:
+        gameId: { type: string, format: uuid }
+        eraNumber: { type: integer }
+        chainId: { type: string, format: uuid }
+        playerId: { type: string, format: uuid }
+        referencedEventId: { type: string, format: uuid }
+        referencedOutcomeId: { type: string, format: uuid }
+        reason: { type: string }
+      required: [ gameId, eraNumber, playerId, referencedEventId, referencedOutcomeId, reason ]
 
     CorruptInversionConfirmedPayload:
       type: object
