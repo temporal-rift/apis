@@ -27,6 +27,8 @@ apis/
 │   └── src/main/resources/openapi/v1/action.yml
 ├── scoring-api/         ← OpenAPI contract for scoring endpoints
 │   └── src/main/resources/openapi/v1/scoring.yml
+├── chains-api/          ← OpenAPI contract for timeline-service's gated Weaver chain endpoint
+│   └── src/main/resources/openapi/v1/chains.yml
 └── projection-api/      ← OpenAPI contract for per-player game-state projection endpoints
     └── src/main/resources/openapi/v1/projection.yml
 ```
