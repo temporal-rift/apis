@@ -23,5 +23,6 @@
         <module>session-api</module>
         <module>action-api</module>
         <module>scoring-api</module>
+        <module>chains-api</module>
     </modules>
 </project>
