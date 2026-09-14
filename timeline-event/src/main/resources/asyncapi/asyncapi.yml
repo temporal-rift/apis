@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Timeline events
-  version: 2.2.0
+  version: 2.3.0
   description: Timeline service domain events published to timeline.events
 
 servers:
@@ -21,6 +21,8 @@ channels:
         $ref: '#/components/messages/ProbabilityStateRevealed'
       bandedProbabilityPublished:
         $ref: '#/components/messages/BandedProbabilityPublished'
+      adjustedBandsPublished:
+        $ref: '#/components/messages/AdjustedBandsPublished'
       paradoxDetected:
         $ref: '#/components/messages/ParadoxDetected'
       paradoxResolutionPhaseStarted:
@@ -67,6 +69,10 @@ operations:
     action: send
     channel: { $ref: '#/channels/timelineEvents' }
     messages: [ { $ref: '#/channels/timelineEvents/messages/bandedProbabilityPublished' } ]
+  publishAdjustedBandsPublished:
+    action: send
+    channel: { $ref: '#/channels/timelineEvents' }
+    messages: [ { $ref: '#/channels/timelineEvents/messages/adjustedBandsPublished' } ]
   publishParadoxDetected:
     action: send
     channel: { $ref: '#/channels/timelineEvents' }
@@ -148,6 +154,18 @@ components:
     BandedProbabilityPublished:
       name: BandedProbabilityPublished
       title: Banded probability published
+      description: >-
+        Deprecated: superseded by AdjustedBandsPublished, which carries the same shape under a distinct
+        name. Retained during the deprecation window; removal is tracked as a future major.
+      x-deprecated: true
+      headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
+      payload: { $ref: '#/components/schemas/BandedProbabilityPublishedPayload' }
+    AdjustedBandsPublished:
+      name: AdjustedBandsPublished
+      title: Adjusted bands published
+      description: >-
+        Band values with every applied modifier accounted for, superseding the game-events preview
+        (BandedProbabilityPublished) for the same game and era. Consumers replace the preview on receipt.
       headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
       payload: { $ref: '#/components/schemas/BandedProbabilityPublishedPayload' }
     ParadoxDetected:
