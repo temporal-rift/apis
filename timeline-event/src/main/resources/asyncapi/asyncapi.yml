@@ -152,7 +152,7 @@ components:
         Band values with every applied modifier accounted for, superseding the game-events preview
         (BandedProbabilityPublished) for the same game and era. Consumers replace the preview on receipt.
       headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
-      payload: { $ref: '#/components/schemas/BandedProbabilityPublishedPayload' }
+      payload: { $ref: '#/components/schemas/AdjustedBandsPublishedPayload' }
     ParadoxDetected:
       name: ParadoxDetected
       title: Paradox detected
@@ -313,30 +313,30 @@ components:
     ProbabilityBand:
       $ref: './shared/enums.yaml#/ProbabilityBand'
 
-    BandedProbabilityPublishedOutcomeBandState:
+    AdjustedBandsPublishedOutcomeBandState:
       type: object
       properties:
         outcomeId: { type: string, format: uuid }
         band: { $ref: '#/components/schemas/ProbabilityBand' }
       required: [ outcomeId, band ]
 
-    BandedProbabilityPublishedEventBandState:
+    AdjustedBandsPublishedEventBandState:
       type: object
       properties:
         eventId: { type: string, format: uuid }
         outcomes:
           type: array
-          items: { $ref: '#/components/schemas/BandedProbabilityPublishedOutcomeBandState' }
+          items: { $ref: '#/components/schemas/AdjustedBandsPublishedOutcomeBandState' }
       required: [ eventId, outcomes ]
 
-    BandedProbabilityPublishedPayload:
+    AdjustedBandsPublishedPayload:
       type: object
       properties:
         gameId: { type: string, format: uuid }
         eraNumber: { type: integer }
         eventStates:
           type: array
-          items: { $ref: '#/components/schemas/BandedProbabilityPublishedEventBandState' }
+          items: { $ref: '#/components/schemas/AdjustedBandsPublishedEventBandState' }
       required: [ gameId, eraNumber, eventStates ]
 
     ParadoxType:
