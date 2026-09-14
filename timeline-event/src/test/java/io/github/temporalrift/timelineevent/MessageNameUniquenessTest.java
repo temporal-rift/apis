@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Test;
  * <p>Message names are deliberately NOT unique across modules here: consumer-side redefinitions exist
  * by precedent (e.g. {@code ResolutionStarted} is defined in both session-event and timeline-event, but
  * only ever emitted on one topic). These tests therefore assert the rename itself — a distinct name
- * defined once, and the old duplicate marked deprecated — instead of a global uniqueness rule the
+ * defined once, and the old duplicate gone — instead of a global uniqueness rule the
  * codebase does not follow.
  */
 class MessageNameUniquenessTest {
@@ -31,18 +31,22 @@ class MessageNameUniquenessTest {
     private static final Pattern MESSAGE_NAME = Pattern.compile("(?m)^      name: (\\w+)");
 
     @Test
-    void adjustedBandsHasADistinctNameAndTheOldDuplicateIsDeprecated() throws IOException {
+    void adjustedBandsHasADistinctNameAndTheOldDuplicateIsGone() throws IOException {
         var specification = readModule("timeline-event");
 
         assertTrue(
                 specification.contains("name: AdjustedBandsPublished"),
                 "timeline-event must define the distinct adjusted-bands message");
-
-        var oldBlock = messageBlock(specification, "BandedProbabilityPublished");
-        assertTrue(oldBlock.contains("x-deprecated: true"), "the old duplicate name must be marked deprecated");
         assertTrue(
-                oldBlock.contains("AdjustedBandsPublished"),
-                "the deprecation must point at the replacement name");
+                specification.contains("superseding the game-events preview"),
+                "the correction documents what it supersedes");
+
+        assertTrue(
+                noMessageNamed(specification, "BandedProbabilityPublished"),
+                "the old duplicate message definition must be gone");
+        assertTrue(
+                !specification.contains("messages/BandedProbabilityPublished"),
+                "no channel or operation may reference the removed message");
     }
 
     @Test
@@ -78,15 +82,12 @@ class MessageNameUniquenessTest {
         return messages;
     }
 
-    /** Returns the raw block of one message definition for targeted assertions. */
-    private static String messageBlock(String specification, String key) {
-        var messagesSection = section(specification, "components:", "  messages:", "  schemas:");
-        for (var block : blocks(messagesSection)) {
-            if (block.startsWith("    " + key + ":")) {
-                return block;
-            }
-        }
-        throw new AssertionError("message " + key + " not found in components/messages:");
+    /** Returns true when no message definition carries the given name. */
+    private static boolean noMessageNamed(String specification, String name) {
+        return !MESSAGE_NAME.matcher(section(specification, "components:", "  messages:", "  schemas:"))
+                .results()
+                .map(match -> match.group(1))
+                .anyMatch(name::equals);
     }
 
     /** Extracts the text between a section header and the next sibling header. */
