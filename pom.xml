@@ -12,7 +12,7 @@
 
     <name>Temporal Rift APIs</name>
     <description>Spec-first API contracts (OpenAPI + AsyncAPI) — one module per bounded context, each an
-        independently versioned, independently publishable dependency. Replaces domain-events.</description>
+        independently versioned, independently publishable dependency.</description>
 
     <modules>
         <module>session-event</module>
