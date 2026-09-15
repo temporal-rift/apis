@@ -1,0 +1,32 @@
+name: Spec compatibility gate
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  spec-compat:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Run spec compatibility unit tests
+        run: |
+          python3 -c "import yaml" 2>/dev/null || python3 -m pip install --break-system-packages pyyaml
+          python3 -m unittest discover -s scripts/tests -v
+
+      - name: Check spec module version bumps
+        # The gate compares against the PR base, so it only has something to
+        # block on pull requests; on main pushes the unit tests above still run.
+        if: github.event_name == 'pull_request'
+        run: |
+          python3 -c "import yaml" 2>/dev/null || python3 -m pip install --break-system-packages pyyaml
+          python3 scripts/check_spec_compat.py --base "${{ github.event.pull_request.base.sha }}"

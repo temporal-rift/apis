@@ -59,6 +59,32 @@ Choose the increment based on the compatibility of the change with consumers of 
 `session-event`, `action-event`, and `scoring-event` publish to the `game.events` topic; `timeline-event`
 publishes to `timeline.events`.
 
+## Spec compatibility gate
+
+The versioning table above is enforced by CI, not just documented. The `spec-compat` job in
+`.github/workflows/spec-compat.yml` runs `scripts/check_spec_compat.py` on every pull request: for each
+module whose spec changed relative to the PR base, it structurally diffs the base and head specs (operations,
+messages, paths, schema properties, `required` sets, types, formats, enums, and constraints — local and
+`shared/` `$ref`s resolved, descriptions and comments ignored) and requires a matching version bump in that
+module's `pom.xml`:
+
+| Spec change | Required bump | Examples |
+|---|---|---|
+| Backward-incompatible (remove/rename a field, event, message, path, or operation; change a type, format, enum membership, or requiredness; tighten a constraint) | Major | Drop a payload property, rename a message, make an optional field required |
+| Backward-compatible addition (new optional field, endpoint, event, or loosened constraint branch) | At least minor | Add an optional property, a new path, or a new message |
+| Documentation-only or loosening edit | Any (including none) | Reword a description, make a required field optional |
+| No spec change | None required (downgrades still fail) | Java test or workflow edits |
+
+Notes:
+
+- Changes to `shared-schemas/` count as spec changes for every module that packages them (all `*-event`
+  modules and any `*-api` module whose `pom.xml` bundles `../shared-schemas`).
+- Anything the classifier cannot prove compatible (unresolvable reference, unknown constraint change) fails
+  closed as breaking — bump major or restructure the edit.
+- To run the same check locally before pushing: `pip install pyyaml`, then
+  `python scripts/check_spec_compat.py --base origin/main`. Classifier unit tests live in `scripts/tests/`
+  (`python -m unittest discover -s scripts/tests -v`).
+
 ## Adding a new AsyncAPI contract module
 
 1. Copy `session-event/pom.xml` as a starting point (parent block, packaging, description, and the
