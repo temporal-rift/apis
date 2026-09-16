@@ -27,14 +27,17 @@ paths:
             format: uuid
       responses:
         '200':
-          description: Current scores (factions hidden until game ends)
+          description: >-
+            Current scores for a game participant. Factions are hidden until final faction reveal;
+            non-participants receive the same 404 response as an unknown game.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ScoresResponse'
         '404':
           description: |
-            Game not found (`code: 404-01`).
+            Game not found, or the requesting player is not a participant (`code: 404-01`).
+            The response does not disclose whether the game exists.
           content:
             application/problem+json:
               schema:
@@ -53,14 +56,18 @@ paths:
             format: uuid
       responses:
         '200':
-          description: Full scoring history by era
+          description: >-
+            Participant-scoped scoring history by era. Before final faction reveal, each participant
+            receives their own entitled reasons while opponent entries omit faction-identifying reasons.
+            After final faction reveal, permitted detailed reasons may be present for every participant.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ScoresHistoryResponse'
         '404':
           description: |
-            Game not found (`code: 404-01`).
+            Game not found, or the requesting player is not a participant (`code: 404-01`).
+            The response does not disclose whether the game exists.
           content:
             application/problem+json:
               schema:
@@ -113,7 +120,7 @@ components:
 
     ScoreDelta:
       type: object
-      required: [ playerId, pointsDelta, reason ]
+      required: [ playerId, pointsDelta ]
       properties:
         playerId:
           type: string
@@ -122,6 +129,10 @@ components:
           type: integer
         reason:
           type: string
+          description: >-
+            Entitled explanation for this score change. Omitted for an opponent before final faction
+            reveal when the detail could identify that opponent's faction; permitted detailed reasons
+            may be present after final faction reveal.
 
     EraHistory:
       type: object
