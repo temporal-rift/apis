@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Action events
-  version: 2.2.0
+  version: 3.0.0
   description: Action module domain events published to game.events
 
 servers:
@@ -271,6 +271,11 @@ components:
 
     SpecialActionPlayedPayload:
       type: object
+      description: >-
+        Only the identity coordinates are always present. `sourceEventId`/`sourceOutcomeId` carry THREAD's
+        current-era anchor; `targetEventId`/`targetOutcomeId`/`targetPlayerId` carry every special's target —
+        which of the three is populated (or none, for a no-target special) depends on `specialAction`. A
+        player-targeting special legitimately omits the event/outcome coordinates and vice versa.
       properties:
         gameId: { type: string, format: uuid }
         eraNumber: { type: integer }
@@ -278,10 +283,12 @@ components:
         playerId: { type: string, format: uuid }
         faction: { $ref: '#/components/schemas/Faction' }
         specialAction: { $ref: '#/components/schemas/SpecialAction' }
+        sourceEventId: { type: string, format: uuid }
+        sourceOutcomeId: { type: string, format: uuid }
         targetEventId: { type: string, format: uuid }
         targetOutcomeId: { type: string, format: uuid }
         targetPlayerId: { type: string, format: uuid }
-      required: [ gameId, eraNumber, roundNumber, playerId, faction, specialAction, targetEventId, targetOutcomeId ]
+      required: [ gameId, eraNumber, roundNumber, playerId, faction, specialAction ]
 
     PlayerJammedPayload:
       type: object
