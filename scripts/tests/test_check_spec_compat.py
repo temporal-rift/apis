@@ -119,6 +119,26 @@ class SchemaDiffTests(unittest.TestCase):
         head = schema({"outer": schema({}, [])}, ["outer"])
         self.assertEqual(self.compare(base, head), gate.MAJOR)
 
+    def test_allof_same_branch_count_recurses_into_optional_addition(self):
+        base = {"allOf": [{"$ref": "#/x"}, schema({"a": prop("string")}, ["a"])]}
+        head = {"allOf": [{"$ref": "#/x"}, schema({"a": prop("string"), "b": prop("string")}, ["a"])]}
+        self.assertEqual(self.compare(base, head), gate.MINOR)
+
+    def test_allof_same_branch_count_recurses_into_required_addition(self):
+        base = {"allOf": [{"$ref": "#/x"}, schema({"a": prop("string")}, ["a"])]}
+        head = {"allOf": [{"$ref": "#/x"}, schema({"a": prop("string"), "b": prop("string")}, ["a", "b"])]}
+        self.assertEqual(self.compare(base, head), gate.MAJOR)
+
+    def test_allof_added_branch_is_breaking(self):
+        base = {"allOf": [schema({"a": prop("string")}, ["a"])]}
+        head = {"allOf": [schema({"a": prop("string")}, ["a"]), schema({"b": prop("string")})]}
+        self.assertEqual(self.compare(base, head), gate.MAJOR)
+
+    def test_allof_removed_branch_is_compatible(self):
+        base = {"allOf": [schema({"a": prop("string")}, ["a"]), schema({"b": prop("string")})]}
+        head = {"allOf": [schema({"a": prop("string")}, ["a"])]}
+        self.assertEqual(self.compare(base, head), gate.PATCH)
+
 
 class DocumentDiffTests(unittest.TestCase):
     def setUp(self):
