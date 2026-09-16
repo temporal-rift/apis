@@ -6,7 +6,7 @@
 
     <groupId>io.github.temporal-rift</groupId>
     <artifactId>action-api</artifactId>
-    <version>3.2.0</version>
+    <version>3.3.0</version>
     <packaging>jar</packaging>
 
     <properties>
@@ -60,6 +60,10 @@
         <resources>
             <resource>
                 <directory>src/main/resources</directory>
+            </resource>
+            <resource>
+                <directory>../shared-schemas</directory>
+                <targetPath>openapi/shared</targetPath>
             </resource>
         </resources>
     </build>
