@@ -374,6 +374,36 @@ components:
           type: integer
           minimum: 0
 
+    ObjectiveProgress:
+      type: object
+      required: [ faction, progressCount, threshold, objectiveMet ]
+      description: >-
+        The caller's own cumulative progress toward their faction objective, computed by the owning
+        projection from consumed events. Scoped to the caller alone: no other player's counts, secret
+        picks, or streak state is ever included. Absent until the owner computes it and while the caller
+        has no assigned faction. Thresholds are owner-populated from the effective rules configuration;
+        clients SHALL use the transmitted threshold rather than hard-coding a constant.
+      properties:
+        faction:
+          type: string
+          enum: [ ERASERS, PROPHETS, REVISIONISTS, WEAVERS, ACTIVISTS ]
+          description: The caller's assigned faction; mirrors myFaction when present.
+        progressCount:
+          type: integer
+          minimum: 0
+          description: >-
+            Caller-scoped cumulative progress. ERASERS: outcomes the caller annihilated. PROPHETS: events
+            resolved as written. REVISIONISTS: eras the caller's secret outcome won. WEAVERS: current chain
+            links (mirrors the public chain length). ACTIVISTS: current consecutive eras with a correct
+            declaration. The owner computes streaks server-side so clients never reconstruct them from history.
+        threshold:
+          type: integer
+          minimum: 1
+          description: Progress count that satisfies the faction objective under the effective rules.
+        objectiveMet:
+          type: boolean
+          description: True once progressCount has reached threshold at an era boundary.
+
     GameWinner:
       type: object
       required: [ playerId ]
@@ -544,6 +574,11 @@ components:
             example Seal). Scoped to the caller alone; opponent availability is never exposed.
           items:
             $ref: '#/components/schemas/SpecialBudget'
+        myObjectiveProgress:
+          $ref: '#/components/schemas/ObjectiveProgress'
+          description: >-
+            The caller's own progress toward their faction objective, including per-era and streak-based
+            objectives that history alone cannot reconstruct. Scoped to the caller alone.
         result:
           $ref: '#/components/schemas/GameResult'
         chain:
