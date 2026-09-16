@@ -506,8 +506,12 @@ def compare_combiner(base_list, head_list, key, where, severity, findings):
     if len(head_norm) < len(base_norm):
         return combine(severity, findings,
                        f"COMPATIBLE: {where} drops '{key}' constraint", PATCH)
-    return combine(severity, findings,
-                   f"BREAKING: {where} changes '{key}' constraint", MAJOR)
+    # Same branch count: recurse pairwise instead of blanket-flagging as breaking, so a branch that only
+    # gained an optional property (or any other compatible-by-itself change) is classified by what actually
+    # changed inside it, not by the fact that the allOf list's normalized form differs.
+    for base_branch, head_branch in zip(base_list, head_list):
+        severity = compare_schemas(base_branch, head_branch, f"{where} allOf branch", severity, findings)
+    return severity
 
 
 def compare_media(base_media, head_media, where, severity, findings, loader_pair):

@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Temporal Rift — Action API
   description: Action round and paradox-resolution submission endpoints
-  version: 3.0.3
+  version: 3.1.0
 
 servers:
   - url: /
@@ -474,10 +474,20 @@ components:
               description: |
                 Rally and Momentum are accepted only by the declaration endpoint during the pre-Round-1 declaration
                 window. Corrupt and Expose are player-targeting: both require targetPlayerId and must omit
-                targetEventId and targetOutcomeId. Expose is additionally valid only in Round 2, and
-                targetPlayerId must identify a player with a qualifying Round-1 probability-influence signature.
+                targetEventId and targetOutcomeId. Thread additionally requires sourceEventId and
+                sourceOutcomeId naming a current-era outcome; every other special action must omit them.
                 Every other special action requires targetEventId and targetOutcomeId and must omit
                 targetPlayerId.
+            sourceEventId:
+              type: string
+              format: uuid
+              description: >-
+                Thread's current-era anchor. Required for Thread; must be omitted for every other special action.
+            sourceOutcomeId:
+              type: string
+              format: uuid
+              description: >-
+                Thread's current-era anchor. Required for Thread; must be omitted for every other special action.
             targetEventId:
               type: string
               format: uuid
