@@ -40,7 +40,7 @@ paths:
         Recovers lobby membership, host, readiness/start state and game identity for a lobby member.
         The lobby's pre-assigned gameId is present from creation, before any game exists. An authenticated
         player who is not a member receives a defined 403 denial; an unknown lobbyId returns 404. Clients
-        SHALL refresh this view after reload or reconnect and retry join/start decisions against the fresh
+        SHALL refresh this view after reload or reconnect and retry leave/start decisions against the fresh
         state instead of caching membership.
       parameters:
         - name: lobbyId
