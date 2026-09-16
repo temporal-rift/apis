@@ -252,7 +252,11 @@ paths:
             minimum: 1
       responses:
         '200':
-          description: Round submission status
+          description: |
+            Round submission status. `pendingPlayerIds` reports who has not submitted, never what anyone
+            submitted. The optional caller-scoped `mySubmission` recovers the caller's own accepted decision
+            after reload; it never carries another player's choice. Era/round coordinates are stale-state
+            guards: refresh the participant state and retry at most once when they are rejected elsewhere.
           content:
             application/json:
               schema:
@@ -261,6 +265,44 @@ paths:
           description: |
             Game or round not found (`code: 404-01`). Also returned when the requesting player is
             not a participant of the game, so game and round existence is never disclosed to
+            outsiders.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
+  /api/v1/games/{gameId}/eras/{eraNumber}/paradox-resolution/status:
+    get:
+      tags: [ Action ]
+      operationId: getParadoxResolutionStatus
+      description: |
+        Recovers the current paradox-resolution phase for the caller's era: whether reactive offers are open,
+        the authoritative deadline, aggregate submission progress, and the caller's own submission flag.
+        Phase-scoped to the era, so there is no roundNumber; the explicit eraNumber is a stale-state guard.
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eraNumber
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: Paradox-resolution phase status with caller-scoped submission recovery
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParadoxResolutionStatusResponse'
+        '404':
+          description: |
+            Game or paradox-resolution phase not found (`code: 404-01`). Also returned when the requesting
+            player is not a participant of the game, so game and phase existence is never disclosed to
             outsiders.
           content:
             application/problem+json:
@@ -572,6 +614,51 @@ components:
           items:
             type: string
             format: uuid
+        mySubmission:
+          $ref: '#/components/schemas/MyRoundSubmission'
+
+    MyRoundSubmission:
+      type: object
+      required: [ submitted ]
+      description: >-
+        Caller-scoped recovery of the caller's own accepted round decision. Absent until the owner computes
+        it; never carries another player's choice, resolved or not.
+      properties:
+        submitted:
+          type: boolean
+        actionType:
+          $ref: '#/components/schemas/ActionType'
+          description: The caller's own accepted family when submitted is true; absent otherwise.
+
+    ParadoxResolutionStatusResponse:
+      type: object
+      required: [ eraNumber, phaseOpen, submittedCount, totalPlayers, mySubmitted ]
+      properties:
+        eraNumber:
+          type: integer
+          minimum: 1
+        phaseOpen:
+          type: boolean
+          description: True while the era's paradox-resolution phase accepts reactive cards.
+        timerRemainingSeconds:
+          type: integer
+          minimum: 0
+          description: Authoritative seconds remaining while phaseOpen is true; absent once closed.
+        submittedCount:
+          type: integer
+          minimum: 0
+        totalPlayers:
+          type: integer
+          minimum: 0
+        pendingPlayerIds:
+          type: array
+          description: Players yet to submit while the phase is open; never reveals submitted card details.
+          items:
+            type: string
+            format: uuid
+        mySubmitted:
+          type: boolean
+          description: Whether the caller has an accepted paradox-resolution submission for this era.
 
     ProblemDetail:
       type: object

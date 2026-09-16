@@ -27,7 +27,14 @@ paths:
             format: uuid
       responses:
         '200':
-          description: Full current game state for the requesting player
+          description: |
+            Full current game state for the requesting player. The view is participant-scoped: public facts plus
+            only the caller's earned and private state. `revision`/`lastUpdatedAt` are freshness markers for polling
+            one game and never promise global or cross-topic event order. After reload or a failed submission the
+            client SHALL refresh this view and retry at most once against the fresh era/round/deadline coordinates.
+            Only entitled fields are serialized: exact probabilities appear solely in the caller's own
+            `myRevealedIntel`, future or carry-forward weights never appear, and private score reasons beyond the
+            published history shape are omitted.
           content:
             application/json:
               schema:
@@ -205,6 +212,221 @@ components:
           minimum: 0
           description: Current number of links in the chain.
 
+    Deadlines:
+      type: object
+      description: >-
+        Authoritative expiry timestamps owned by game-service. The projection copies them for recovery;
+        the submission endpoints enforce them. All fields nullable; absent object means no deadline is
+        currently known. On 409/422 the client SHALL refresh state and retry at most once against the fresh
+        coordinate instead of retrying blindly.
+      properties:
+        handSelectionExpiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        actionRoundExpiresAt:
+          type: string
+          format: date-time
+          nullable: true
+        paradoxResolutionExpiresAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    PhaseContext:
+      type: object
+      required: [ declarationOpen, paradoxOpen ]
+      properties:
+        declarationOpen:
+          type: boolean
+          description: True while the public declaration window accepts Rally/Momentum before Action Round 1.
+        paradoxOpen:
+          type: boolean
+          description: True while a paradox-resolution phase accepts reactive cards for the current era.
+        paradoxIds:
+          type: array
+          description: Open paradox identifiers when paradoxOpen is true; absent otherwise.
+          items:
+            type: string
+            format: uuid
+
+    PublicBandOutcome:
+      type: object
+      required: [ outcomeId, band ]
+      properties:
+        outcomeId:
+          type: string
+          format: uuid
+        band:
+          type: string
+          enum: [ LOW, MEDIUM, HIGH ]
+
+    PublicBandEvent:
+      type: object
+      required: [ eventId, observedInRound, outcomes ]
+      properties:
+        eventId:
+          type: string
+          format: uuid
+        observedInRound:
+          type: integer
+          minimum: 1
+          description: Round whose close produced these bands, so clients can show observation age.
+        outcomes:
+          type: array
+          items:
+            $ref: '#/components/schemas/PublicBandOutcome'
+
+    PublicDeclaration:
+      type: object
+      required: [ playerId, mode, targetEventId, targetOutcomeId, eraNumber ]
+      properties:
+        playerId:
+          type: string
+          format: uuid
+        mode:
+          type: string
+          enum: [ RALLY, MOMENTUM ]
+        targetEventId:
+          type: string
+          format: uuid
+        targetOutcomeId:
+          type: string
+          format: uuid
+        eraNumber:
+          type: integer
+          minimum: 1
+
+    ExposeSignature:
+      type: object
+      required: [ type, targetEventId ]
+      properties:
+        type:
+          type: string
+          enum: [ PUSH, SUPPRESS, SWING ]
+        targetEventId:
+          type: string
+          format: uuid
+        sourceOutcomeId:
+          type: string
+          format: uuid
+        targetOutcomeId:
+          type: string
+          format: uuid
+
+    ExposeFact:
+      type: object
+      required: [ activistPlayerId, targetPlayerId, roundNumber, behaviorChanged ]
+      properties:
+        activistPlayerId:
+          type: string
+          format: uuid
+        targetPlayerId:
+          type: string
+          format: uuid
+        roundNumber:
+          type: integer
+          minimum: 2
+          maximum: 3
+          description: 2 carries the exposed Round-1 signature; 3 reports whether behavior changed.
+        signature:
+          $ref: '#/components/schemas/ExposeSignature'
+          description: The exposed Round-1 signature; present only for round 2 facts.
+        behaviorChanged:
+          type: boolean
+          description: True when the target submitted a different qualifying signature in Round 3.
+
+    MySubmission:
+      type: object
+      required: [ eraNumber, kind, status ]
+      properties:
+        eraNumber:
+          type: integer
+          minimum: 1
+        roundNumber:
+          type: integer
+          nullable: true
+          description: Action round for ordinary submissions; null for hand selection, declarations and paradox cards.
+        kind:
+          type: string
+          enum: [ HAND_SELECTION, DECLARATION, ACTION, PARADOX_CARD ]
+          description: Which accepted decision this entry recovers.
+        status:
+          type: string
+          enum: [ ACCEPTED ]
+        actionType:
+          type: string
+          nullable: true
+          enum: [ CARD, SPECIAL ]
+          description: Present for ACTION entries; identifies the caller's own accepted family without details.
+
+    SpecialBudget:
+      type: object
+      required: [ specialAction, remainingUsesThisEra, remainingUsesThisGame ]
+      properties:
+        specialAction:
+          type: string
+          description: One of the caller's faction specials, including Seal when entitled.
+        remainingUsesThisEra:
+          type: integer
+          minimum: 0
+        remainingUsesThisGame:
+          type: integer
+          minimum: 0
+
+    GameWinner:
+      type: object
+      required: [ playerId ]
+      properties:
+        playerId:
+          type: string
+          format: uuid
+        faction:
+          type: string
+          nullable: true
+
+    FinalScore:
+      type: object
+      required: [ playerId, score ]
+      properties:
+        playerId:
+          type: string
+          format: uuid
+        score:
+          type: integer
+
+    GameResult:
+      type: object
+      required: [ endReason, winners, finalScores, revealBoundary ]
+      description: >-
+        Authoritative terminal facts, present only when phase is GAME_ENDED. Consistent with the scores
+        and faction reveals already published; per-round private hands and intel remain caller-scoped even
+        after the game ends.
+      properties:
+        endReason:
+          type: string
+          enum:
+            - SCORE_THRESHOLD
+            - TIMELINE_COLLAPSED
+            - TIMELINE_STABILIZED
+            - DECK_EXHAUSTED
+            - RESOLUTION_FAILED
+            - ALL_PLAYERS_ABANDONED
+        winners:
+          type: array
+          items:
+            $ref: '#/components/schemas/GameWinner'
+        finalScores:
+          type: array
+          items:
+            $ref: '#/components/schemas/FinalScore'
+        revealBoundary:
+          type: string
+          enum: [ FACTIONS_AND_SCORES_PUBLIC ]
+          description: >-
+            Declares what is now safe for participants to show: winners, factions and final scores are public
+            to participants; all other private scoping (own hands, own intel) is unchanged.
+
     PlayerGameStateResponse:
       type: object
       required: [ gameId, eraNumber, phase, myHand, myScore, myRevealedIntel, activeEvents, players ]
@@ -214,8 +436,32 @@ components:
           format: uuid
         eraNumber:
           type: integer
+        revision:
+          type: integer
+          minimum: 0
+          description: >-
+            Monotonic freshness marker for this game's projection. Clients SHALL use it only to detect
+            staleness between polls of the same game (a larger value means a newer view) and SHALL NOT infer
+            global or cross-topic event order from it. Absent until the owning service computes it; when absent,
+            poll again rather than assuming the view is current.
+        lastUpdatedAt:
+          type: string
+          format: date-time
+          description: >-
+            When this participant view was last advanced by its owner. Advisory for freshness display and
+            controlled retry backoff only; never a promise of global event order.
         phase:
           $ref: '#/components/schemas/Phase'
+        roundNumber:
+          type: integer
+          nullable: true
+          description: >-
+            Current round within the era when phase is an action round or paradox resolution; null otherwise.
+            Coordinates with the eraNumber/roundNumber stale-state guards on submission endpoints.
+        deadlines:
+          $ref: '#/components/schemas/Deadlines'
+        phaseContext:
+          $ref: '#/components/schemas/PhaseContext'
         myFaction:
           type: string
           nullable: true
@@ -261,6 +507,45 @@ components:
             - $ref: '#/components/schemas/RoundSummary'
           nullable: true
           description: The most recently completed action round summary, or null before the first round closes.
+        publicBands:
+          type: array
+          description: >-
+            Public approximate bands for the current era, once published after Action Round 2. Each entry carries
+            the round it was observed in so clients can show its age. Exact probabilities never appear here;
+            they remain scoped to the caller's own myRevealedIntel. Absent when not yet published; empty means
+            known-none. Replaces (never duplicates) the preview once the adjusted publication supersedes it.
+          items:
+            $ref: '#/components/schemas/PublicBandEvent'
+        declarations:
+          type: array
+          description: >-
+            Public Rally/Momentum declarations of record for the current era. Mirrors only what was already
+            broadcast to all participants; never a private submission.
+          items:
+            $ref: '#/components/schemas/PublicDeclaration'
+        exposeFacts:
+          type: array
+          description: >-
+            Public Expose outcomes for the current era: the exposed Round-1 signature and whether the target's
+            behavior changed in Round 3. Contains no Round-3 signature.
+          items:
+            $ref: '#/components/schemas/ExposeFact'
+        mySubmissions:
+          type: array
+          description: >-
+            The caller's own accepted decisions (hand selection, declaration, ordinary and paradox submissions)
+            for recovery after reload. Never includes another player's decisions, resolved or not.
+          items:
+            $ref: '#/components/schemas/MySubmission'
+        mySpecialBudgets:
+          type: array
+          description: >-
+            Remaining uses for the caller's own special actions, including per-era and game-wide budgets (for
+            example Seal). Scoped to the caller alone; opponent availability is never exposed.
+          items:
+            $ref: '#/components/schemas/SpecialBudget'
+        result:
+          $ref: '#/components/schemas/GameResult'
         chain:
           allOf:
             - $ref: '#/components/schemas/ChainState'
