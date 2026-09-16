@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Temporal Rift — Action API
   description: Action round and paradox-resolution submission endpoints
-  version: 3.1.0
+  version: 3.2.0
 
 servers:
   - url: /
@@ -322,23 +322,7 @@ components:
       enum: [ CARD, SPECIAL ]
 
     SpecialAction:
-      type: string
-      enum:
-        - ANNIHILATE
-        - CORRUPT
-        - CASCADE
-        - FORESIGHT
-        - SEAL
-        - FULFILLMENT
-        - REWRITE
-        - MIMIC
-        - OBSCURE
-        - THREAD
-        - TAPESTRY
-        - UNRAVEL
-        - RALLY
-        - EXPOSE
-        - MOMENTUM
+      $ref: '../shared/enums.yaml#/SpecialAction'
 
     ActionSubmissionStatus:
       type: string
