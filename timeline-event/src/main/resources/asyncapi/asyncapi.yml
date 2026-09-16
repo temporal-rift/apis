@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Timeline events
-  version: 3.0.0
+  version: 3.1.0
   description: Timeline service domain events published to timeline.events
 
 servers:
@@ -43,6 +43,16 @@ channels:
         $ref: '#/components/messages/ChainLinkInvalidated'
       threadRejected:
         $ref: '#/components/messages/ThreadRejected'
+      specialRejected:
+        $ref: '#/components/messages/SpecialRejected'
+      chainProtectionArmed:
+        $ref: '#/components/messages/ChainProtectionArmed'
+      chainProtectionConsumed:
+        $ref: '#/components/messages/ChainProtectionConsumed'
+      chainReAnchored:
+        $ref: '#/components/messages/ChainReAnchored'
+      cascadeCarriedForward:
+        $ref: '#/components/messages/CascadeCarriedForward'
       corruptInversionConfirmed:
         $ref: '#/components/messages/CorruptInversionConfirmed'
       resolutionFailed:
@@ -111,6 +121,26 @@ operations:
     action: send
     channel: { $ref: '#/channels/timelineEvents' }
     messages: [ { $ref: '#/channels/timelineEvents/messages/threadRejected' } ]
+  publishSpecialRejected:
+    action: send
+    channel: { $ref: '#/channels/timelineEvents' }
+    messages: [ { $ref: '#/channels/timelineEvents/messages/specialRejected' } ]
+  publishChainProtectionArmed:
+    action: send
+    channel: { $ref: '#/channels/timelineEvents' }
+    messages: [ { $ref: '#/channels/timelineEvents/messages/chainProtectionArmed' } ]
+  publishChainProtectionConsumed:
+    action: send
+    channel: { $ref: '#/channels/timelineEvents' }
+    messages: [ { $ref: '#/channels/timelineEvents/messages/chainProtectionConsumed' } ]
+  publishChainReAnchored:
+    action: send
+    channel: { $ref: '#/channels/timelineEvents' }
+    messages: [ { $ref: '#/channels/timelineEvents/messages/chainReAnchored' } ]
+  publishCascadeCarriedForward:
+    action: send
+    channel: { $ref: '#/channels/timelineEvents' }
+    messages: [ { $ref: '#/channels/timelineEvents/messages/cascadeCarriedForward' } ]
   publishCorruptInversionConfirmed:
     action: send
     channel: { $ref: '#/channels/timelineEvents' }
@@ -214,11 +244,55 @@ components:
       name: ThreadRejected
       title: Thread rejected
       description: >-
-        Private rejection of one THREAD play whose referenced past event/outcome never resolved as claimed.
-        The playerId payload field identifies the viewer who receives this message. Chain length does not
-        change and the message is never broadcast.
+        Private rejection of one THREAD play: an invalid current-era source, a past target that never resolved
+        as claimed, or a missing coordinate. The playerId payload field identifies the viewer who receives this
+        message. Chain length does not change and the message is never broadcast.
       headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
       payload: { $ref: '#/components/schemas/ThreadRejectedPayload' }
+    SpecialRejected:
+      name: SpecialRejected
+      title: Special action rejected
+      description: >-
+        Private rejection of one TAPESTRY, REWEAVE, or CASCADE play whose prerequisites were not met (an
+        unmet chain-length/era-budget prerequisite, an invalid or already-linked re-anchor target, or an
+        un-erased CASCADE precondition). The playerId payload field identifies the viewer who receives this
+        message; the message is never broadcast.
+      headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
+      payload: { $ref: '#/components/schemas/SpecialRejectedPayload' }
+    ChainProtectionArmed:
+      name: ChainProtectionArmed
+      title: Chain protection armed
+      description: >-
+        Private confirmation that an accepted TAPESTRY armed protection for the acting Weaver's chain for the
+        remainder of the era it was played in. The playerId payload field identifies the viewer who receives
+        this message; the message is never broadcast.
+      headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
+      payload: { $ref: '#/components/schemas/ChainProtectionArmedPayload' }
+    ChainProtectionConsumed:
+      name: ChainProtectionConsumed
+      title: Chain protection consumed
+      description: >-
+        Private confirmation that an armed TAPESTRY protection absorbed an erasure that would otherwise have
+        invalidated the identified link, and is no longer armed. The playerId payload field identifies the
+        viewer who receives this message; the message is never broadcast.
+      headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
+      payload: { $ref: '#/components/schemas/ChainProtectionConsumedPayload' }
+    ChainReAnchored:
+      name: ChainReAnchored
+      title: Chain re-anchored
+      description: >-
+        Public chain-progress fact: an accepted REWEAVE discarded the chain's newest link and replaced it with
+        a different resolved past outcome, leaving chain length unchanged.
+      headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
+      payload: { $ref: '#/components/schemas/ChainReAnchoredPayload' }
+    CascadeCarriedForward:
+      name: CascadeCarriedForward
+      title: Cascade carried forward
+      description: >-
+        Public fact: a CASCADE armed against an outcome erased in the prior era re-applied that erasure to the
+        same outcome at the start of this era. Applied at most once per armed CASCADE.
+      headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
+      payload: { $ref: '#/components/schemas/CascadeCarriedForwardPayload' }
     CorruptInversionConfirmed:
       name: CorruptInversionConfirmed
       title: Corrupt inversion confirmed
@@ -341,6 +415,9 @@ components:
 
     ParadoxType:
       $ref: './shared/enums.yaml#/ParadoxType'
+
+    SpecialAction:
+      $ref: './shared/enums.yaml#/SpecialAction'
 
     ParadoxDetectedParadox:
       type: object
@@ -495,6 +572,14 @@ components:
         gameId: { type: string, format: uuid }
         chainId: { type: string, format: uuid }
         playerId: { type: string, format: uuid }
+        sourceEventId:
+          type: string
+          format: uuid
+          description: The current-era event this link was anchored from (the THREAD's own-era side).
+        sourceOutcomeId:
+          type: string
+          format: uuid
+          description: The current-era outcome this link was anchored from.
         linkedEventId: { type: string, format: uuid }
         linkedOutcomeId: { type: string, format: uuid }
         chainLength: { type: integer }
@@ -552,10 +637,75 @@ components:
         eraNumber: { type: integer }
         chainId: { type: string, format: uuid }
         playerId: { type: string, format: uuid }
+        sourceEventId:
+          type: string
+          format: uuid
+          description: The submitted current-era source, when the rejection is source-side. Absent otherwise.
+        sourceOutcomeId: { type: string, format: uuid }
         referencedEventId: { type: string, format: uuid }
         referencedOutcomeId: { type: string, format: uuid }
         reason: { type: string }
-      required: [ gameId, eraNumber, playerId, referencedEventId, referencedOutcomeId, reason ]
+      required: [ gameId, eraNumber, playerId, reason ]
+
+    SpecialRejectedPayload:
+      type: object
+      properties:
+        gameId: { type: string, format: uuid }
+        eraNumber: { type: integer }
+        playerId: { type: string, format: uuid }
+        specialAction: { $ref: '#/components/schemas/SpecialAction' }
+        chainId: { type: string, format: uuid }
+        targetEventId: { type: string, format: uuid }
+        targetOutcomeId: { type: string, format: uuid }
+        reason: { type: string }
+      required: [ gameId, eraNumber, playerId, specialAction, reason ]
+
+    ChainProtectionArmedPayload:
+      type: object
+      properties:
+        gameId: { type: string, format: uuid }
+        eraNumber: { type: integer }
+        chainId: { type: string, format: uuid }
+        playerId: { type: string, format: uuid }
+      required: [ gameId, eraNumber, chainId, playerId ]
+
+    ChainProtectionConsumedPayload:
+      type: object
+      properties:
+        gameId: { type: string, format: uuid }
+        eraNumber: { type: integer }
+        chainId: { type: string, format: uuid }
+        playerId: { type: string, format: uuid }
+        protectedEventId: { type: string, format: uuid }
+        protectedOutcomeId: { type: string, format: uuid }
+      required: [ gameId, eraNumber, chainId, playerId, protectedEventId, protectedOutcomeId ]
+
+    ChainReAnchoredPayload:
+      type: object
+      properties:
+        gameId: { type: string, format: uuid }
+        eraNumber: { type: integer }
+        chainId: { type: string, format: uuid }
+        playerId: { type: string, format: uuid }
+        discardedEventId: { type: string, format: uuid }
+        discardedOutcomeId: { type: string, format: uuid }
+        linkedEventId: { type: string, format: uuid }
+        linkedOutcomeId: { type: string, format: uuid }
+        chainLength: { type: integer }
+      required:
+        [ gameId, eraNumber, chainId, playerId, discardedEventId, discardedOutcomeId, linkedEventId,
+          linkedOutcomeId, chainLength ]
+
+    CascadeCarriedForwardPayload:
+      type: object
+      properties:
+        gameId: { type: string, format: uuid }
+        eraNumber:
+          type: integer
+          description: The era the carry-forward was applied in (the era after the one CASCADE was armed in).
+        targetEventId: { type: string, format: uuid }
+        targetOutcomeId: { type: string, format: uuid }
+      required: [ gameId, eraNumber, targetEventId, targetOutcomeId ]
 
     CorruptInversionConfirmedPayload:
       type: object
