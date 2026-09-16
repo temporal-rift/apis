@@ -32,6 +32,46 @@ paths:
               schema:
                 $ref: '#/components/schemas/CreateLobbyResponse'
 
+  /api/v1/lobbies/{lobbyId}:
+    get:
+      tags: [ Session ]
+      operationId: getLobby
+      description: |
+        Recovers lobby membership, host, readiness/start state and game identity for a lobby member.
+        The lobby's pre-assigned gameId is present from creation, before any game exists. An authenticated
+        player who is not a member receives a defined 403 denial; an unknown lobbyId returns 404. Clients
+        SHALL refresh this view after reload or reconnect and retry join/start decisions against the fresh
+        state instead of caching membership.
+      parameters:
+        - name: lobbyId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Lobby membership and start state for a member
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LobbyResponse'
+        '403':
+          description: |
+            Authenticated player is not a member of this lobby (`code: 403-01`). No membership or game
+            identity beyond the denial is disclosed.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '404':
+          description: |
+            Lobby not found (`code: 404-01`).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
   /api/v1/lobbies/{lobbyId}/join:
     post:
       tags: [ Session ]
@@ -238,6 +278,38 @@ components:
           format: uuid
         currentPlayers:
           type: array
+          items:
+            $ref: '#/components/schemas/PlayerInLobby'
+
+    LobbyStatus:
+      type: string
+      description: >-
+        Readiness/start state of the lobby. WAITING accepts joins and leaves; STARTED means the host
+        has started the game and the pre-assigned gameId is now active; CLOSED means the lobby was
+        disbanded and accepts no further membership changes.
+      enum: [ WAITING, STARTED, CLOSED ]
+
+    LobbyResponse:
+      type: object
+      required: [ lobbyId, gameId, hostPlayerId, status, members ]
+      properties:
+        lobbyId:
+          type: string
+          format: uuid
+        gameId:
+          type: string
+          format: uuid
+          description: >-
+            Pre-assigned game identity stored on the lobby from creation, present before the game
+            aggregate exists. Members use it to correlate lobby state with subsequent game reads.
+        hostPlayerId:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/LobbyStatus'
+        members:
+          type: array
+          description: Current members in join order. Scoped to members only; never exposed to non-members.
           items:
             $ref: '#/components/schemas/PlayerInLobby'
 
