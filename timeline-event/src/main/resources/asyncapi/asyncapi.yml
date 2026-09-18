@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Timeline events
-  version: 3.1.0
+  version: 4.0.0
   description: Timeline service domain events published to timeline.events
 
 servers:
@@ -33,6 +33,8 @@ channels:
         $ref: '#/components/messages/OutcomeApplied'
       eraResolutionCompleted:
         $ref: '#/components/messages/EraResolutionCompleted'
+      chainLinkThreaded:
+        $ref: '#/components/messages/ChainLinkThreaded'
       chainLinkAdded:
         $ref: '#/components/messages/ChainLinkAdded'
       chainCompleted:
@@ -101,6 +103,10 @@ operations:
     action: send
     channel: { $ref: '#/channels/timelineEvents' }
     messages: [ { $ref: '#/channels/timelineEvents/messages/eraResolutionCompleted' } ]
+  publishChainLinkThreaded:
+    action: send
+    channel: { $ref: '#/channels/timelineEvents' }
+    messages: [ { $ref: '#/channels/timelineEvents/messages/chainLinkThreaded' } ]
   publishChainLinkAdded:
     action: send
     channel: { $ref: '#/channels/timelineEvents' }
@@ -217,9 +223,25 @@ components:
         coordination data and is not a standalone player notification.
       headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
       payload: { $ref: '#/components/schemas/EraResolutionCompletedPayload' }
+    ChainLinkThreaded:
+      name: ChainLinkThreaded
+      title: Chain link threaded
+      description: >-
+        Public chain-progress fact: an accepted THREAD created a pending link naming a not-yet-resolved
+        current-era outcome as the chain's newest link. The favorable probability push already applies at this
+        point; the link itself is not yet confirmed and does not count toward chain length until it resolves as
+        predicted (ChainLinkAdded), is Tapestry-protected against an Annihilate (ChainLinkAdded plus
+        ChainProtectionConsumed), or its CHAIN_CONFLICT paradox resolves in the Weaver's favor (ChainLinkAdded).
+        It clears without penalty (ChainLinkInvalidated) if it resolves to a different, non-annihilated outcome.
+      headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
+      payload: { $ref: '#/components/schemas/ChainLinkThreadedPayload' }
     ChainLinkAdded:
       name: ChainLinkAdded
       title: Chain link added
+      description: >-
+        Public chain-progress fact: the chain's pending link (created by ChainLinkThreaded) confirmed — it
+        resolved as predicted, was Tapestry-protected against an Annihilate, or its CHAIN_CONFLICT paradox
+        resolved in the Weaver's favor. REWEAVE never produces this fact; see ChainReAnchored.
       headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
       payload: { $ref: '#/components/schemas/ChainLinkAddedPayload' }
     ChainCompleted:
@@ -230,23 +252,29 @@ components:
     ChainBroken:
       name: ChainBroken
       title: Chain broken
+      description: >-
+        Public chain-progress fact: the chain's pending link was annihilated without Tapestry protection, the
+        resulting CHAIN_CONFLICT paradox cascaded unresolved, and the chain transitioned to BROKEN. This is the
+        only production trigger for this fact; the chain's saga ends.
       headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
       payload: { $ref: '#/components/schemas/ChainBrokenPayload' }
     ChainLinkInvalidated:
       name: ChainLinkInvalidated
       title: Chain link invalidated
       description: >-
-        Public chain-progress fact: an ANNIHILATE removed a linked outcome that TAPESTRY did not protect,
-        so that link is removed and the chain length decremented. The chain stays open for rebuilding.
+        Public chain-progress fact: the chain's pending link (created by ChainLinkThreaded) resolved to a
+        different, non-annihilated outcome than predicted. The pending link clears without penalty; chain length
+        is unchanged and the chain stays open for the Weaver to Thread again.
       headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
       payload: { $ref: '#/components/schemas/ChainLinkInvalidatedPayload' }
     ThreadRejected:
       name: ThreadRejected
       title: Thread rejected
       description: >-
-        Private rejection of one THREAD play: an invalid current-era source, a past target that never resolved
-        as claimed, or a missing coordinate. The playerId payload field identifies the viewer who receives this
-        message. Chain length does not change and the message is never broadcast.
+        Private rejection of one THREAD play: the named coordinate is not a not-yet-resolved current-era outcome,
+        the chain already has an open pending link, or the coordinate is missing. The playerId payload field
+        identifies the viewer who receives this message. Chain length does not change and the message is never
+        broadcast.
       headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
       payload: { $ref: '#/components/schemas/ThreadRejectedPayload' }
     SpecialRejected:
@@ -272,9 +300,10 @@ components:
       name: ChainProtectionConsumed
       title: Chain protection consumed
       description: >-
-        Private confirmation that an armed TAPESTRY protection absorbed an erasure that would otherwise have
-        invalidated the identified link, and is no longer armed. The playerId payload field identifies the
-        viewer who receives this message; the message is never broadcast.
+        Private confirmation that an armed TAPESTRY protection absorbed an Annihilate against the chain's pending
+        link, which confirms anyway (see ChainLinkAdded) instead of raising a CHAIN_CONFLICT paradox, and is no
+        longer armed. The playerId payload field identifies the viewer who receives this message; the message is
+        never broadcast.
       headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
       payload: { $ref: '#/components/schemas/ChainProtectionConsumedPayload' }
     ChainReAnchored:
@@ -566,20 +595,29 @@ components:
           items: { $ref: '#/components/schemas/EraTerminalResolution' }
       required: [ gameId, eraNumber, terminalResolutions ]
 
+    ChainLinkThreadedPayload:
+      type: object
+      properties:
+        gameId: { type: string, format: uuid }
+        eraNumber: { type: integer }
+        chainId: { type: string, format: uuid }
+        playerId: { type: string, format: uuid }
+        eventId:
+          type: string
+          format: uuid
+          description: The not-yet-resolved current-era event THREAD named.
+        outcomeId:
+          type: string
+          format: uuid
+          description: The not-yet-resolved current-era outcome THREAD named.
+      required: [ gameId, eraNumber, chainId, playerId, eventId, outcomeId ]
+
     ChainLinkAddedPayload:
       type: object
       properties:
         gameId: { type: string, format: uuid }
         chainId: { type: string, format: uuid }
         playerId: { type: string, format: uuid }
-        sourceEventId:
-          type: string
-          format: uuid
-          description: The current-era event this link was anchored from (the THREAD's own-era side).
-        sourceOutcomeId:
-          type: string
-          format: uuid
-          description: The current-era outcome this link was anchored from.
         linkedEventId: { type: string, format: uuid }
         linkedOutcomeId: { type: string, format: uuid }
         chainLength: { type: integer }
@@ -612,10 +650,16 @@ components:
         gameId: { type: string, format: uuid }
         eraNumber: { type: integer }
         chainId: { type: string, format: uuid }
-        brokenByPlayerId: { type: string, format: uuid }
-        targetPlayerId: { type: string, format: uuid }
+        playerId:
+          type: string
+          format: uuid
+          description: The Weaver whose chain broke.
+        paradoxId:
+          type: string
+          format: uuid
+          description: The cascaded CHAIN_CONFLICT paradox (ParadoxCascaded) that broke this chain.
         chainLengthAtBreak: { type: integer }
-      required: [ gameId, eraNumber, chainId, brokenByPlayerId, targetPlayerId, chainLengthAtBreak ]
+      required: [ gameId, eraNumber, chainId, playerId, paradoxId, chainLengthAtBreak ]
 
     ChainLinkInvalidatedPayload:
       type: object
@@ -637,13 +681,11 @@ components:
         eraNumber: { type: integer }
         chainId: { type: string, format: uuid }
         playerId: { type: string, format: uuid }
-        sourceEventId:
+        eventId:
           type: string
           format: uuid
-          description: The submitted current-era source, when the rejection is source-side. Absent otherwise.
-        sourceOutcomeId: { type: string, format: uuid }
-        referencedEventId: { type: string, format: uuid }
-        referencedOutcomeId: { type: string, format: uuid }
+          description: The submitted coordinate's event, when present in the submission. Absent otherwise.
+        outcomeId: { type: string, format: uuid }
         reason: { type: string }
       required: [ gameId, eraNumber, playerId, reason ]
 

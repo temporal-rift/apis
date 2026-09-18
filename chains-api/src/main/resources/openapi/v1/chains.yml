@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Temporal Rift — Chains API
   description: Gated Weaver chain reads for timeline-service
-  version: 1.1.0
+  version: 2.0.0
 
 servers:
   - url: /
@@ -82,14 +82,19 @@ components:
           format: uuid
         eraNumber:
           type: integer
-        sourceEventId:
+
+    PendingChainLink:
+      type: object
+      required: [ eventId, outcomeId ]
+      properties:
+        eventId:
           type: string
           format: uuid
-          description: The current-era event this link was anchored from. Absent for a link established before this field existed.
-        sourceOutcomeId:
+          description: The not-yet-resolved current-era event THREAD named.
+        outcomeId:
           type: string
           format: uuid
-          description: The current-era outcome this link was anchored from.
+          description: The not-yet-resolved current-era outcome THREAD named.
 
     ChainResponse:
       type: object
@@ -102,10 +107,17 @@ components:
           $ref: '#/components/schemas/ChainStatus'
         chainLength:
           type: integer
+          description: The confirmed-link count. Does not include an open pending link.
         links:
           type: array
           items:
             $ref: '#/components/schemas/ChainLink'
+          description: Confirmed links only.
+        pendingLink:
+          allOf:
+            - $ref: '#/components/schemas/PendingChainLink'
+          nullable: true
+          description: The chain's open pending link (a not-yet-resolved current-era THREAD prediction). Null when no pending link exists.
         protectionArmed:
           type: boolean
           description: Whether a TAPESTRY protection is currently armed for this chain, in the current era.
