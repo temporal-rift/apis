@@ -305,6 +305,12 @@ components:
         hostPlayerId:
           type: string
           format: uuid
+        currentPlayerId:
+          type: string
+          format: uuid
+          description: >-
+            The authenticated member whose authorized request produced this response. It always
+            matches exactly one entry in members and is never included in a non-member denial.
         status:
           $ref: '#/components/schemas/LobbyStatus'
         members:
