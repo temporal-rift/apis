@@ -458,28 +458,34 @@ components:
               description: |
                 Rally and Momentum are accepted only by the declaration endpoint during the pre-Round-1 declaration
                 window. Corrupt and Expose are player-targeting: both require targetPlayerId and must omit
-                targetEventId and targetOutcomeId. Thread additionally requires sourceEventId and
-                sourceOutcomeId naming a current-era outcome; every other special action must omit them.
-                Every other special action requires targetEventId and targetOutcomeId and must omit
-                targetPlayerId.
+                targetEventId and targetOutcomeId. Every other special action, including Thread, requires
+                targetEventId and targetOutcomeId and must omit targetPlayerId. Thread's target names the
+                not-yet-resolved current-era outcome it anchors as the chain's next link; sourceEventId and
+                sourceOutcomeId are never used for special actions and must always be omitted.
             sourceEventId:
               type: string
               format: uuid
               description: >-
-                Thread's current-era anchor. Required for Thread; must be omitted for every other special action.
+                Unused for special actions; must always be omitted. Present only for schema symmetry with
+                CardActionRequest.
             sourceOutcomeId:
               type: string
               format: uuid
               description: >-
-                Thread's current-era anchor. Required for Thread; must be omitted for every other special action.
+                Unused for special actions; must always be omitted. Present only for schema symmetry with
+                CardActionRequest.
             targetEventId:
               type: string
               format: uuid
-              description: Required for event-targeting special actions; must be omitted for Corrupt and Expose.
+              description: >-
+                Required for event-targeting special actions (including Thread); must be omitted for Corrupt and
+                Expose.
             targetOutcomeId:
               type: string
               format: uuid
-              description: Required for event-targeting special actions; must be omitted for Corrupt and Expose.
+              description: >-
+                Required for event-targeting special actions (including Thread); must be omitted for Corrupt and
+                Expose.
             targetPlayerId:
               type: string
               format: uuid
