@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Temporal Rift — Action API
   description: Action round and paradox-resolution submission endpoints
-  version: 3.2.0
+  version: 3.3.0
 
 servers:
   - url: /
@@ -277,8 +277,11 @@ paths:
       operationId: getParadoxResolutionStatus
       description: |
         Recovers the current paradox-resolution phase for the caller's era: whether reactive offers are open,
-        the authoritative deadline, aggregate submission progress, and the caller's own submission flag.
-        Phase-scoped to the era, so there is no roundNumber; the explicit eraNumber is a stale-state guard.
+        the authoritative deadline, aggregate submission progress, the caller's own submission flag, the
+        current phase's affected events, and the caller's own eligible resolution cards. Phase-scoped to
+        the era, so there is no roundNumber; the explicit eraNumber is a stale-state guard. The response
+        carries only the caller's own choices and offers and never another participant's; closed or expired
+        phases expose no active offers.
       parameters:
         - name: gameId
           in: path
@@ -294,7 +297,7 @@ paths:
             minimum: 1
       responses:
         '200':
-          description: Paradox-resolution phase status with caller-scoped submission recovery
+          description: Paradox-resolution phase status with caller-scoped submission and choice recovery
           content:
             application/json:
               schema:
@@ -323,6 +326,12 @@ components:
 
     SpecialAction:
       $ref: '../shared/enums.yaml#/SpecialAction'
+
+    CardType:
+      $ref: '../shared/enums.yaml#/CardType'
+
+    CardGrade:
+      $ref: '../shared/enums.yaml#/CardGrade'
 
     ActionSubmissionStatus:
       type: string
@@ -659,6 +668,37 @@ components:
         mySubmitted:
           type: boolean
           description: Whether the caller has an accepted paradox-resolution submission for this era.
+        affectedEventIds:
+          type: array
+          description: >-
+            Identifiers of the events affected by the current paradox-resolution phase. Present while the
+            phase is known; sufficient with eligibleResolutionCards to form a valid, reload-safe choice.
+          items:
+            type: string
+            format: uuid
+        eligibleResolutionCards:
+          type: array
+          description: >-
+            The caller's own eligible resolution cards for the current open phase. Present only while the
+            phase is open and the caller has not yet submitted; absent once the phase is closed or expired
+            and never carries another participant's choices or offers.
+          items:
+            $ref: '#/components/schemas/EligibleResolutionCard'
+
+    EligibleResolutionCard:
+      type: object
+      required: [ cardInstanceId, cardType, grade ]
+      description: >-
+        One of the caller's own cards eligible for the current open paradox-resolution phase. Caller-scoped:
+        never carries another participant's card.
+      properties:
+        cardInstanceId:
+          type: string
+          format: uuid
+        cardType:
+          $ref: '#/components/schemas/CardType'
+        grade:
+          $ref: '#/components/schemas/CardGrade'
 
     ProblemDetail:
       type: object
