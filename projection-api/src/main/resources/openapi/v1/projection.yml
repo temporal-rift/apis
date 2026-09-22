@@ -98,6 +98,7 @@ components:
       enum:
         - LOBBY
         - ERA_START
+        - HAND_SELECTION
         - ACTION_ROUND_1
         - ACTION_ROUND_2
         - ACTION_ROUND_3
