@@ -207,6 +207,9 @@ components:
     ParadoxCascaded:
       name: ParadoxCascaded
       title: Paradox cascaded
+      description: >-
+        One fact per affected event with one or more persistent paradox findings. Its paradoxIds lists all
+        findings still present after resolution, and the era terminal barrier lists the event once as CASCADED.
       headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
       payload: { $ref: '#/components/schemas/ParadoxCascadedPayload' }
     OutcomeApplied:
@@ -511,14 +514,27 @@ components:
       properties:
         gameId: { type: string, format: uuid }
         eraNumber: { type: integer }
-        paradoxId: { type: string, format: uuid }
+        paradoxId:
+          description: >-
+            First member of paradoxIds in facts from new producers; retained for consumers of older facts.
+          type: string
+          format: uuid
+        paradoxIds:
+          description: >-
+            Every persistent paradox finding on this event, in deterministic order. A newly found paradox is
+            announced by ParadoxDetected before appearing here. New producers always populate this field;
+            older facts may omit it and report their finding through paradoxId alone.
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { type: string, format: uuid }
         affectedEventId: { type: string, format: uuid }
         carryForwardProbabilityState:
           type: array
           items: { $ref: '#/components/schemas/ParadoxCascadedProbabilityState' }
         detonatedByPlayerIds:
           description: >-
-            Player ids whose DETONATE targeted this cascade (GDD "Group 4 — Paradox"). Empty when no DETONATE
+            Player ids whose DETONATE targeted this cascade. Empty when no DETONATE
             was submitted for this event. Multiple DETONATEs on the same event collapse into this one set —
             the effect does not stack. Consumers apply their own scoring multiplier; this field is a fact,
             not a computed score.
