@@ -181,6 +181,9 @@ components:
     ActivistDeclarationRecorded:
       name: ActivistDeclarationRecorded
       title: Activist declaration recorded
+      description: >-
+        Public current-era Rally or Momentum declaration. A STALLED terminal result fails this era's declaration
+        without a score or next-era Momentum eligibility. A later declaration on the carried event is independent.
       headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
       payload: { $ref: '#/components/schemas/ActivistDeclarationRecordedPayload' }
     ExposeSignatureRevealed:

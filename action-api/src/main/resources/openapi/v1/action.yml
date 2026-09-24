@@ -73,6 +73,8 @@ paths:
         Records the Activist's sole current-era Rally or eligible Momentum declaration during the public declaration
         window after event reveal and before Action Round 1 opens. It consumes that player's Round-1 special-action
         slot; this is not a free declaration action. The target event and outcome must be active in the current era.
+        If the target Stalls, the declaration fails in this era, grants no next-era Momentum eligibility, and cannot
+        score when the carried event returns. A later declaration on that event is a new bet.
       parameters:
         - name: gameId
           in: path

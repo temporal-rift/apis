@@ -396,7 +396,8 @@ components:
             Caller-scoped cumulative progress. ERASERS: outcomes the caller annihilated. PROPHETS: events
             resolved as written. REVISIONISTS: eras the caller's secret outcome won. WEAVERS: current chain
             links (mirrors the public chain length). ACTIVISTS: current consecutive eras with a correct
-            declaration. The owner computes streaks server-side so clients never reconstruct them from history.
+            declaration. A stalled declaration breaks that streak. The owner computes streaks server-side so
+            clients never reconstruct them from history.
         threshold:
           type: integer
           minimum: 1
@@ -551,7 +552,8 @@ components:
           type: array
           description: >-
             Public Rally/Momentum declarations of record for the current era. Mirrors only what was already
-            broadcast to all participants; never a private submission.
+            broadcast to all participants; never a private submission. A stalled declaration fails in this era
+            and does not remain a scoring bet on the event if it returns later.
           items:
             $ref: '#/components/schemas/PublicDeclaration'
         exposeFacts:
