@@ -170,6 +170,11 @@ paths:
             - Faction required for special action (`code: 422-04`)
             - Faction does not own the submitted special action (`code: 422-05`)
             - Target event or outcome does not belong to the current game/era (`code: 422-06`)
+            - Rally or Momentum submitted outside the declaration endpoint (`code: 422-07`)
+            - Expose is not available in this round or its target player is not eligible (`code: 422-09`)
+            - Card type is not eligible during an action round (`code: 422-10`)
+            - Card or special action cannot be played in this era or round, including Trace in Era 1 Round 1 and
+              Stall or Cascade in the final era, which has no next era (`code: 422-12`)
           content:
             application/problem+json:
               schema:
