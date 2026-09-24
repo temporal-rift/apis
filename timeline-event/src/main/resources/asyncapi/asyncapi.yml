@@ -223,7 +223,8 @@ components:
       description: >-
         The ordered terminal-resolution barrier for an era. It is emitted once after all individual
         OutcomeApplied and ParadoxCascaded facts for that era are durably produced. It is service
-        coordination data and is not a standalone player notification.
+        coordination data and is not a standalone player notification. STALLED has no winner: era-scoped
+        declarations and Prophet writing expire, and a matching pending Weaver link is invalidated without penalty.
       headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
       payload: { $ref: '#/components/schemas/EraResolutionCompletedPayload' }
     ChainLinkThreaded:
@@ -235,7 +236,9 @@ components:
         point; the link itself is not yet confirmed and does not count toward chain length until it resolves as
         predicted (ChainLinkAdded), is Tapestry-protected against an Annihilate (ChainLinkAdded plus
         ChainProtectionConsumed), or its CHAIN_CONFLICT paradox resolves in the Weaver's favor (ChainLinkAdded).
-        It clears without penalty (ChainLinkInvalidated) if it resolves to a different, non-annihilated outcome.
+        It clears without penalty (ChainLinkInvalidated) if it resolves to a different, non-annihilated outcome
+        or its event Stalls. Game end also expires an unconfirmed link. A carried event may be Threaded again in a
+        later era as a new prediction while the game remains active.
       headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
       payload: { $ref: '#/components/schemas/ChainLinkThreadedPayload' }
     ChainLinkAdded:
@@ -266,8 +269,9 @@ components:
       title: Chain link invalidated
       description: >-
         Public chain-progress fact: the chain's pending link (created by ChainLinkThreaded) resolved to a
-        different, non-annihilated outcome than predicted. The pending link clears without penalty; chain length
-        is unchanged and the chain stays open for the Weaver to Thread again.
+        different, non-annihilated outcome than predicted, its event Stalled, or the game ended with it unconfirmed.
+        The pending link clears without penalty and chain length is unchanged. A new Thread is possible only while
+        the chain and game remain active.
       headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
       payload: { $ref: '#/components/schemas/ChainLinkInvalidatedPayload' }
     ThreadRejected:

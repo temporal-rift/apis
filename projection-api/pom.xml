@@ -6,7 +6,7 @@
 
     <groupId>io.github.temporal-rift</groupId>
     <artifactId>projection-api</artifactId>
-    <version>4.0.0</version>
+    <version>4.0.1</version>
     <packaging>jar</packaging>
 
     <properties>
