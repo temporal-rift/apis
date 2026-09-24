@@ -109,8 +109,12 @@ paths:
                 $ref: '#/components/schemas/ProblemDetail'
         '422':
           description: |
-            Invalid declaration: faction/special mismatch (`code: 422-07`), Momentum is not eligible (`code:
-            422-08`), or the event/outcome is not an active current-era target (`code: 422-09`).
+            Invalid declaration:
+            - Player jammed (`code: 422-02`)
+            - Faction required (`code: 422-04`)
+            - Player is not an Activist (`code: 422-05`)
+            - Target event or outcome does not belong to the current game/era (`code: 422-06`)
+            - Momentum is not eligible (`code: 422-08`)
           content:
             application/problem+json:
               schema:
