@@ -63,6 +63,8 @@ channels:
         $ref: '#/components/messages/HandSelected'
       resolutionStarted:
         $ref: '#/components/messages/ResolutionStarted'
+      foresightRevealed:
+        $ref: '#/components/messages/ForesightRevealed'
 
 operations:
   publishLobbyCreated:
@@ -165,6 +167,10 @@ operations:
     action: send
     channel: { $ref: '#/channels/gameEvents' }
     messages: [ { $ref: '#/channels/gameEvents/messages/resolutionStarted' } ]
+  publishForesightRevealed:
+    action: send
+    channel: { $ref: '#/channels/gameEvents' }
+    messages: [ { $ref: '#/channels/gameEvents/messages/foresightRevealed' } ]
 
 components:
   messages:
@@ -293,6 +299,16 @@ components:
       title: Resolution started
       headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
       payload: { $ref: '#/components/schemas/ResolutionStartedPayload' }
+    ForesightRevealed:
+      name: ForesightRevealed
+      title: Foresight revealed
+      description: >-
+        Private per-player reveal addressed to the foretelling player. The playerId payload field identifies that
+        viewer; the message previews the next era's freshly-drawn deck slice in deck order (catalog identities
+        with titles and outcome descriptions, never probabilities or bands). In the final era there is no next
+        draw, so revealedEvents is empty with emptyReason set.
+      headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
+      payload: { $ref: '#/components/schemas/ForesightRevealedPayload' }
 
   schemas:
     EventEnvelopeHeaders:
@@ -603,6 +619,48 @@ components:
         gameId: { type: string, format: uuid }
         eraNumber: { type: integer }
       required: [ gameId, eraNumber ]
+
+    ForesightRevealedPayload:
+      type: object
+      additionalProperties: false
+      description: >-
+        Private next-era preview for the foretelling viewer alone. revealedEvents carries the next era's
+        freshly-drawn deck slice in deck order; emptyReason is set only when revealedEvents is empty (final
+        era with no next draw, or an exhausted deck).
+      properties:
+        gameId: { type: string, format: uuid }
+        eraNumber: { type: integer, minimum: 1 }
+        playerId:
+          type: string
+          format: uuid
+          description: The foretelling player and sole viewer of this private reveal.
+        nextEraNumber: { type: integer, minimum: 1 }
+        revealedEvents:
+          type: array
+          items: { $ref: '#/components/schemas/ForesightRevealedEvent' }
+        emptyReason:
+          type: string
+          description: Set only when revealedEvents is empty (for example, final-era with no next draw).
+      required: [ gameId, eraNumber, playerId, nextEraNumber, revealedEvents ]
+
+    ForesightRevealedEvent:
+      type: object
+      additionalProperties: false
+      properties:
+        catalogEventId: { type: string, format: uuid }
+        title: { type: string }
+        outcomes:
+          type: array
+          items: { $ref: '#/components/schemas/ForesightRevealedOutcome' }
+      required: [ catalogEventId, title, outcomes ]
+
+    ForesightRevealedOutcome:
+      type: object
+      additionalProperties: false
+      properties:
+        catalogOutcomeId: { type: string, format: uuid }
+        description: { type: string }
+      required: [ catalogOutcomeId, description ]
 
     Faction:
       $ref: './shared/enums.yaml#/Faction'
