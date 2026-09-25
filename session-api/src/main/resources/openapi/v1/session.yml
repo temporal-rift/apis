@@ -234,8 +234,8 @@ components:
         playerName:
           type: string
           minLength: 1
-          maxLength: 255
-          description: Player-chosen display name, 1 to 255 characters.
+          maxLength: 32
+          description: Player-chosen display name, 1 to 32 characters.
 
     CreateLobbyResponse:
       type: object
@@ -257,8 +257,8 @@ components:
         playerName:
           type: string
           minLength: 1
-          maxLength: 255
-          description: Player-chosen display name, 1 to 255 characters.
+          maxLength: 32
+          description: Player-chosen display name, 1 to 32 characters.
 
     PlayerInLobby:
       type: object
@@ -270,8 +270,8 @@ components:
         playerName:
           type: string
           minLength: 1
-          maxLength: 255
-          description: Player-chosen display name, 1 to 255 characters.
+          maxLength: 32
+          description: Player-chosen display name, 1 to 32 characters.
         isHost:
           type: boolean
 
