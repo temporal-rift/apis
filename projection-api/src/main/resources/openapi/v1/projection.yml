@@ -162,7 +162,7 @@ components:
         playerName:
           type: string
           nullable: true
-          description: Not populated until a later slice.
+          description: The name the player last joined the game's lobby with. Null only when no lobby join was observed.
         score:
           type: integer
         isConnected:
