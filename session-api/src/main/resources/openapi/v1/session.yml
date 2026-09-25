@@ -233,6 +233,9 @@ components:
       properties:
         playerName:
           type: string
+          minLength: 1
+          maxLength: 255
+          description: Player-chosen display name, 1 to 255 characters.
 
     CreateLobbyResponse:
       type: object
@@ -253,6 +256,9 @@ components:
       properties:
         playerName:
           type: string
+          minLength: 1
+          maxLength: 255
+          description: Player-chosen display name, 1 to 255 characters.
 
     PlayerInLobby:
       type: object
@@ -263,6 +269,9 @@ components:
           format: uuid
         playerName:
           type: string
+          minLength: 1
+          maxLength: 255
+          description: Player-chosen display name, 1 to 255 characters.
         isHost:
           type: boolean
 
