@@ -526,6 +526,31 @@ components:
             empty when none; entries are refreshed or replaced according to the reveal event that produced them.
           items:
             $ref: '#/components/schemas/RevealedIntel'
+        myForesightPreview:
+          type: object
+          nullable: true
+          description: >-
+            The authenticated player's own Foresight preview of the next era's freshly-drawn events, in deck
+            order, when one exists for the current era. Null when the caller has no Foresight preview in the
+            current era. Scoped to the caller alone and never carrying another player's preview; expires at the
+            era boundary and is not carried into the next era.
+          required: [ nextEraNumber, revealedEvents ]
+          properties:
+            nextEraNumber:
+              type: integer
+              minimum: 1
+              description: The previewed era number.
+            revealedEvents:
+              type: array
+              description: Deck-ordered preview of the next era's freshly-drawn events.
+              items:
+                $ref: '#/components/schemas/ForesightPreviewEvent'
+            emptyReason:
+              type: string
+              nullable: true
+              description: >-
+                Set only for the defined final-era empty result, when there is no next era to preview;
+                null otherwise.
         activeEvents:
           type: array
           items:
@@ -682,6 +707,33 @@ components:
           type: string
         grade:
           $ref: '#/components/schemas/CardGrade'
+
+    ForesightPreviewOutcome:
+      type: object
+      required: [ catalogOutcomeId, description ]
+      properties:
+        catalogOutcomeId:
+          type: string
+          format: uuid
+        description:
+          type: string
+          minLength: 1
+
+    ForesightPreviewEvent:
+      type: object
+      required: [ catalogEventId, title, outcomes ]
+      properties:
+        catalogEventId:
+          type: string
+          format: uuid
+        title:
+          type: string
+          minLength: 1
+        outcomes:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/ForesightPreviewOutcome'
 
     CardGrade:
       $ref: '../shared/enums.yaml#/CardGrade'
