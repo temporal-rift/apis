@@ -359,12 +359,20 @@ components:
       properties:
         gameId: { type: string, format: uuid }
         lobbyId: { type: string, format: uuid }
-        playerIds:
+        players:
           type: array
-          items: { type: string, format: uuid }
+          description: Every player the game started with, in seat order.
+          items: { $ref: '#/components/schemas/GameStartedPlayer' }
         totalFactions: { type: integer }
         deckSize: { type: integer }
-      required: [ gameId, lobbyId, playerIds, totalFactions, deckSize ]
+      required: [ gameId, lobbyId, players, totalFactions, deckSize ]
+
+    GameStartedPlayer:
+      type: object
+      properties:
+        playerId: { type: string, format: uuid }
+        playerName: { type: string, description: The name the player chose in the lobby. }
+      required: [ playerId, playerName ]
 
     GameStartFailedPayload:
       type: object
