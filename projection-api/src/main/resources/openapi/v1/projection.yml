@@ -162,7 +162,7 @@ components:
         playerName:
           type: string
           nullable: true
-          description: Not populated until a later slice.
+          description: The player's name from the game's starting roster.
         score:
           type: integer
         isConnected:
