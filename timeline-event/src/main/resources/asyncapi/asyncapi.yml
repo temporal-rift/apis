@@ -247,7 +247,8 @@ components:
       description: >-
         Public chain-progress fact: the chain's pending link (created by ChainLinkThreaded) confirmed — it
         resolved as predicted, was Tapestry-protected against an Annihilate, or its CHAIN_CONFLICT paradox
-        resolved in the Weaver's favor. REWEAVE never produces this fact; see ChainReAnchored.
+        resolved in the Weaver's favor. eraNumber is the era of the confirmed link. REWEAVE never produces this
+        fact; see ChainReAnchored.
       headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
       payload: { $ref: '#/components/schemas/ChainLinkAddedPayload' }
     ChainCompleted:
@@ -289,8 +290,8 @@ components:
       title: Special action rejected
       description: >-
         Private rejection of one TAPESTRY, REWEAVE, or CASCADE play whose prerequisites were not met (an
-        unmet chain-length/era-budget prerequisite, an invalid or already-linked re-anchor target, or an
-        un-erased CASCADE precondition). The playerId payload field identifies the viewer who receives this
+        unmet chain-length/era-budget prerequisite, no pending link to re-aim, a re-aim target that is not a live
+        current-era outcome or whose event is already linked, or an un-erased CASCADE precondition). The playerId payload field identifies the viewer who receives this
         message; the message is never broadcast.
       headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
       payload: { $ref: '#/components/schemas/SpecialRejectedPayload' }
@@ -317,8 +318,9 @@ components:
       name: ChainReAnchored
       title: Chain re-anchored
       description: >-
-        Public chain-progress fact: an accepted REWEAVE discarded the chain's newest link and replaced it with
-        a different resolved past outcome, leaving chain length unchanged.
+        Public chain-progress fact: an accepted REWEAVE moved the chain's pending link to a different live
+        outcome of the current era. The link stays pending and confirms only if its new outcome wins; chainLength
+        is the unchanged confirmed length.
       headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
       payload: { $ref: '#/components/schemas/ChainReAnchoredPayload' }
     CascadeCarriedForward:
@@ -651,7 +653,8 @@ components:
         linkedOutcomeId: { type: string, format: uuid }
         chainLength: { type: integer }
         previousLinkEventId: { type: string, format: uuid }
-      required: [ gameId, chainId, playerId, linkedEventId, linkedOutcomeId, chainLength ]
+        eraNumber: { type: integer }
+      required: [ gameId, chainId, playerId, linkedEventId, linkedOutcomeId, chainLength, eraNumber ]
 
     ChainCompletedChainLink:
       type: object
