@@ -327,7 +327,7 @@ components:
       properties:
         lobbyId: { type: string, format: uuid }
         playerId: { type: string, format: uuid }
-        playerName: { type: string }
+        playerName: { type: string, minLength: 1, maxLength: 255, description: Player-chosen display name, 1 to 255 characters. }
       required: [ lobbyId, playerId, playerName ]
 
     PlayerLeftLobbyPayload:
@@ -387,7 +387,7 @@ components:
       type: object
       properties:
         playerId: { type: string, format: uuid }
-        playerName: { type: string, description: The name the player chose in the lobby. }
+        playerName: { type: string, minLength: 1, maxLength: 255, description: The name the player chose in the lobby, 1 to 255 characters. }
       required: [ playerId, playerName ]
 
     GameStartFailedPayload:
