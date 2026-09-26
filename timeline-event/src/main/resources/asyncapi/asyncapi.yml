@@ -59,8 +59,6 @@ channels:
         $ref: '#/components/messages/CorruptInversionConfirmed'
       resolutionFailed:
         $ref: '#/components/messages/ResolutionFailed'
-      resolutionWarning:
-        $ref: '#/components/messages/ResolutionWarning'
 
 operations:
   publishResolutionStarted:
@@ -155,10 +153,6 @@ operations:
     action: send
     channel: { $ref: '#/channels/timelineEvents' }
     messages: [ { $ref: '#/channels/timelineEvents/messages/resolutionFailed' } ]
-  publishResolutionWarning:
-    action: send
-    channel: { $ref: '#/channels/timelineEvents' }
-    messages: [ { $ref: '#/channels/timelineEvents/messages/resolutionWarning' } ]
 
 components:
   messages:
@@ -351,15 +345,6 @@ components:
         either of those itself, since both belong to session-event's contract.
       headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
       payload: { $ref: '#/components/schemas/ResolutionFailedPayload' }
-    ResolutionWarning:
-      name: ResolutionWarning
-      title: Resolution warning
-      description: >-
-        A non-fatal anomaly during priority-ordered resolution was resolved deterministically (last-write-
-        wins) rather than failing the era — currently only an identical-occurredAt tie between two
-        remaining-tier actions in the same round. Informational; no consumer reaction is required.
-      headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
-      payload: { $ref: '#/components/schemas/ResolutionWarningPayload' }
 
   schemas:
     EventEnvelopeHeaders:
@@ -505,8 +490,15 @@ components:
         gameId: { type: string, format: uuid }
         eraNumber: { type: integer }
         paradoxId: { type: string, format: uuid }
-        resolvedByPlayerId: { type: string, format: uuid }
-      required: [ gameId, eraNumber, paradoxId, resolvedByPlayerId ]
+        resolvedByPlayerIds:
+          description: >-
+            Players credited with clearing the paradox: every player whose STABILIZE targeted the event when
+            any did, otherwise every player whose PUSH or SUPPRESS targeted it. Each player appears once, ordered
+            by player id; the list never depends on submission order.
+          type: array
+          uniqueItems: true
+          items: { type: string, format: uuid }
+      required: [ gameId, eraNumber, paradoxId, resolvedByPlayerIds ]
 
     ParadoxCascadedProbabilityState:
       type: object
@@ -802,12 +794,3 @@ components:
         affectedEventId: { type: string, format: uuid }
         reason: { type: string }
       required: [ gameId, eraNumber, affectedEventId, reason ]
-
-    ResolutionWarningPayload:
-      type: object
-      properties:
-        gameId: { type: string, format: uuid }
-        eraNumber: { type: integer }
-        roundNumber: { type: integer }
-        detail: { type: string }
-      required: [ gameId, eraNumber, roundNumber, detail ]
