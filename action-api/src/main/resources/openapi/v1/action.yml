@@ -344,6 +344,9 @@ components:
     CardGrade:
       $ref: '../shared/enums.yaml#/CardGrade'
 
+    CardCategory:
+      $ref: '../shared/enums.yaml#/CardCategory'
+
     ActionSubmissionStatus:
       type: string
       enum: [ SUBMITTED ]
@@ -411,8 +414,8 @@ components:
               type: string
               format: uuid
               description: >-
-                Required for scalar-event-targeting card types; must be omitted for SCAN and player-targeting types
-                (NULLIFY, REDIRECT, AMPLIFY, JAM, INTERCEPT).
+                Required for scalar-event-targeting card types; must be omitted for SCAN, DECOY, and
+                player-targeting types (NULLIFY, REDIRECT, AMPLIFY, JAM, INTERCEPT).
             targetEventIds:
               type: array
               nullable: true
@@ -437,8 +440,8 @@ components:
               format: uuid
               description: >-
                 Required for event-targeting card submissions, and for SWING must differ from sourceOutcomeId;
-                must be omitted for player-targeting card types (NULLIFY, REDIRECT, AMPLIFY, JAM, INTERCEPT) — it
-                only identifies an outcome of a targeted event, which those types don't have.
+                must be omitted for DECOY and player-targeting card types (NULLIFY, REDIRECT, AMPLIFY, JAM,
+                INTERCEPT) — it only identifies an outcome of a targeted event, which those types don't have.
             targetPlayerId:
               type: string
               format: uuid
@@ -458,6 +461,11 @@ components:
                 Required for NULLIFY (one entry at grade I, two at grade II); must be omitted for every other
                 card type. Must name distinct participants in the game other than the submitting player;
                 game-service validates distinctness and grade-count semantics after resolving cardInstanceId.
+            disguiseCategory:
+              $ref: '#/components/schemas/CardCategory'
+              description: >-
+                Required for DECOY, which carries no target of any kind; must be omitted for every other card
+                type. The public round summary shows this category for the Decoy play instead of its own.
           oneOf:
             - required: [ targetEventId ]
               not:
@@ -487,6 +495,15 @@ components:
                   - required: [ targetEventId ]
                   - required: [ targetEventIds ]
                   - required: [ targetPlayerId ]
+                  - required: [ sourceOutcomeId ]
+                  - required: [ targetOutcomeId ]
+            - required: [ disguiseCategory ]
+              not:
+                anyOf:
+                  - required: [ targetEventId ]
+                  - required: [ targetEventIds ]
+                  - required: [ targetPlayerId ]
+                  - required: [ targetPlayerIds ]
                   - required: [ sourceOutcomeId ]
                   - required: [ targetOutcomeId ]
 

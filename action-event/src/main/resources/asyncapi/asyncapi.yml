@@ -216,7 +216,8 @@ components:
     CardPlayedPayload:
       type: object
       description: >-
-        Exactly one target mode is present: targetEventId, targetEventIds, targetPlayerId, or targetPlayerIds.
+        Exactly one target mode is present: targetEventId, targetEventIds, targetPlayerId, or targetPlayerIds,
+        except for a Decoy, which carries only disguiseCategory and no target of any kind.
         A multi-event list contains one to three distinct event ids and cannot include player or outcome targets.
         A multi-player list contains one to two distinct player ids and cannot include event or outcome targets.
         Nullify plays populate targetPlayerIds (one entry at grade I, two at grade II); every other
@@ -246,6 +247,9 @@ components:
           items: { type: string, format: uuid }
         sourceOutcomeId: { type: string, format: uuid }
         targetOutcomeId: { type: string, format: uuid }
+        disguiseCategory:
+          $ref: '#/components/schemas/CardCategory'
+          description: The category a Decoy declared as its disguise; present only for DECOY.
       required: [ gameId, eraNumber, roundNumber, playerId, cardInstanceId, cardType, grade ]
       oneOf:
         - required: [ targetEventId ]
@@ -276,6 +280,15 @@ components:
               - required: [ targetEventId ]
               - required: [ targetEventIds ]
               - required: [ targetPlayerId ]
+              - required: [ sourceOutcomeId ]
+              - required: [ targetOutcomeId ]
+        - required: [ disguiseCategory ]
+          not:
+            anyOf:
+              - required: [ targetEventId ]
+              - required: [ targetEventIds ]
+              - required: [ targetPlayerId ]
+              - required: [ targetPlayerIds ]
               - required: [ sourceOutcomeId ]
               - required: [ targetOutcomeId ]
 
@@ -404,10 +417,17 @@ components:
 
     ActionSummary:
       type: object
+      description: >-
+        Public view of one player's action: never a card type, grade, special-action name, faction, or target.
+        A Decoy play shows the category its player declared as its disguise.
       properties:
         playerId: { type: string, format: uuid }
-        actionCategory: { type: string }
-        actionFamily: { type: string }
+        actionCategory:
+          $ref: '#/components/schemas/CardCategory'
+          description: Absent for faction specials and skips.
+        actionFamily:
+          $ref: '#/components/schemas/ActionFamily'
+          description: Absent for skips.
         skipped: { type: boolean }
       required: [ playerId, skipped ]
 
@@ -503,6 +523,12 @@ components:
 
     CardGrade:
       $ref: './shared/enums.yaml#/CardGrade'
+
+    CardCategory:
+      $ref: './shared/enums.yaml#/CardCategory'
+
+    ActionFamily:
+      $ref: './shared/enums.yaml#/ActionFamily'
 
     Faction:
       $ref: './shared/enums.yaml#/Faction'

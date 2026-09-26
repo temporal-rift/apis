@@ -10,6 +10,14 @@ CardGrade:
   type: string
   enum: [ I, II, III ]
 
+CardCategory:
+  type: string
+  enum: [ PROBABILITY_SHIFTER, INFORMATION, DISRUPTION, PARADOX ]
+
+ActionFamily:
+  type: string
+  enum: [ CARD, SPECIAL ]
+
 SpecialAction:
   type: string
   enum: [ ANNIHILATE, CORRUPT, CASCADE, FORESIGHT, SEAL, FULFILLMENT, REWRITE, MIMIC, OBSCURE, THREAD, TAPESTRY, REWEAVE, RALLY, EXPOSE, MOMENTUM ]

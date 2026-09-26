@@ -180,11 +180,15 @@ components:
           type: string
           format: uuid
         actionCategory:
-          type: string
+          allOf:
+            - $ref: '#/components/schemas/CardCategory'
           nullable: true
-          description: Null when skipped is true.
+          description: >-
+            Null for faction specials and skips. A Decoy play shows the category its player declared as its
+            disguise; a card type is never exposed.
         actionFamily:
-          type: string
+          allOf:
+            - $ref: '#/components/schemas/ActionFamily'
           nullable: true
           description: Null when skipped is true.
         skipped:
@@ -737,6 +741,12 @@ components:
 
     CardGrade:
       $ref: '../shared/enums.yaml#/CardGrade'
+
+    CardCategory:
+      $ref: '../shared/enums.yaml#/CardCategory'
+
+    ActionFamily:
+      $ref: '../shared/enums.yaml#/ActionFamily'
 
     ResolvedOutcome:
       type: object
