@@ -216,8 +216,11 @@ components:
     CardPlayedPayload:
       type: object
       description: >-
-        Exactly one target mode is present: targetEventId, targetEventIds, or targetPlayerId. A multi-event list
-        contains one to three distinct event ids and cannot include player or outcome targets. Card-specific
+        Exactly one target mode is present: targetEventId, targetEventIds, targetPlayerId, or targetPlayerIds.
+        A multi-event list contains one to three distinct event ids and cannot include player or outcome targets.
+        A multi-player list contains one to two distinct player ids and cannot include event or outcome targets.
+        Nullify plays populate targetPlayerIds (one entry at grade I, two at grade II); every other
+        player-targeting type populates targetPlayerId. Card-specific
         target semantics are validated by game-service after it resolves the submitted card instance.
       properties:
         gameId: { type: string, format: uuid }
@@ -235,6 +238,12 @@ components:
           uniqueItems: true
           items: { type: string, format: uuid }
         targetPlayerId: { type: string, format: uuid }
+        targetPlayerIds:
+          type: array
+          minItems: 1
+          maxItems: 2
+          uniqueItems: true
+          items: { type: string, format: uuid }
         sourceOutcomeId: { type: string, format: uuid }
         targetOutcomeId: { type: string, format: uuid }
       required: [ gameId, eraNumber, roundNumber, playerId, cardInstanceId, cardType, grade ]
@@ -244,11 +253,13 @@ components:
             anyOf:
               - required: [ targetEventIds ]
               - required: [ targetPlayerId ]
+              - required: [ targetPlayerIds ]
         - required: [ targetEventIds ]
           not:
             anyOf:
               - required: [ targetEventId ]
               - required: [ targetPlayerId ]
+              - required: [ targetPlayerIds ]
               - required: [ sourceOutcomeId ]
               - required: [ targetOutcomeId ]
         - required: [ targetPlayerId ]
@@ -256,6 +267,15 @@ components:
             anyOf:
               - required: [ targetEventId ]
               - required: [ targetEventIds ]
+              - required: [ targetPlayerIds ]
+              - required: [ sourceOutcomeId ]
+              - required: [ targetOutcomeId ]
+        - required: [ targetPlayerIds ]
+          not:
+            anyOf:
+              - required: [ targetEventId ]
+              - required: [ targetEventIds ]
+              - required: [ targetPlayerId ]
               - required: [ sourceOutcomeId ]
               - required: [ targetOutcomeId ]
 
