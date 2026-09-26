@@ -14,63 +14,107 @@ import org.junit.jupiter.api.Test;
 class CardPlayedTargetingContractTest {
 
     @Test
-    void asyncApiModelsThreeExclusiveTargetModes() throws IOException {
+    void asyncApiModelsFourExclusiveTargetModes() throws IOException {
         var specification = String.join("\n", Files.readAllLines(Path.of("src/main/resources/asyncapi/asyncapi.yml")));
 
         assertTrue(specification.contains("required: [ targetEventId ]"));
         assertTrue(specification.contains("required: [ targetEventIds ]"));
         assertTrue(specification.contains("required: [ targetPlayerId ]"));
+        assertTrue(specification.contains("required: [ targetPlayerIds ]"));
         assertTrue(specification.contains("minItems: 1"));
         assertTrue(specification.contains("maxItems: 3"));
+        assertTrue(specification.contains("maxItems: 2"));
         assertTrue(specification.contains("uniqueItems: true"));
     }
 
     @Test
     void acceptsScalarEventListAndPlayerTargetingPlays() {
-        assertTrue(isValid(new CardPlayed(UUID.randomUUID(), null, null, null, null)));
+        assertTrue(isValid(new CardPlayed(UUID.randomUUID(), null, null, null, null, null)));
         assertTrue(isValid(new CardPlayed(
-                UUID.randomUUID(), null, null, UUID.randomUUID(), UUID.randomUUID())));
+                UUID.randomUUID(), null, null, null, UUID.randomUUID(), UUID.randomUUID())));
         assertTrue(
-                isValid(new CardPlayed(null, List.of(UUID.randomUUID(), UUID.randomUUID()), null, null, null)));
-        assertTrue(isValid(new CardPlayed(null, null, UUID.randomUUID(), null, null)));
+                isValid(new CardPlayed(null, List.of(UUID.randomUUID(), UUID.randomUUID()), null, null, null, null)));
+        assertTrue(isValid(new CardPlayed(null, null, UUID.randomUUID(), null, null, null)));
+        assertTrue(isValid(new CardPlayed(null, null, null, List.of(UUID.randomUUID()), null, null)));
+        assertTrue(isValid(
+                new CardPlayed(null, null, null, List.of(UUID.randomUUID(), UUID.randomUUID()), null, null)));
     }
 
     @Test
     void rejectsMissingMixedAndPlayerOutcomeTargets() {
-        assertFalse(isValid(new CardPlayed(null, null, null, null, null)));
-        assertFalse(isValid(new CardPlayed(UUID.randomUUID(), null, UUID.randomUUID(), null, null)));
-        assertFalse(isValid(new CardPlayed(null, null, UUID.randomUUID(), UUID.randomUUID(), null)));
-        assertFalse(isValid(new CardPlayed(null, null, UUID.randomUUID(), null, UUID.randomUUID())));
+        assertFalse(isValid(new CardPlayed(null, null, null, null, null, null)));
+        assertFalse(isValid(new CardPlayed(UUID.randomUUID(), null, UUID.randomUUID(), null, null, null)));
+        assertFalse(isValid(new CardPlayed(null, null, UUID.randomUUID(), null, UUID.randomUUID(), null)));
+        assertFalse(isValid(new CardPlayed(null, null, UUID.randomUUID(), null, null, UUID.randomUUID())));
+        assertFalse(isValid(new CardPlayed(null, null, UUID.randomUUID(), List.of(UUID.randomUUID()), null, null)));
+        assertFalse(isValid(
+                new CardPlayed(UUID.randomUUID(), null, null, List.of(UUID.randomUUID()), null, null)));
+        assertFalse(isValid(new CardPlayed(
+                null, List.of(UUID.randomUUID()), null, List.of(UUID.randomUUID()), null, null)));
     }
 
     @Test
     void rejectsInvalidListMode() {
         var duplicateId = UUID.randomUUID();
 
-        assertFalse(isValid(new CardPlayed(null, List.of(), null, null, null)));
-        assertFalse(isValid(new CardPlayed(null, List.of(duplicateId, duplicateId), null, null, null)));
+        assertFalse(isValid(new CardPlayed(null, List.of(), null, null, null, null)));
+        assertFalse(isValid(new CardPlayed(null, List.of(duplicateId, duplicateId), null, null, null, null)));
         assertFalse(isValid(new CardPlayed(
-                null, List.of(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID()), null, null, null)));
+                null, List.of(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID()), null, null,
+                null, null)));
         assertFalse(isValid(new CardPlayed(
-                UUID.randomUUID(), List.of(UUID.randomUUID()), null, null, null)));
+                UUID.randomUUID(), List.of(UUID.randomUUID()), null, null, null, null)));
         assertFalse(isValid(new CardPlayed(
-                null, List.of(UUID.randomUUID()), UUID.randomUUID(), null, null)));
+                null, List.of(UUID.randomUUID()), UUID.randomUUID(), null, null, null)));
         assertFalse(isValid(new CardPlayed(
-                null, List.of(UUID.randomUUID()), null, UUID.randomUUID(), null)));
+                null, List.of(UUID.randomUUID()), null, null, UUID.randomUUID(), null)));
         assertFalse(isValid(new CardPlayed(
-                null, List.of(UUID.randomUUID()), null, null, UUID.randomUUID())));
+                null, List.of(UUID.randomUUID()), null, null, null, UUID.randomUUID())));
+    }
+
+    @Test
+    void rejectsInvalidPlayerListMode() {
+        var duplicateId = UUID.randomUUID();
+
+        assertFalse(isValid(new CardPlayed(null, null, null, List.of(), null, null)));
+        assertFalse(isValid(new CardPlayed(null, null, null, List.of(duplicateId, duplicateId), null, null)));
+        assertFalse(isValid(new CardPlayed(
+                null, null, null, List.of(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID()), null, null)));
+        assertFalse(isValid(new CardPlayed(
+                UUID.randomUUID(), null, null, List.of(UUID.randomUUID()), null, null)));
+        assertFalse(isValid(new CardPlayed(
+                null, List.of(UUID.randomUUID()), null, List.of(UUID.randomUUID()), null, null)));
+        assertFalse(isValid(new CardPlayed(
+                null, null, UUID.randomUUID(), List.of(UUID.randomUUID()), null, null)));
+        assertFalse(isValid(new CardPlayed(
+                null, null, null, List.of(UUID.randomUUID()), UUID.randomUUID(), null)));
+        assertFalse(isValid(new CardPlayed(
+                null, null, null, List.of(UUID.randomUUID()), null, UUID.randomUUID())));
     }
 
     private static boolean isValid(CardPlayed cardPlayed) {
         var hasEvent = cardPlayed.targetEventId() != null;
         var hasList = cardPlayed.targetEventIds() != null;
         var hasPlayer = cardPlayed.targetPlayerId() != null;
+        var hasPlayerList = cardPlayed.targetPlayerIds() != null;
         if (hasList) {
             var ids = cardPlayed.targetEventIds();
             return ids.size() >= 1
                     && ids.size() <= 3
                     && ids.stream().distinct().count() == ids.size()
                     && !hasEvent
+                    && !hasPlayer
+                    && !hasPlayerList
+                    && cardPlayed.sourceOutcomeId() == null
+                    && cardPlayed.targetOutcomeId() == null;
+        }
+        if (hasPlayerList) {
+            var ids = cardPlayed.targetPlayerIds();
+            return ids.size() >= 1
+                    && ids.size() <= 2
+                    && ids.stream().distinct().count() == ids.size()
+                    && !hasEvent
+                    && !hasList
                     && !hasPlayer
                     && cardPlayed.sourceOutcomeId() == null
                     && cardPlayed.targetOutcomeId() == null;
@@ -84,6 +128,7 @@ class CardPlayedTargetingContractTest {
             UUID targetEventId,
             List<UUID> targetEventIds,
             UUID targetPlayerId,
+            List<UUID> targetPlayerIds,
             UUID sourceOutcomeId,
             UUID targetOutcomeId) {}
 }

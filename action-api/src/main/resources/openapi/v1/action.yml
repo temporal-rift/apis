@@ -443,20 +443,34 @@ components:
               type: string
               format: uuid
               description: >-
-                Required for player-targeting card types (NULLIFY, REDIRECT, AMPLIFY, JAM, INTERCEPT); must be
-                omitted for every other card type. Must name a participant in the game other than the submitting
-                player.
+                Required for player-targeting card types (REDIRECT, AMPLIFY, JAM, INTERCEPT); NULLIFY uses
+                targetPlayerIds instead; must be omitted for every other card type. Must name a participant
+                in the game other than the submitting player.
+            targetPlayerIds:
+              type: array
+              nullable: true
+              minItems: 1
+              maxItems: 2
+              items:
+                type: string
+                format: uuid
+              description: >-
+                Required for NULLIFY (one entry at grade I, two at grade II); must be omitted for every other
+                card type. Must name distinct participants in the game other than the submitting player;
+                game-service validates distinctness and grade-count semantics after resolving cardInstanceId.
           oneOf:
             - required: [ targetEventId ]
               not:
                 anyOf:
                   - required: [ targetEventIds ]
                   - required: [ targetPlayerId ]
+                  - required: [ targetPlayerIds ]
             - required: [ targetEventIds ]
               not:
                 anyOf:
                   - required: [ targetEventId ]
                   - required: [ targetPlayerId ]
+                  - required: [ targetPlayerIds ]
                   - required: [ sourceOutcomeId ]
                   - required: [ targetOutcomeId ]
             - required: [ targetPlayerId ]
@@ -464,6 +478,15 @@ components:
                 anyOf:
                   - required: [ targetEventId ]
                   - required: [ targetEventIds ]
+                  - required: [ targetPlayerIds ]
+                  - required: [ sourceOutcomeId ]
+                  - required: [ targetOutcomeId ]
+            - required: [ targetPlayerIds ]
+              not:
+                anyOf:
+                  - required: [ targetEventId ]
+                  - required: [ targetEventIds ]
+                  - required: [ targetPlayerId ]
                   - required: [ sourceOutcomeId ]
                   - required: [ targetOutcomeId ]
 
