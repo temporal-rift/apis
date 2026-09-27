@@ -227,22 +227,22 @@ components:
       description: >-
         Public chain-progress fact: an accepted THREAD created a pending link naming a not-yet-resolved
         current-era outcome as the chain's newest link. The favorable probability push already applies at this
-        point; the link itself is not yet confirmed and does not count toward chain length until it resolves as
-        predicted (ChainLinkAdded), is Tapestry-protected against an Annihilate (ChainLinkAdded plus
-        ChainProtectionConsumed), or its CHAIN_CONFLICT paradox resolves in the Weaver's favor (ChainLinkAdded).
-        It clears without penalty (ChainLinkInvalidated) if it resolves to a different, non-annihilated outcome
-        or its event Stalls. Game end also expires an unconfirmed link. A carried event may be Threaded again in a
-        later era as a new prediction while the game remains active.
+        point; the link itself is not yet confirmed and does not count toward chain length until its named
+        outcome is drawn as its event's winner (ChainLinkAdded). It clears without penalty (ChainLinkInvalidated)
+        if its event resolves to a different outcome (including after a cleared CHAIN_CONFLICT, since an
+        annihilated outcome cannot win), if armed Tapestry absorbs an Annihilate against it
+        (ChainProtectionConsumed first), or if its event Stalls or cascades. An unresolved CHAIN_CONFLICT breaks
+        the chain instead (ChainBroken). Game end also expires an unconfirmed link. A carried event may be
+        Threaded again in a later era as a new prediction while the game remains active.
       headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
       payload: { $ref: '#/components/schemas/ChainLinkThreadedPayload' }
     ChainLinkAdded:
       name: ChainLinkAdded
       title: Chain link added
       description: >-
-        Public chain-progress fact: the chain's pending link (created by ChainLinkThreaded) confirmed — it
-        resolved as predicted, was Tapestry-protected against an Annihilate, or its CHAIN_CONFLICT paradox
-        resolved in the Weaver's favor. eraNumber is the era of the confirmed link. REWEAVE never produces this
-        fact; see ChainReAnchored.
+        Public chain-progress fact: the chain's pending link (created by ChainLinkThreaded) confirmed because its
+        named outcome was drawn as its event's winner; linkedOutcomeId is always that winner. eraNumber is the
+        era of the confirmed link. REWEAVE never produces this fact; see ChainReAnchored.
       headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
       payload: { $ref: '#/components/schemas/ChainLinkAddedPayload' }
     ChainCompleted:
@@ -256,17 +256,19 @@ components:
       description: >-
         Public chain-progress fact: the chain's pending link was annihilated without Tapestry protection, the
         resulting CHAIN_CONFLICT paradox cascaded unresolved, and the chain transitioned to BROKEN. This is the
-        only production trigger for this fact; the chain's saga ends.
+        only production trigger for this fact; the chain's saga ends. The Weaver's next accepted THREAD starts a
+        new chain with a new chainId and no confirmed links.
       headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
       payload: { $ref: '#/components/schemas/ChainBrokenPayload' }
     ChainLinkInvalidated:
       name: ChainLinkInvalidated
       title: Chain link invalidated
       description: >-
-        Public chain-progress fact: the chain's pending link (created by ChainLinkThreaded) resolved to a
-        different, non-annihilated outcome than predicted, its event Stalled, or the game ended with it unconfirmed.
-        The pending link clears without penalty and chain length is unchanged. A new Thread is possible only while
-        the chain and game remain active.
+        Public chain-progress fact: the chain's pending link (created by ChainLinkThreaded) did not confirm — its
+        event resolved to a different outcome than predicted, armed Tapestry absorbed an Annihilate against it,
+        its event Stalled or cascaded, or the game ended with it unconfirmed. The pending link clears without
+        penalty and chain length is unchanged. A new Thread is possible only while the chain and game remain
+        active.
       headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
       payload: { $ref: '#/components/schemas/ChainLinkInvalidatedPayload' }
     ThreadRejected:
@@ -303,8 +305,8 @@ components:
       title: Chain protection consumed
       description: >-
         Private confirmation that an armed TAPESTRY protection absorbed an Annihilate against the chain's pending
-        link, which confirms anyway (see ChainLinkAdded) instead of raising a CHAIN_CONFLICT paradox, and is no
-        longer armed. The playerId payload field identifies the viewer who receives this message; the message is
+        link: no CHAIN_CONFLICT paradox is raised and the chain stays unbroken, but the annihilated outcome cannot
+        win, so the link clears without penalty (see ChainLinkInvalidated). The protection is no longer armed. The playerId payload field identifies the viewer who receives this message; the message is
         never broadcast.
       headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
       payload: { $ref: '#/components/schemas/ChainProtectionConsumedPayload' }
