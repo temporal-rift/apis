@@ -24,7 +24,7 @@ SpecialAction:
 
 ParadoxType:
   type: string
-  enum: [ DEAD_HEAT, IMPOSSIBLE_ERASURE, CHAIN_CONFLICT, SEAL_BREACH ]
+  enum: [ DEAD_HEAT, IMPOSSIBLE_ERASURE, CHAIN_CONFLICT ]
 
 ProbabilityBand:
   type: string
