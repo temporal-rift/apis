@@ -57,6 +57,8 @@ channels:
         $ref: '#/components/messages/CascadeCarriedForward'
       corruptInversionConfirmed:
         $ref: '#/components/messages/CorruptInversionConfirmed'
+      annihilationResolved:
+        $ref: '#/components/messages/AnnihilationResolved'
       resolutionFailed:
         $ref: '#/components/messages/ResolutionFailed'
 
@@ -149,6 +151,10 @@ operations:
     action: send
     channel: { $ref: '#/channels/timelineEvents' }
     messages: [ { $ref: '#/channels/timelineEvents/messages/corruptInversionConfirmed' } ]
+  publishAnnihilationResolved:
+    action: send
+    channel: { $ref: '#/channels/timelineEvents' }
+    messages: [ { $ref: '#/channels/timelineEvents/messages/annihilationResolved' } ]
   publishResolutionFailed:
     action: send
     channel: { $ref: '#/channels/timelineEvents' }
@@ -337,6 +343,17 @@ components:
         consumes this to credit CORRUPTED_OPPONENT_CARD only when tookEffect is true.
       headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
       payload: { $ref: '#/components/schemas/CorruptInversionConfirmedPayload' }
+    AnnihilationResolved:
+      name: AnnihilationResolved
+      title: Annihilation resolved
+      description: >-
+        Reports, once a round's priority-ordered resolution has applied its Annihilates, what one non-cancelled
+        ANNIHILATE did to its target. erased and wasLeading are both evaluated against the event's state before
+        that round's Annihilates applied, so neither depends on submission order within the round. A
+        service-to-service resolution fact: it assigns no points and is not delivered to players. game-service's
+        scoring module consumes it to credit ANNIHILATED_OUTCOME only when erased and wasLeading are both true.
+      headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
+      payload: { $ref: '#/components/schemas/AnnihilationResolvedPayload' }
     ResolutionFailed:
       name: ResolutionFailed
       title: Resolution failed
@@ -787,6 +804,29 @@ components:
         tookEffect: { type: boolean }
       required:
         [ gameId, eraNumber, roundNumber, corruptingPlayerId, targetEventId, targetOutcomeId, tookEffect ]
+
+    AnnihilationResolvedPayload:
+      type: object
+      properties:
+        gameId: { type: string, format: uuid }
+        eraNumber: { type: integer }
+        roundNumber: { type: integer }
+        annihilatingPlayerId: { type: string, format: uuid }
+        targetEventId: { type: string, format: uuid }
+        targetOutcomeId: { type: string, format: uuid }
+        erased:
+          type: boolean
+          description: >-
+            True when the target was still eligible (not annihilated) before this round's Annihilates applied, so
+            this Annihilate removed it from the draw. False when an earlier round or a carried-forward Cascade had
+            already annihilated it.
+        wasLeading:
+          type: boolean
+          description: >-
+            True when, before this round's Annihilates applied, the target's probability equalled the highest
+            probability among the event's eligible outcomes. A tie for highest counts.
+      required:
+        [ gameId, eraNumber, roundNumber, annihilatingPlayerId, targetEventId, targetOutcomeId, erased, wasLeading ]
 
     ResolutionFailedPayload:
       type: object
