@@ -420,6 +420,12 @@ components:
         faction:
           type: string
           nullable: true
+        winType:
+          type: string
+          enum: [ SCORE_THRESHOLD, FACTION_OBJECTIVE, LAST_PLAYER_STANDING ]
+          description: >-
+            How this winner met the win condition. Present for every winner of a WIN_CONDITION_MET ending and
+            absent for every other ending.
 
     FinalScore:
       type: object
@@ -442,12 +448,14 @@ components:
         endReason:
           type: string
           enum:
-            - SCORE_THRESHOLD
+            - WIN_CONDITION_MET
             - TIMELINE_COLLAPSED
             - TIMELINE_STABILIZED
             - DECK_EXHAUSTED
             - RESOLUTION_FAILED
-            - ALL_PLAYERS_ABANDONED
+          description: >-
+            How the game ended. For WIN_CONDITION_MET each winner's winType says how they won; DECK_EXHAUSTED and
+            RESOLUTION_FAILED are abnormal endings with no winners.
         winners:
           type: array
           items:
