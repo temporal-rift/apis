@@ -14,13 +14,13 @@ import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 
 /**
- * Contract invariants for the band rename.
+ * Contract invariants for the single band publication.
  *
  * <p>Message names are deliberately NOT unique across modules here: consumer-side redefinitions exist
  * by precedent (e.g. {@code ResolutionStarted} is defined in both session-event and timeline-event, but
- * only ever emitted on one topic). These tests therefore assert the rename itself — a distinct name
- * defined once, and the old duplicate gone — instead of a global uniqueness rule the
- * codebase does not follow.
+ * only ever emitted on one topic). These tests therefore assert the band publication itself — a distinct
+ * name defined once as the only band publication, with the retired game-events preview gone — instead of
+ * a global uniqueness rule the codebase does not follow.
  */
 class MessageNameUniquenessTest {
 
@@ -31,15 +31,21 @@ class MessageNameUniquenessTest {
     private static final Pattern MESSAGE_NAME = Pattern.compile("(?m)^      name: (\\w+)");
 
     @Test
-    void adjustedBandsHasADistinctNameAndTheOldDuplicateIsGone() throws IOException {
+    void adjustedBandsIsTheOnlyBandPublicationAndThePreviewIsGone() throws IOException {
         var specification = readModule("timeline-event");
 
         assertTrue(
                 specification.contains("name: AdjustedBandsPublished"),
                 "timeline-event must define the distinct adjusted-bands message");
         assertTrue(
-                specification.contains("superseding the game-events preview"),
-                "the correction documents what it supersedes");
+                specification.contains("The only probability-band publication"),
+                "the band message must state it is the only band publication");
+        assertTrue(
+                specification.contains("after Action Round 2's resolution replay completes"),
+                "the band message must state when it is published");
+        assertTrue(
+                specification.contains("retained deliberately"),
+                "the spec must record why the adjusted-bands name is kept");
 
         assertTrue(
                 noMessageNamed(specification, "BandedProbabilityPublished"),

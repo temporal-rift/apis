@@ -185,8 +185,11 @@ components:
       name: AdjustedBandsPublished
       title: Adjusted bands published
       description: >-
-        Band values with every applied modifier accounted for, superseding the game-events preview
-        (BandedProbabilityPublished) for the same game and era. Consumers replace the preview on receipt.
+        The only probability-band publication: band values with every applied modifier accounted for,
+        published once per era after Action Round 2's resolution replay completes. There is no
+        game-events preview; consumers treat this as the complete band state for the game and era.
+        The name is retained deliberately after the preview's removal — "Adjusted" describes bands
+        adjusted for every applied modifier in the replayed state, not an adjustment of a preview.
       headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
       payload: { $ref: '#/components/schemas/AdjustedBandsPublishedPayload' }
     ParadoxDetected:
