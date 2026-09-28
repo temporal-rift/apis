@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Temporal Rift — Action API
   description: Action round and paradox-resolution submission endpoints
-  version: 3.3.0
+  version: 3.4.0
 
 servers:
   - url: /
@@ -153,14 +153,18 @@ paths:
               $ref: '#/components/schemas/SubmitActionRequest'
       responses:
         '202':
-          description: Action submitted
+          description: |
+            Action submitted. An explicit pass (`actionType: PASS`, no card or target fields) returns the same
+            `SUBMITTED` shape, consumes the player's single submission slot for the round, spends no card, and
+            resolves publicly as the same neutral skip a timer expiry produces.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/SubmitActionResponse'
         '409':
           description: |
-            Round already closed (`code: 409-01`), player already submitted (`code: 409-02`), Expose was already
+            Round already closed (`code: 409-01`), player already submitted (`code: 409-02`, including after an
+            accepted pass), Expose was already
             used in this era (`code: 409-05`), or a once-per-era-budgeted special action was already used in this
             era (`code: 409-10`).
           content:
@@ -191,7 +195,8 @@ paths:
       tags: [ Action ]
       operationId: submitParadoxResolutionCard
       description: |
-        Submits the authenticated player's single card for an open paradox-resolution phase. This phase is scoped to
+        Submits the authenticated player's single card for an open paradox-resolution phase, or an explicit pass
+        (`actionType: PASS` with no card or target fields) that consumes the same slot. This phase is scoped to
         the era rather than an action round, so the operation has no roundNumber. The server validates phase state,
         card ownership and eligibility, target membership, and whether the player already submitted.
       parameters:
@@ -215,7 +220,9 @@ paths:
               $ref: '#/components/schemas/ParadoxResolutionCardRequest'
       responses:
         '202':
-          description: Paradox-resolution card submitted.
+          description: |
+            Paradox-resolution card or explicit pass submitted. A pass returns the same `SUBMITTED` shape,
+            consumes the player's phase slot, spends no card, and recovers as `mySubmitted: true`.
           content:
             application/json:
               schema:
@@ -223,7 +230,7 @@ paths:
         '409':
           description: |
             Paradox-resolution phase is not open for the requested game and era (`code: 409-06`), or the player
-            already submitted during that phase (`code: 409-07`).
+            already submitted during that phase (`code: 409-07`, including after an accepted pass).
           content:
             application/problem+json:
               schema:
@@ -333,7 +340,7 @@ components:
   schemas:
     ActionType:
       type: string
-      enum: [ CARD, SPECIAL ]
+      enum: [ CARD, SPECIAL, PASS ]
 
     SpecialAction:
       $ref: '../shared/enums.yaml#/SpecialAction'
@@ -400,6 +407,7 @@ components:
         mapping:
           CARD: '#/components/schemas/CardActionRequest'
           SPECIAL: '#/components/schemas/SpecialActionRequest'
+          PASS: '#/components/schemas/PassActionRequest'
 
     CardActionRequest:
       allOf:
@@ -553,6 +561,16 @@ components:
                 Required for player-targeting special actions (Corrupt, Expose); must be omitted for every other
                 special action.
 
+    PassActionRequest:
+      allOf:
+        - $ref: '#/components/schemas/SubmitActionRequest'
+        - type: object
+          description: |
+            Explicit pass for an action round. Carries no card, special, or target fields; it consumes the
+            player's single submission slot for the round and resolves publicly as the same neutral skip a
+            timer expiry produces (`skipped: true` with absent category and family). No card is spent.
+          properties: { }
+
     ActivistDeclarationMode:
       type: string
       enum: [ RALLY, MOMENTUM ]
@@ -599,19 +617,35 @@ components:
 
     ParadoxResolutionCardRequest:
       type: object
-      required: [ cardInstanceId, targetEventId, targetOutcomeId ]
+      description: |
+        Card submission carries `actionType: CARD` (or omits it for backward compatibility) with all three
+        identifiers; an explicit pass carries `actionType: PASS` with `cardInstanceId`, `targetEventId`, and
+        `targetOutcomeId` all omitted. It consumes the player's single phase slot, spends no card, and resolves
+        as the same neutral skip a timer expiry produces. Partial documents are rejected; game-service validates
+        the variant after reading `actionType`.
       properties:
+        actionType:
+          $ref: '#/components/schemas/ActionType'
+          description: |
+            CARD submits the accompanying card (may be omitted for backward compatibility); PASS submits an
+            explicit pass with all card and target fields omitted. SPECIAL is not eligible during paradox
+            resolution.
         cardInstanceId:
           type: string
           format: uuid
+          description: Required for a card submission; must be omitted for a pass.
         targetEventId:
           type: string
           format: uuid
-          description: An event affected by the currently open paradox-resolution phase.
+          description: >-
+            Required for a card submission: an event affected by the currently open paradox-resolution phase;
+            must be omitted for a pass.
         targetOutcomeId:
           type: string
           format: uuid
-          description: An outcome belonging to targetEventId; event-targeted cards may ignore it.
+          description: >-
+            Required for a card submission: an outcome belonging to targetEventId (event-targeted cards may
+            ignore it); must be omitted for a pass.
 
     ParadoxResolutionCardResponse:
       type: object
@@ -688,7 +722,7 @@ components:
           type: boolean
         actionType:
           $ref: '#/components/schemas/ActionType'
-          description: The caller's own accepted family when submitted is true; absent otherwise.
+          description: The caller's own accepted family (`CARD`, `SPECIAL`, or `PASS`) when submitted is true; absent otherwise. A pass recovers as `PASS` and appears publicly as the same neutral skip a timer expiry produces.
 
     ParadoxResolutionStatusResponse:
       type: object
