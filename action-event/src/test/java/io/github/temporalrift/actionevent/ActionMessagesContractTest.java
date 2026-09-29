@@ -26,6 +26,7 @@ class ActionMessagesContractTest {
                         "ActionRoundStarted",
                         "CardPlayed",
                         "ParadoxResolutionCardPlayed",
+                        "ParadoxResolutionPassed",
                         "SpecialActionPlayed",
                         "PlayerJammed",
                         "InfluenceTraced",
