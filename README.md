@@ -70,8 +70,8 @@ module's `pom.xml`:
 
 | Spec change | Required bump | Examples |
 |---|---|---|
-| Backward-incompatible (remove/rename a field, event, message, path, or operation; change a type, format, enum membership, or requiredness; tighten a constraint) | Major | Drop a payload property, rename a message, make an optional field required |
-| Backward-compatible addition (new optional field, endpoint, event, or loosened constraint branch) | At least minor | Add an optional property, a new path, or a new message |
+| Backward-incompatible (remove/rename a field, event, message, path, or operation; change a type, format, or requiredness; remove an enum value; tighten a constraint) | Major | Drop a payload property, rename a message, make an optional field required |
+| Backward-compatible addition (new optional field, endpoint, event, or loosened constraint branch) | At least minor | Add an optional property, a new path, a new message, or an enum value |
 | Documentation-only or loosening edit | Any (including none) | Reword a description, make a required field optional |
 | No spec change | None required (downgrades still fail) | Java test or workflow edits |
 
