@@ -29,7 +29,7 @@ class PrivateActionRevealContractTest {
     }
 
     @Test
-    void publishesInfluenceTracedWithoutActionDetailsAndAllowsNoInfluencers() throws IOException {
+    void publishesInfluenceTracedWithMimicAttributionWithoutActionDetailsAndAllowsNoInfluencers() throws IOException {
         var specification = specification();
         var schema = section(specification, "    InfluenceTracedPayload:", "    HandCardInterceptedPayload:");
 
@@ -38,7 +38,9 @@ class PrivateActionRevealContractTest {
         assertTrue(specification.contains("Private per-player reveal addressed to the tracing player"));
         assertTrue(schema.contains("additionalProperties: false"));
         assertTrue(schema.contains(
-                "required: [ gameId, eraNumber, roundNumber, playerId, targetEventId, influencerPlayerIds ]"));
+                "required: [ gameId, eraNumber, roundNumber, playerId, targetEventId, influencerPlayerIds, "
+                        + "mimicInfluencerPlayerIds ]"));
+        assertTrue(schema.contains("        mimicInfluencerPlayerIds:\n          type: array"));
         assertTrue(schema.contains("uniqueItems: true"));
         assertFalse(schema.contains("minItems:"));
         assertFalse(schema.contains("cardType"));

@@ -136,7 +136,8 @@ components:
       title: Influence traced
       description: >-
         Private per-player reveal addressed to the tracing player. The playerId payload field identifies that viewer;
-        the message reveals only who influenced the target event in the preceding round.
+        the message reveals only who influenced the target event in the preceding round, and which of those
+        influencers acted through a Revisionist Mimic.
       headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
       payload: { $ref: '#/components/schemas/InfluenceTracedPayload' }
     HandCardIntercepted:
@@ -342,9 +343,17 @@ components:
         targetEventId: { type: string, format: uuid }
         influencerPlayerIds:
           type: array
+          description: Every player who directly influenced the target event, whether by card or by Mimic.
           uniqueItems: true
           items: { type: string, format: uuid }
-      required: [ gameId, eraNumber, roundNumber, playerId, targetEventId, influencerPlayerIds ]
+        mimicInfluencerPlayerIds:
+          type: array
+          description: >-
+            The influencers, also listed in influencerPlayerIds, whose influence on the target event was a Mimic.
+            Only a Revisionist can play Mimic.
+          uniqueItems: true
+          items: { type: string, format: uuid }
+      required: [ gameId, eraNumber, roundNumber, playerId, targetEventId, influencerPlayerIds, mimicInfluencerPlayerIds ]
 
     HandCardInterceptedPayload:
       type: object
