@@ -305,8 +305,8 @@ components:
       description: >-
         Private per-player reveal addressed to the foretelling player. The playerId payload field identifies that
         viewer; the message previews the next era's freshly-drawn deck slice in deck order (catalog identities
-        with titles and outcome descriptions, never probabilities or bands). In the final era there is no next
-        draw, so revealedEvents is empty with emptyReason set.
+        with titles, outcome descriptions and printed starting weights, never live probabilities or bands). In
+        the final era there is no next draw, so revealedEvents is empty with emptyReason set.
       headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
       payload: { $ref: '#/components/schemas/ForesightRevealedPayload' }
 
@@ -559,7 +559,13 @@ components:
       properties:
         outcomeId: { type: string, format: uuid }
         description: { type: string }
-        initialProbability: { type: integer }
+        initialProbability:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: >-
+            The catalog card's printed starting weight for this outcome. A fresh event starts the era at it; a
+            carried event keeps its live weights, which this value never reveals.
       required: [ outcomeId, description, initialProbability ]
 
     EventsDrawnFutureEvent:
@@ -674,7 +680,12 @@ components:
       properties:
         catalogOutcomeId: { type: string, format: uuid }
         description: { type: string }
-      required: [ catalogOutcomeId, description ]
+        initialProbability:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: The catalog card's printed starting weight for this outcome, never a live probability.
+      required: [ catalogOutcomeId, description, initialProbability ]
 
     Faction:
       $ref: './shared/enums.yaml#/Faction'

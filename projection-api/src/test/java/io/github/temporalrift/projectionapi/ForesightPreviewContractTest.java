@@ -62,4 +62,22 @@ class ForesightPreviewContractTest {
         assertFalse(previewSchemas.contains("band"));
         assertFalse(previewSchemas.toLowerCase().contains("deck state"));
     }
+
+    @Test
+    void previewAndActiveEventOutcomesCarryThePrintedStartingWeight() throws IOException {
+        var specification = specification();
+
+        var previewOutcome = specification.substring(
+                specification.indexOf("    ForesightPreviewOutcome:"),
+                specification.indexOf("    ForesightPreviewEvent:"));
+        var activeOutcome = specification.substring(
+                specification.indexOf("    EventOutcome:"), specification.indexOf("    ActiveEvent:"));
+        for (var outcome : new String[] {previewOutcome, activeOutcome}) {
+            assertTrue(outcome.contains("initialProbability ]"));
+            assertTrue(outcome.contains("printed starting weight"));
+            assertTrue(outcome.contains("minimum: 0"));
+            assertTrue(outcome.contains("maximum: 100"));
+            assertFalse(outcome.contains("band"));
+        }
+    }
 }
