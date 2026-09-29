@@ -32,9 +32,10 @@ paths:
             only the caller's earned and private state. `revision`/`lastUpdatedAt` are freshness markers for polling
             one game and never promise global or cross-topic event order. After reload or a failed submission the
             client SHALL refresh this view and retry at most once against the fresh era/round/deadline coordinates.
-            Only entitled fields are serialized: exact probabilities appear solely in the caller's own
-            `myRevealedIntel`, future or carry-forward weights never appear, and private score reasons beyond the
-            published history shape are omitted.
+            Only entitled fields are serialized: exact live probabilities appear solely in the caller's own
+            `myRevealedIntel`, carry-forward weights never appear, and private score reasons beyond the published
+            history shape are omitted. Each outcome's `initialProbability` is the card's printed starting weight,
+            public card data rather than live state.
           content:
             application/json:
               schema:
@@ -127,13 +128,20 @@ components:
 
     EventOutcome:
       type: object
-      required: [ outcomeId, description ]
+      required: [ outcomeId, description, initialProbability ]
       properties:
         outcomeId:
           type: string
           format: uuid
         description:
           type: string
+        initialProbability:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: >-
+            The event card's printed starting weight for this outcome. A fresh event starts the era at it; a
+            carried event keeps its live weights, which this value never reveals.
 
     ActiveEvent:
       type: object
@@ -545,7 +553,7 @@ components:
           nullable: true
           description: >-
             The authenticated player's own Foresight preview of the next era's freshly-drawn events, in deck
-            order, when one exists for the current era. Null when the caller has no Foresight preview in the
+            order and with each outcome's printed starting weight, when one exists for the current era. Null when the caller has no Foresight preview in the
             current era. Scoped to the caller alone and never carrying another player's preview; expires at the
             era boundary and is not carried into the next era.
           required: [ nextEraNumber, revealedEvents ]
@@ -724,7 +732,7 @@ components:
 
     ForesightPreviewOutcome:
       type: object
-      required: [ catalogOutcomeId, description ]
+      required: [ catalogOutcomeId, description, initialProbability ]
       properties:
         catalogOutcomeId:
           type: string
@@ -732,6 +740,11 @@ components:
         description:
           type: string
           minLength: 1
+        initialProbability:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: The previewed card's printed starting weight for this outcome, never a live probability.
 
     ForesightPreviewEvent:
       type: object

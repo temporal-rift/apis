@@ -53,7 +53,18 @@ class ForesightRevealedContractTest {
         assertTrue(eventSchema.contains("additionalProperties: false"));
         assertTrue(eventSchema.contains("required: [ catalogEventId, title, outcomes ]"));
         assertTrue(outcomeSchema.contains("additionalProperties: false"));
-        assertTrue(outcomeSchema.contains("required: [ catalogOutcomeId, description ]"));
+        assertTrue(outcomeSchema.contains("required: [ catalogOutcomeId, description, initialProbability ]"));
+    }
+
+    @Test
+    void previewOutcomesCarryOnlyThePrintedStartingWeight() throws IOException {
+        var outcomeSchema = section(specification(), "    ForesightRevealedOutcome:", "    Faction:");
+
+        assertTrue(outcomeSchema.contains("initialProbability:"));
+        assertTrue(outcomeSchema.contains("printed starting weight"));
+        assertTrue(outcomeSchema.contains("minimum: 0"));
+        assertTrue(outcomeSchema.contains("maximum: 100"));
+        assertFalse(outcomeSchema.contains("band"));
     }
 
     private static String section(String specification, String start, String end) {
