@@ -451,9 +451,16 @@ components:
 
     GameEndedAbnormallyPayload:
       type: object
+      description: >-
+        Ends the game without a winner. Followed by GameEnded with all final scores and the normal faction reveal;
+        no WinConditionMet fact is emitted.
       properties:
         gameId: { type: string, format: uuid }
-        reason: { type: string }
+        reason:
+          type: string
+          description: >-
+            deck-exhausted, resolution-failed or all-players-abandoned. The latter means every remaining player
+            has forfeited after all due reconnect grace periods are reconciled.
       required: [ gameId, reason ]
 
     GameEndedPlayerScoreResult:
@@ -468,9 +475,16 @@ components:
       type: object
       properties:
         gameId: { type: string, format: uuid }
-        endReason: { type: string }
+        endReason:
+          type: string
+          description: >-
+            WIN_CONDITION_MET, TIMELINE_COLLAPSED, TIMELINE_STABILIZED, DECK_EXHAUSTED, RESOLUTION_FAILED
+            or ALL_PLAYERS_ABANDONED. The last three are abnormal endings without winners.
         finalScores:
           type: array
+          description: >-
+            Complete committed score snapshot for every participant, including players who abandoned. Scoring
+            already in flight commits before an abandonment ending is finalized; finalization awards no score.
           items: { $ref: '#/components/schemas/GameEndedPlayerScoreResult' }
       required: [ gameId, endReason, finalScores ]
 

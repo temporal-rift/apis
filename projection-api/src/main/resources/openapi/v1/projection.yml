@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Temporal Rift — Projection API
   description: Per-player game state and shared game history queries
-  version: 1.5.0
+  version: 1.6.0
 
 servers:
   - url: /
@@ -453,9 +453,11 @@ components:
             - TIMELINE_STABILIZED
             - DECK_EXHAUSTED
             - RESOLUTION_FAILED
+            - ALL_PLAYERS_ABANDONED
           description: >-
-            How the game ended. For WIN_CONDITION_MET each winner's winType says how they won; DECK_EXHAUSTED and
-            RESOLUTION_FAILED are abnormal endings with no winners.
+            How the game ended. For WIN_CONDITION_MET each winner's winType says how they won. DECK_EXHAUSTED,
+            RESOLUTION_FAILED and ALL_PLAYERS_ABANDONED are abnormal endings with no winners. An abandonment
+            ending retains every participant's final score and the normal faction reveal boundary.
         winners:
           type: array
           items:
