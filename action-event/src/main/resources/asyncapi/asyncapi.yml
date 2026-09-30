@@ -17,6 +17,10 @@ channels:
         $ref: '#/components/messages/ActionRoundStarted'
       cardPlayed:
         $ref: '#/components/messages/CardPlayed'
+      actionRoundPassed:
+        $ref: '#/components/messages/ActionRoundPassed'
+      paradoxResolutionCardsOffered:
+        $ref: '#/components/messages/ParadoxResolutionCardsOffered'
       paradoxResolutionCardPlayed:
         $ref: '#/components/messages/ParadoxResolutionCardPlayed'
       paradoxResolutionPassed:
@@ -53,6 +57,14 @@ operations:
     action: send
     channel: { $ref: '#/channels/gameEvents' }
     messages: [ { $ref: '#/channels/gameEvents/messages/cardPlayed' } ]
+  publishActionRoundPassed:
+    action: send
+    channel: { $ref: '#/channels/gameEvents' }
+    messages: [ { $ref: '#/channels/gameEvents/messages/actionRoundPassed' } ]
+  publishParadoxResolutionCardsOffered:
+    action: send
+    channel: { $ref: '#/channels/gameEvents' }
+    messages: [ { $ref: '#/channels/gameEvents/messages/paradoxResolutionCardsOffered' } ]
   publishParadoxResolutionCardPlayed:
     action: send
     channel: { $ref: '#/channels/gameEvents' }
@@ -118,6 +130,25 @@ components:
       title: Card played
       headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
       payload: { $ref: '#/components/schemas/CardPlayedPayload' }
+    ActionRoundPassed:
+      name: ActionRoundPassed
+      title: Action round passed
+      description: >-
+        Private fact recording one player's explicit pass in an open action round. It consumes the player's
+        single round slot exactly like CardPlayed or SpecialActionPlayed, so consumers count it toward closing the
+        round once every player has submitted or passed, but it carries no card or action detail. Publicly the
+        pass appears only as the same neutral skip a timer expiry produces.
+      headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
+      payload: { $ref: '#/components/schemas/ActionRoundPassedPayload' }
+    ParadoxResolutionCardsOffered:
+      name: ParadoxResolutionCardsOffered
+      title: Paradox resolution cards offered
+      description: >-
+        Private per-player fact published when a paradox-resolution phase opens. The playerId payload field
+        identifies the sole viewer; cards is that player's complete eligible resolution set for the phase, both
+        eligible hand cards and the dealt reactive offer, and may be empty.
+      headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
+      payload: { $ref: '#/components/schemas/ParadoxResolutionCardsOfferedPayload' }
     ParadoxResolutionCardPlayed:
       name: ParadoxResolutionCardPlayed
       title: Paradox resolution card played
@@ -297,6 +328,41 @@ components:
               - required: [ targetPlayerIds ]
               - required: [ sourceOutcomeId ]
               - required: [ targetOutcomeId ]
+
+    ActionRoundPassedPayload:
+      type: object
+      additionalProperties: false
+      properties:
+        gameId: { type: string, format: uuid }
+        eraNumber: { type: integer, minimum: 1 }
+        roundNumber: { type: integer, minimum: 1, maximum: 3 }
+        playerId: { type: string, format: uuid }
+      required: [ gameId, eraNumber, roundNumber, playerId ]
+
+    ParadoxResolutionCardsOfferedPayload:
+      type: object
+      additionalProperties: false
+      properties:
+        gameId: { type: string, format: uuid }
+        eraNumber: { type: integer, minimum: 1 }
+        playerId:
+          type: string
+          format: uuid
+          description: The player offered these cards and sole viewer of this private fact.
+        cards:
+          type: array
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/EligibleResolutionCard' }
+      required: [ gameId, eraNumber, playerId, cards ]
+
+    EligibleResolutionCard:
+      type: object
+      additionalProperties: false
+      properties:
+        cardInstanceId: { type: string, format: uuid }
+        cardType: { $ref: '#/components/schemas/CardType' }
+        grade: { $ref: '#/components/schemas/CardGrade' }
+      required: [ cardInstanceId, cardType, grade ]
 
     ParadoxResolutionCardPlayedPayload:
       type: object

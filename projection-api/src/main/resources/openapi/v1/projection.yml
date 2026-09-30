@@ -116,7 +116,7 @@ components:
           type: string
           format: uuid
         cardType:
-          type: string
+          $ref: '#/components/schemas/CardType'
         grade:
           $ref: '#/components/schemas/CardGrade'
         isPlayableThisRound:
@@ -176,7 +176,8 @@ components:
         isConnected:
           type: boolean
         faction:
-          type: string
+          allOf:
+            - $ref: '#/components/schemas/Faction'
           nullable: true
           description: Null until FactionRevealed.
 
@@ -259,6 +260,43 @@ components:
         paradoxIds:
           type: array
           description: Open paradox identifiers when paradoxOpen is true; absent otherwise.
+          items:
+            type: string
+            format: uuid
+        affectedEventIds:
+          type: array
+          description: >-
+            Events affected by the open paradox-resolution phase, its only valid resolution targets, when paradoxOpen
+            is true; absent otherwise.
+          items:
+            type: string
+            format: uuid
+        actionRoundProgress:
+          $ref: '#/components/schemas/SubmissionProgress'
+          description: Progress of the open action round; present only while an action round is open.
+        paradoxResolutionProgress:
+          $ref: '#/components/schemas/SubmissionProgress'
+          description: Progress of the open paradox-resolution phase; present only while paradoxOpen is true.
+
+    SubmissionProgress:
+      type: object
+      required: [ submittedCount, totalPlayers, pendingPlayerIds ]
+      description: >-
+        Public progress of one open decision window, identical for every participant. It reports who has decided,
+        never what anyone submitted.
+      properties:
+        submittedCount:
+          type: integer
+          minimum: 0
+          description: Players who have submitted or passed in the window.
+        totalPlayers:
+          type: integer
+          minimum: 0
+          description: Players expected to decide in the window.
+        pendingPlayerIds:
+          type: array
+          description: Players who have neither submitted nor passed.
+          uniqueItems: true
           items:
             type: string
             format: uuid
@@ -349,9 +387,20 @@ components:
           type: boolean
           description: True when the target submitted a different qualifying signature in Round 3.
 
+    SubmissionWindow:
+      type: string
+      enum: [ HAND_SELECTION, DECLARATION, ACTION, PARADOX_RESOLUTION ]
+
+    SubmissionChoice:
+      type: string
+      enum: [ CARD, SPECIAL, PASS ]
+
     MySubmission:
       type: object
-      required: [ eraNumber, kind, status ]
+      required: [ eraNumber, window, status ]
+      description: >-
+        One of the caller's own accepted decisions. Declaration detail is already public in declarations and kept
+        hand cards are myHand, so HAND_SELECTION and DECLARATION entries carry no choice or detail.
       properties:
         eraNumber:
           type: integer
@@ -359,26 +408,102 @@ components:
         roundNumber:
           type: integer
           nullable: true
-          description: Action round for ordinary submissions; null for hand selection, declarations and paradox cards.
-        kind:
-          type: string
-          enum: [ HAND_SELECTION, DECLARATION, ACTION, PARADOX_CARD ]
-          description: Which accepted decision this entry recovers.
+          description: Action round for ACTION entries; null for every other window.
+        window:
+          $ref: '#/components/schemas/SubmissionWindow'
+          description: The decision window this entry recovers.
         status:
           type: string
           enum: [ ACCEPTED ]
-        actionType:
+        choice:
+          $ref: '#/components/schemas/SubmissionChoice'
+          description: >-
+            The caller's choice in the window: CARD, SPECIAL or PASS for ACTION entries; CARD or PASS for
+            PARADOX_RESOLUTION entries; absent for every other window. A pass appears to other players only as a
+            neutral skip.
+        card:
+          $ref: '#/components/schemas/SubmittedCard'
+          description: The caller's own submitted card; present only when choice is CARD.
+        specialAction:
+          $ref: '#/components/schemas/SpecialAction'
+          description: The caller's own submitted special; present only when choice is SPECIAL.
+        targets:
+          $ref: '#/components/schemas/SubmissionTargets'
+          description: >-
+            Every target the caller's own card or special named; absent for a pass and for a decision that named
+            no target.
+
+    SubmittedCard:
+      type: object
+      required: [ cardInstanceId, cardType, grade ]
+      properties:
+        cardInstanceId:
           type: string
-          nullable: true
-          enum: [ CARD, SPECIAL ]
-          description: Present for ACTION entries; identifies the caller's own accepted family without details.
+          format: uuid
+        cardType:
+          $ref: '#/components/schemas/CardType'
+        grade:
+          $ref: '#/components/schemas/CardGrade'
+        disguiseCategory:
+          $ref: '#/components/schemas/CardCategory'
+          description: The category the caller declared as a Decoy's disguise; present only for DECOY.
+
+    SubmissionTargets:
+      type: object
+      description: >-
+        The targets of an accepted card or special, in the target mode that decision used; only the fields it named
+        are present. sourceEventId/sourceOutcomeId carry a Thread's current-era anchor or a Swing's source outcome.
+      properties:
+        targetEventId:
+          type: string
+          format: uuid
+        targetEventIds:
+          type: array
+          minItems: 1
+          maxItems: 3
+          uniqueItems: true
+          items:
+            type: string
+            format: uuid
+        targetOutcomeId:
+          type: string
+          format: uuid
+        sourceEventId:
+          type: string
+          format: uuid
+        sourceOutcomeId:
+          type: string
+          format: uuid
+        targetPlayerId:
+          type: string
+          format: uuid
+        targetPlayerIds:
+          type: array
+          minItems: 1
+          maxItems: 2
+          uniqueItems: true
+          items:
+            type: string
+            format: uuid
+
+    EligibleResolutionCard:
+      type: object
+      required: [ cardInstanceId, cardType, grade ]
+      properties:
+        cardInstanceId:
+          type: string
+          format: uuid
+        cardType:
+          $ref: '#/components/schemas/CardType'
+        grade:
+          $ref: '#/components/schemas/CardGrade'
 
     SpecialBudget:
       type: object
       required: [ specialAction, remainingUsesThisEra, remainingUsesThisGame ]
       properties:
         specialAction:
-          type: string
+          $ref: '#/components/schemas/SpecialAction'
           description: One of the caller's faction specials, including Seal when entitled.
         remainingUsesThisEra:
           type: integer
@@ -398,8 +523,7 @@ components:
         clients SHALL use the transmitted threshold rather than hard-coding a constant.
       properties:
         faction:
-          type: string
-          enum: [ ERASERS, PROPHETS, REVISIONISTS, WEAVERS, ACTIVISTS ]
+          $ref: '#/components/schemas/Faction'
           description: The caller's assigned faction; mirrors myFaction when present.
         progressCount:
           type: integer
@@ -426,7 +550,8 @@ components:
           type: string
           format: uuid
         faction:
-          type: string
+          allOf:
+            - $ref: '#/components/schemas/Faction'
           nullable: true
         winType:
           type: string
@@ -517,7 +642,8 @@ components:
         phaseContext:
           $ref: '#/components/schemas/PhaseContext'
         myFaction:
-          type: string
+          allOf:
+            - $ref: '#/components/schemas/Faction'
           nullable: true
         myHand:
           type: array
@@ -525,6 +651,15 @@ components:
             $ref: '#/components/schemas/HandCard'
         pendingHandSelection:
           $ref: '#/components/schemas/PendingHandSelection'
+        myEligibleResolutionCards:
+          type: array
+          description: >-
+            The caller's own complete eligible resolution cards for the open paradox-resolution phase: eligible hand
+            cards plus the dealt Stabilize and Detonate offer. Present, possibly empty, only while the phase is open
+            and the caller has neither submitted nor passed; absent otherwise. Never carries another participant's
+            cards.
+          items:
+            $ref: '#/components/schemas/EligibleResolutionCard'
         myScore:
           type: integer
         mySpecialActions:
@@ -533,7 +668,7 @@ components:
             The authenticated player's static set of three faction special actions. Empty until a faction is
             assigned; availability is governed by game-service rules and is not represented here.
           items:
-            type: string
+            $ref: '#/components/schemas/SpecialAction'
         myJammedUntilRound:
           type: integer
           nullable: true
@@ -613,8 +748,9 @@ components:
         mySubmissions:
           type: array
           description: >-
-            The caller's own accepted decisions (hand selection, declaration, ordinary and paradox submissions)
-            for recovery after reload. Never includes another player's decisions, resolved or not.
+            The caller's own accepted decisions (hand selection, declaration, action-round and paradox-resolution
+            choices, including passes) with the caller's own card or special detail, for recovery after reload.
+            Never includes another player's decisions, resolved or not.
           items:
             $ref: '#/components/schemas/MySubmission'
         mySpecialBudgets:
@@ -648,7 +784,7 @@ components:
           type: string
           format: uuid
         cardType:
-          type: string
+          $ref: '#/components/schemas/CardType'
         grade:
           $ref: '#/components/schemas/CardGrade'
         dealSlot:
@@ -726,7 +862,7 @@ components:
           type: string
           format: uuid
         cardType:
-          type: string
+          $ref: '#/components/schemas/CardType'
         grade:
           $ref: '#/components/schemas/CardGrade'
 
@@ -762,8 +898,17 @@ components:
           items:
             $ref: '#/components/schemas/ForesightPreviewOutcome'
 
+    CardType:
+      $ref: '../shared/enums.yaml#/CardType'
+
     CardGrade:
       $ref: '../shared/enums.yaml#/CardGrade'
+
+    Faction:
+      $ref: '../shared/enums.yaml#/Faction'
+
+    SpecialAction:
+      $ref: '../shared/enums.yaml#/SpecialAction'
 
     CardCategory:
       $ref: '../shared/enums.yaml#/CardCategory'

@@ -25,6 +25,8 @@ class ActionMessagesContractTest {
                 Set.of(
                         "ActionRoundStarted",
                         "CardPlayed",
+                        "ActionRoundPassed",
+                        "ParadoxResolutionCardsOffered",
                         "ParadoxResolutionCardPlayed",
                         "ParadoxResolutionPassed",
                         "SpecialActionPlayed",

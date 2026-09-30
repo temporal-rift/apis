@@ -222,7 +222,8 @@ paths:
         '202':
           description: |
             Paradox-resolution card or explicit pass submitted. A pass returns the same `SUBMITTED` shape,
-            consumes the player's phase slot, spends no card, and recovers as `mySubmitted: true`.
+            consumes the player's phase slot, spends no card, and resolves as the same neutral skip a timer expiry
+            produces.
           content:
             application/json:
               schema:
@@ -245,90 +246,6 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/ProblemDetail'
-  /api/v1/games/{gameId}/eras/{eraNumber}/rounds/{roundNumber}/status:
-    get:
-      tags: [ Action ]
-      operationId: getRoundStatus
-      parameters:
-        - name: gameId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-        - name: eraNumber
-          in: path
-          required: true
-          schema:
-            type: integer
-            minimum: 1
-        - name: roundNumber
-          in: path
-          required: true
-          schema:
-            type: integer
-            minimum: 1
-      responses:
-        '200':
-          description: |
-            Round submission status. `pendingPlayerIds` reports who has not submitted, never what anyone
-            submitted. The optional caller-scoped `mySubmission` recovers the caller's own accepted decision
-            after reload; it never carries another player's choice. Era/round coordinates are stale-state
-            guards: refresh the participant state and retry at most once when they are rejected elsewhere.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/RoundStatusResponse'
-        '404':
-          description: |
-            Game or round not found (`code: 404-01`). Also returned when the requesting player is
-            not a participant of the game, so game and round existence is never disclosed to
-            outsiders.
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetail'
-
-  /api/v1/games/{gameId}/eras/{eraNumber}/paradox-resolution/status:
-    get:
-      tags: [ Action ]
-      operationId: getParadoxResolutionStatus
-      description: |
-        Recovers the current paradox-resolution phase for the caller's era: whether reactive offers are open,
-        the authoritative deadline, aggregate submission progress, the caller's own submission flag, the
-        current phase's affected events, and the caller's own eligible resolution cards. Phase-scoped to
-        the era, so there is no roundNumber; the explicit eraNumber is a stale-state guard. The response
-        carries only the caller's own choices and offers and never another participant's; closed or expired
-        phases expose no active offers.
-      parameters:
-        - name: gameId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-        - name: eraNumber
-          in: path
-          required: true
-          schema:
-            type: integer
-            minimum: 1
-      responses:
-        '200':
-          description: Paradox-resolution phase status with caller-scoped submission and choice recovery
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ParadoxResolutionStatusResponse'
-        '404':
-          description: |
-            Game or paradox-resolution phase not found (`code: 404-01`). Also returned when the requesting
-            player is not a participant of the game, so game and phase existence is never disclosed to
-            outsiders.
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/ProblemDetail'
 
 components:
   securitySchemes:
@@ -345,22 +262,12 @@ components:
     SpecialAction:
       $ref: '../shared/enums.yaml#/SpecialAction'
 
-    CardType:
-      $ref: '../shared/enums.yaml#/CardType'
-
-    CardGrade:
-      $ref: '../shared/enums.yaml#/CardGrade'
-
     CardCategory:
       $ref: '../shared/enums.yaml#/CardCategory'
 
     ActionSubmissionStatus:
       type: string
       enum: [ SUBMITTED ]
-
-    RoundStatus:
-      type: string
-      enum: [ OPEN, CLOSED ]
 
     HandSelectionStatus:
       type: string
@@ -683,107 +590,6 @@ components:
           $ref: '#/components/schemas/ActionSubmissionStatus'
         roundClosed:
           type: boolean
-
-    RoundStatusResponse:
-      type: object
-      required: [ eraNumber, roundNumber, status, timerRemainingSeconds, submittedCount, totalPlayers, pendingPlayerIds ]
-      properties:
-        eraNumber:
-          type: integer
-          minimum: 1
-        roundNumber:
-          type: integer
-          minimum: 1
-        status:
-          $ref: '#/components/schemas/RoundStatus'
-        timerRemainingSeconds:
-          type: integer
-          minimum: 0
-        submittedCount:
-          type: integer
-        totalPlayers:
-          type: integer
-        pendingPlayerIds:
-          type: array
-          items:
-            type: string
-            format: uuid
-        mySubmission:
-          $ref: '#/components/schemas/MyRoundSubmission'
-
-    MyRoundSubmission:
-      type: object
-      required: [ submitted ]
-      description: >-
-        Caller-scoped recovery of the caller's own accepted round decision. Absent until the owner computes
-        it; never carries another player's choice, resolved or not.
-      properties:
-        submitted:
-          type: boolean
-        actionType:
-          $ref: '#/components/schemas/ActionType'
-          description: The caller's own accepted family (`CARD`, `SPECIAL`, or `PASS`) when submitted is true; absent otherwise. A pass recovers as `PASS` and appears publicly as the same neutral skip a timer expiry produces.
-
-    ParadoxResolutionStatusResponse:
-      type: object
-      required: [ eraNumber, phaseOpen, submittedCount, totalPlayers, mySubmitted ]
-      properties:
-        eraNumber:
-          type: integer
-          minimum: 1
-        phaseOpen:
-          type: boolean
-          description: True while the era's paradox-resolution phase accepts reactive cards.
-        timerRemainingSeconds:
-          type: integer
-          minimum: 0
-          description: Authoritative seconds remaining while phaseOpen is true; absent once closed.
-        submittedCount:
-          type: integer
-          minimum: 0
-        totalPlayers:
-          type: integer
-          minimum: 0
-        pendingPlayerIds:
-          type: array
-          description: Players yet to submit while the phase is open; never reveals submitted card details.
-          items:
-            type: string
-            format: uuid
-        mySubmitted:
-          type: boolean
-          description: Whether the caller has an accepted paradox-resolution submission for this era.
-        affectedEventIds:
-          type: array
-          description: >-
-            Identifiers of the events affected by the current paradox-resolution phase. Present while the
-            phase is known; sufficient with eligibleResolutionCards to form a valid, reload-safe choice.
-          items:
-            type: string
-            format: uuid
-        eligibleResolutionCards:
-          type: array
-          description: >-
-            The caller's own eligible resolution cards for the current open phase. Present only while the
-            phase is open and the caller has not yet submitted; absent once the phase is closed or expired
-            and never carries another participant's choices or offers.
-          items:
-            $ref: '#/components/schemas/EligibleResolutionCard'
-
-    EligibleResolutionCard:
-      type: object
-      required: [ cardInstanceId, cardType, grade ]
-      description: >-
-        One of the caller's own cards eligible for the current open paradox-resolution phase. Caller-scoped:
-        never carries another participant's card.
-      properties:
-        cardInstanceId:
-          type: string
-          format: uuid
-        cardType:
-          $ref: '#/components/schemas/CardType'
-        grade:
-          $ref: '#/components/schemas/CardGrade'
 
     ProblemDetail:
       type: object
