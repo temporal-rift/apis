@@ -74,17 +74,8 @@ class PassSubmissionContractTest {
                 specification.contains("including after an accepted pass"),
                 "paradox conflicts must state that a pass consumes the phase slot");
         assertTrue(
-                specification.contains("mySubmitted: true"),
-                "paradox docs must state the pass recovers as submitted");
-    }
-
-    @Test
-    void callerScopedRecoveryReflectsThePass() throws IOException {
-        var specification = readSpecification();
-
-        assertTrue(
-                specification.contains("or `PASS`"),
-                "MyRoundSubmission docs must list PASS as a recoverable family");
+                specification.contains("spends no card, and resolves as the same neutral skip a timer expiry"),
+                "paradox docs must state the pass resolves as the neutral timer-expiry skip");
     }
 
     private static String readSpecification() throws IOException {
