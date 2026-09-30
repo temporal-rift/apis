@@ -24,6 +24,24 @@ class RevealedIntelContractTest {
     }
 
     @Test
+    void tracedInfluenceIntelCarriesMimicAttribution() throws IOException {
+        var specification = String.join(
+                "\n", Files.readAllLines(Path.of("src/main/resources/openapi/v1/projection.yml")));
+
+        var intelSchema = specification.substring(
+                specification.indexOf("    RevealedIntel:"),
+                specification.indexOf("    RevealedProbabilityOutcome:"));
+        assertTrue(intelSchema.contains("        influencerPlayerIds:"));
+        assertTrue(intelSchema.contains("        mimicInfluencerPlayerIds:\n          type: array"));
+        assertTrue(intelSchema.contains("uniqueItems: true"));
+        assertTrue(intelSchema.contains("also listed in influencerPlayerIds"));
+        assertTrue(intelSchema.contains("Only a Revisionist can play Mimic"));
+        assertTrue(intelSchema.contains("Always present for an INFLUENCE entry"));
+        assertTrue(intelSchema.contains("an\n            empty list means no Mimic influencer"));
+        assertFalse(intelSchema.contains("minItems:"));
+    }
+
+    @Test
     void jamStateDescribesItsFinalPrivateRoundScopedSemantics() throws IOException {
         var specification = String.join(
                 "\n", Files.readAllLines(Path.of("src/main/resources/openapi/v1/projection.yml")));

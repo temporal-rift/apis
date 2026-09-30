@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Temporal Rift — Projection API
   description: Per-player game state and shared game history queries
-  version: 1.6.0
+  version: 1.7.0
 
 servers:
   - url: /
@@ -829,6 +829,16 @@ components:
             $ref: '#/components/schemas/RevealedProbabilityOutcome'
         influencerPlayerIds:
           type: array
+          items:
+            type: string
+            format: uuid
+        mimicInfluencerPlayerIds:
+          type: array
+          description: >-
+            The influencers, also listed in influencerPlayerIds, whose influence on the traced event was a
+            Revisionist Mimic. Only a Revisionist can play Mimic. Always present for an INFLUENCE entry; an
+            empty list means no Mimic influencer.
+          uniqueItems: true
           items:
             type: string
             format: uuid
