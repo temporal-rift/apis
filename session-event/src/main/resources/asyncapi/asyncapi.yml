@@ -381,7 +381,15 @@ components:
           items: { $ref: '#/components/schemas/GameStartedPlayer' }
         totalFactions: { type: integer }
         deckSize: { type: integer }
-      required: [ gameId, lobbyId, players, totalFactions, deckSize ]
+        winScoreThreshold:
+          type: integer
+          minimum: 1
+          description: >-
+            Total score at or above which a player qualifies for normal victory at an era boundary.
+            One value per game, identical for every player and fixed for the life of the game from the
+            effective rules. Distinct from the per-faction objective threshold; consumers SHALL use this
+            transmitted value and never hard-code it.
+      required: [ gameId, lobbyId, players, totalFactions, deckSize, winScoreThreshold ]
 
     GameStartedPlayer:
       type: object

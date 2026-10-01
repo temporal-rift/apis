@@ -608,13 +608,22 @@ components:
 
     PlayerGameStateResponse:
       type: object
-      required: [ gameId, eraNumber, phase, myHand, myScore, myRevealedIntel, activeEvents, players ]
+      required: [ gameId, eraNumber, phase, myHand, myScore, myRevealedIntel, activeEvents, players, winScoreThreshold ]
       properties:
         gameId:
           type: string
           format: uuid
         eraNumber:
           type: integer
+        winScoreThreshold:
+          type: integer
+          minimum: 1
+          description: >-
+            Total score at or above which a player qualifies for normal victory at an era boundary.
+            Identical for every participant, present in every phase whether or not the caller has an
+            assigned faction, and equal to the value carried by GameStarted for this game. Distinct from
+            the per-faction objective threshold; consumers SHALL use this transmitted value and never
+            hard-code it.
         revision:
           type: integer
           minimum: 0
