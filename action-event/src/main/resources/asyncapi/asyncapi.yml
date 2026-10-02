@@ -13,6 +13,10 @@ channels:
   gameEvents:
     address: game.events
     messages:
+      declarationWindowOpened:
+        $ref: '#/components/messages/DeclarationWindowOpened'
+      declarationOptionsOffered:
+        $ref: '#/components/messages/DeclarationOptionsOffered'
       actionRoundStarted:
         $ref: '#/components/messages/ActionRoundStarted'
       cardPlayed:
@@ -49,6 +53,14 @@ channels:
         $ref: '#/components/messages/ExposeBehaviorChanged'
 
 operations:
+  publishDeclarationWindowOpened:
+    action: send
+    channel: { $ref: '#/channels/gameEvents' }
+    messages: [ { $ref: '#/channels/gameEvents/messages/declarationWindowOpened' } ]
+  publishDeclarationOptionsOffered:
+    action: send
+    channel: { $ref: '#/channels/gameEvents' }
+    messages: [ { $ref: '#/channels/gameEvents/messages/declarationOptionsOffered' } ]
   publishActionRoundStarted:
     action: send
     channel: { $ref: '#/channels/gameEvents' }
@@ -120,6 +132,22 @@ operations:
 
 components:
   messages:
+    DeclarationWindowOpened:
+      name: DeclarationWindowOpened
+      title: Declaration window opened
+      description: >-
+        Public lifecycle fact for the declaration window that precedes Action Round 1. The persisted expiry is
+        identical for every participant and names no player, faction, action, or eligibility information.
+      headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
+      payload: { $ref: '#/components/schemas/DeclarationWindowOpenedPayload' }
+    DeclarationOptionsOffered:
+      name: DeclarationOptionsOffered
+      title: Declaration options offered
+      description: >-
+        Private caller-scoped offer for a participant who may declare in an open declaration window. The playerId
+        identifies the sole viewer; eligibleModes is that caller's non-empty eligible subset of Rally and Momentum.
+      headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
+      payload: { $ref: '#/components/schemas/DeclarationOptionsOfferedPayload' }
     ActionRoundStarted:
       name: ActionRoundStarted
       title: Action round started
@@ -237,6 +265,35 @@ components:
   schemas:
     EventEnvelopeHeaders:
       $ref: './shared/envelope-headers.yaml#/EventEnvelopeHeaders'
+
+    DeclarationWindowOpenedPayload:
+      type: object
+      additionalProperties: false
+      properties:
+        gameId: { type: string, format: uuid }
+        eraNumber: { type: integer, minimum: 1 }
+        expiresAt:
+          type: string
+          format: date-time
+          description: The persisted declaration-window expiry in UTC.
+      required: [ gameId, eraNumber, expiresAt ]
+
+    DeclarationOptionsOfferedPayload:
+      type: object
+      additionalProperties: false
+      properties:
+        gameId: { type: string, format: uuid }
+        eraNumber: { type: integer, minimum: 1 }
+        playerId:
+          type: string
+          format: uuid
+          description: The participant offered these declaration modes and sole viewer of this private fact.
+        eligibleModes:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/ActivistDeclarationMode' }
+      required: [ gameId, eraNumber, playerId, eligibleModes ]
 
     ActionRoundStartedPayload:
       type: object
