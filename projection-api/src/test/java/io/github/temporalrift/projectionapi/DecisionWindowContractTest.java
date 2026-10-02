@@ -84,6 +84,25 @@ class DecisionWindowContractTest {
     }
 
     @Test
+    void phaseContextCarriesTypedOpenParadoxes() throws IOException {
+        var specification = specification();
+        var phaseContext = section(specification, "    PhaseContext:\n", "    OpenParadox:\n");
+
+        assertTrue(phaseContext.contains(
+                "        paradoxes:\n          type: array"));
+        assertTrue(phaseContext.contains("items:\n            $ref: '#/components/schemas/OpenParadox'"));
+        assertTrue(phaseContext.contains("still pending in the open paradox-resolution phase"));
+        assertFalse(phaseContext.contains("paradoxIds"));
+
+        var paradox = section(specification, "    OpenParadox:\n", "    SubmissionProgress:\n");
+        assertTrue(paradox.contains("required: [ paradoxId, type, affectedEventId, affectedOutcomeIds ]"));
+        assertTrue(paradox.contains("        type:\n          $ref: '#/components/schemas/ParadoxType'"));
+        assertTrue(paradox.contains("        affectedOutcomeIds:\n          type: array\n          minItems: 1"));
+        assertTrue(paradox.contains("never carries a probability"));
+        assertTrue(specification.contains("    ParadoxType:\n      $ref: '../shared/enums.yaml#/ParadoxType'"));
+    }
+
+    @Test
     void stateCarriesTheCallersOwnEligibleResolutionCards() throws IOException {
         var specification = specification();
         var eligibleCards = section(specification, "        myEligibleResolutionCards:\n", "        myScore:\n");
