@@ -1,6 +1,8 @@
 package io.github.temporalrift.actionevent;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -23,6 +25,8 @@ class ActionMessagesContractTest {
 
         assertEquals(
                 Set.of(
+                        "DeclarationWindowOpened",
+                        "DeclarationOptionsOffered",
                         "ActionRoundStarted",
                         "CardPlayed",
                         "ActionRoundPassed",
@@ -43,5 +47,26 @@ class ActionMessagesContractTest {
                 MESSAGE_NAME.matcher(specification).results().map(match -> match.group(1)).collect(
                         Collectors.toSet()),
                 "action-event must declare exactly its expected messages");
+    }
+
+    @Test
+    void declarationLifecycleSeparatesPublicTimingFromPrivateEligibility() throws IOException {
+        var specification = String.join("\n", Files.readAllLines(SPECIFICATION));
+
+        var opening = section(specification, "    DeclarationWindowOpenedPayload:\n", "    DeclarationOptionsOfferedPayload:\n");
+        assertTrue(opening.contains("required: [ gameId, eraNumber, expiresAt ]"));
+        assertTrue(opening.contains("expiresAt:\n          type: string\n          format: date-time"));
+        assertFalse(opening.contains("playerId:"));
+
+        var offer = section(specification, "    DeclarationOptionsOfferedPayload:\n", "    ActionRoundStartedPayload:\n");
+        assertTrue(offer.contains("required: [ gameId, eraNumber, playerId, eligibleModes ]"));
+        assertTrue(offer.contains("minItems: 1"));
+        assertTrue(offer.contains("$ref: '#/components/schemas/ActivistDeclarationMode'"));
+    }
+
+    private static String section(String specification, String start, String end) {
+        var startIndex = specification.indexOf(start);
+        var endIndex = specification.indexOf(end, startIndex + start.length());
+        return specification.substring(startIndex, endIndex);
     }
 }

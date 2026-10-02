@@ -246,6 +246,11 @@ components:
           type: string
           format: date-time
           nullable: true
+        declarationExpiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Present only while declarationOpen is true; the public declaration-window expiry.
 
     PhaseContext:
       type: object
@@ -498,6 +503,10 @@ components:
         grade:
           $ref: '#/components/schemas/CardGrade'
 
+    ActivistDeclarationMode:
+      type: string
+      enum: [ RALLY, MOMENTUM ]
+
     SpecialBudget:
       type: object
       required: [ specialAction, remainingUsesThisEra, remainingUsesThisGame ]
@@ -669,6 +678,14 @@ components:
             cards.
           items:
             $ref: '#/components/schemas/EligibleResolutionCard'
+        myEligibleDeclarationModes:
+          type: array
+          description: >-
+            The caller's eligible declaration modes in the open declaration window. Present, possibly empty, only
+            while declarationOpen is true; it never carries another participant's eligibility or faction.
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/ActivistDeclarationMode'
         myScore:
           type: integer
         mySpecialActions:

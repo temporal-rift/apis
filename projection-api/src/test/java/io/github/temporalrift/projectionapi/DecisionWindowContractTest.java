@@ -103,6 +103,22 @@ class DecisionWindowContractTest {
     }
 
     @Test
+    void stateCarriesPublicDeclarationTimingAndCallerScopedModes() throws IOException {
+        var specification = specification();
+        var deadlines = section(specification, "    Deadlines:\n", "    PhaseContext:\n");
+        assertTrue(deadlines.contains("        declarationExpiresAt:\n          type: string\n          format: date-time\n          nullable: true"));
+        assertTrue(deadlines.contains("Present only while declarationOpen is true"));
+
+        var eligibleModes = section(specification, "        myEligibleDeclarationModes:\n", "        myScore:\n");
+        assertTrue(eligibleModes.contains("Present, possibly empty, only\n            while declarationOpen is true"));
+        assertTrue(eligibleModes.contains("never carries another participant's eligibility or faction"));
+        assertTrue(eligibleModes.contains("$ref: '#/components/schemas/ActivistDeclarationMode'"));
+
+        var mode = section(specification, "    ActivistDeclarationMode:\n", "    SpecialBudget:\n");
+        assertTrue(mode.contains("enum: [ RALLY, MOMENTUM ]"));
+    }
+
+    @Test
     void cardFactionAndSpecialValuesUseTheSharedEnums() throws IOException {
         var specification = specification();
 
