@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Temporal Rift — Action API
   description: Action round and paradox-resolution submission endpoints
-  version: 3.4.0
+  version: 7.1.0
 
 servers:
   - url: /
@@ -14,6 +14,53 @@ tags:
   - name: Action
 
 paths:
+  /api/v1/games/{gameId}/eras/{eraNumber}/declarations/decline:
+    post:
+      tags: [ Action ]
+      operationId: declineDeclaration
+      description: |
+        Records the authenticated eligible player's terminal decision not to declare. Declining preserves the
+        player's ordinary Round 1 action. The declaration phase closes as soon as every eligible player declares
+        or declines. A repeated accepted decline returns the same acknowledgement, including after phase closure.
+      parameters:
+        - name: gameId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: eraNumber
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '202':
+          description: Decline recorded; the ordinary Round 1 action remains available.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeclarationDeclineResponse'
+        '404':
+          description: Game or participant not found (code 404-01).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '409':
+          description: Window closed or expired (code 409-03), or declaration already accepted (code 409-04).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+        '422':
+          description: Player not eligible to declare (code 422-05), faction unavailable (422-04), or jammed (422-02).
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
+
   /api/v1/games/{gameId}/eras/{eraNumber}/hand-selection:
     post:
       tags: [ Action ]
@@ -255,6 +302,23 @@ components:
       bearerFormat: JWT
 
   schemas:
+    DeclarationDeclineResponse:
+      type: object
+      required: [ gameId, eraNumber, playerId, status ]
+      properties:
+        gameId:
+          type: string
+          format: uuid
+        eraNumber:
+          type: integer
+          minimum: 1
+        playerId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [ DECLINED ]
+
     ActionType:
       type: string
       enum: [ CARD, SPECIAL, PASS ]
