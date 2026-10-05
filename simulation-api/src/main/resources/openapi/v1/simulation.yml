@@ -1,0 +1,958 @@
+openapi: 3.0.3
+info:
+  title: Temporal Rift Simulation Workbench API
+  version: 1.0.0
+  description: >-
+    Creates immutable experiment manifests and provides durable run control, evidence inspection,
+    statistical reporting, paired comparisons, and perspective-safe replay for the separate
+    simulation workbench. The workbench orchestrates real game services; it never replaces their
+    authoritative gameplay rules.
+
+servers:
+  - url: /
+
+security:
+  - bearerAuth: [ ]
+
+tags:
+  - name: Experiments
+  - name: Runs
+  - name: Comparisons
+  - name: Cases
+
+paths:
+  /api/v1/experiments:
+    post:
+      tags: [ Experiments ]
+      operationId: createExperiment
+      summary: Freeze a new immutable experiment manifest
+      description: >-
+        Requires `simulation:write`. The resolved rules and content bytes represented by the
+        manifest are retained by the product. A later rules or content change requires a new
+        experiment; this operation never rewrites an existing manifest.
+      x-required-scopes: [ simulation:write ]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExperimentManifest'
+      responses:
+        '201':
+          description: Experiment created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Experiment'
+        '400': { $ref: '#/components/responses/InvalidExperiment' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/InsufficientScope' }
+        '409': { $ref: '#/components/responses/IdempotencyConflict' }
+
+  /api/v1/experiments/{experimentId}/runs:
+    post:
+      tags: [ Runs ]
+      operationId: startRun
+      summary: Start a run from a frozen experiment
+      description: >-
+        Requires `simulation:write`. Inputs are already frozen in the experiment, so the request
+        body is deliberately empty. Repeating the same idempotency key returns the original run.
+      x-required-scopes: [ simulation:write ]
+      parameters:
+        - $ref: '#/components/parameters/ExperimentId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StartRunRequest'
+      responses:
+        '202':
+          description: Run accepted for execution
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Run'
+        '400': { $ref: '#/components/responses/InvalidExperiment' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/InsufficientScope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Idempotency conflict, immutable experiment, or manifest mismatch
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ProblemDetail' }
+
+  /api/v1/runs/{runId}:
+    get:
+      tags: [ Runs ]
+      operationId: getRun
+      summary: Get durable run progress
+      x-required-scopes: [ simulation:read ]
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+      responses:
+        '200':
+          description: Run status and counts
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Run' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/InsufficientScope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/runs/{runId}/cancel:
+    post:
+      tags: [ Runs ]
+      operationId: cancelRun
+      summary: Stop scheduling new cases for a run
+      description: >-
+        Requires `simulation:write`. Cancellation retains all completed evidence. A first accepted
+        cancellation returns 202; repeating cancellation after a terminal state returns 200 with
+        that same terminal run representation.
+      x-required-scopes: [ simulation:write ]
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: The run was already terminal
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Run' }
+        '202':
+          description: Cancellation accepted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Run' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/InsufficientScope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/IdempotencyConflict' }
+
+  /api/v1/runs/{runId}/resume:
+    post:
+      tags: [ Runs ]
+      operationId: resumeRun
+      summary: Resume an interrupted run
+      description: >-
+        Requires `simulation:write`. Resume is legal only from INTERRUPTED. Retained successful
+        cases remain one logical sample and are not scheduled again.
+      x-required-scopes: [ simulation:write ]
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202':
+          description: Resumption accepted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Run' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/InsufficientScope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Idempotency conflict or invalid run state
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ProblemDetail' }
+
+  /api/v1/runs/{runId}/report:
+    get:
+      tags: [ Runs ]
+      operationId: getRunReport
+      summary: Get the stratified statistical report for a run
+      description: >-
+        Requires `simulation:read`. A partial report remains explicitly partial: incomplete,
+        failed, cancelled, and unmatched case counts are never silently folded into a metric
+        denominator.
+      x-required-scopes: [ simulation:read ]
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+      responses:
+        '200':
+          description: Report with completeness and cohort denominators
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Report' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/InsufficientScope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/comparisons:
+    post:
+      tags: [ Comparisons ]
+      operationId: createComparison
+      summary: Create a paired comparison between compatible runs
+      description: >-
+        Requires `simulation:write`. Runs must have equal cohort, seed, policy, service, content,
+        and timing definitions except for declared variant differences.
+      x-required-scopes: [ simulation:write ]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ComparisonRequest' }
+      responses:
+        '201':
+          description: Comparison created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Comparison' }
+        '400': { $ref: '#/components/responses/InvalidComparison' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/InsufficientScope' }
+        '409': { $ref: '#/components/responses/IdempotencyConflict' }
+        '422': { $ref: '#/components/responses/IncomparableRuns' }
+
+  /api/v1/comparisons/{comparisonId}:
+    get:
+      tags: [ Comparisons ]
+      operationId: getComparison
+      summary: Get a paired comparison
+      x-required-scopes: [ simulation:read ]
+      parameters:
+        - $ref: '#/components/parameters/ComparisonId'
+      responses:
+        '200':
+          description: Comparison result
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Comparison' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/InsufficientScope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/runs/{runId}/cases/{caseId}:
+    get:
+      tags: [ Cases ]
+      operationId: getCase
+      summary: Get one logical case and its attempts
+      description: >-
+        Requires `simulation:read`. Reproduction attempts are separate from research attempts and
+        never add another statistical sample to the case.
+      x-required-scopes: [ simulation:read ]
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+        - $ref: '#/components/parameters/CaseId'
+      responses:
+        '200':
+          description: Case and retained attempts
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Case' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/InsufficientScope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/runs/{runId}/cases/{caseId}/replay:
+    get:
+      tags: [ Cases ]
+      operationId: getCaseReplay
+      summary: Read an ordered perspective-safe case replay
+      description: >-
+        Requires `simulation:read`; OBSERVER perspective additionally requires `simulation:observe`.
+        PLAYER requires seatIndex and includes only facts entitled to that seat at each step. OBSERVER
+        evidence is never supplied to executable policies.
+      x-required-scopes: [ simulation:read ]
+      x-observer-required-scope: simulation:observe
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+        - $ref: '#/components/parameters/CaseId'
+        - name: perspective
+          in: query
+          required: true
+          schema: { $ref: '#/components/schemas/ReplayPerspective' }
+        - name: seatIndex
+          in: query
+          required: false
+          description: Required for PLAYER and prohibited for OBSERVER.
+          schema:
+            type: integer
+            minimum: 0
+        - name: afterStep
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+            default: 100
+      responses:
+        '200':
+          description: Replay page
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Replay' }
+        '400': { $ref: '#/components/responses/InvalidReplayPerspective' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/InsufficientScope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/runs/{runId}/cases/{caseId}/reproductions:
+    post:
+      tags: [ Cases ]
+      operationId: reproduceCase
+      summary: Request an exact reproduction of a saved case
+      description: >-
+        Requires `simulation:write`. The reproduction uses the pinned manifest and transcript in a
+        clean lane, reports the first semantic divergence when necessary, and does not create a new
+        research sample.
+      x-required-scopes: [ simulation:write ]
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+        - $ref: '#/components/parameters/CaseId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202':
+          description: Reproduction accepted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Reproduction' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/InsufficientScope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Idempotency conflict or manifest mismatch
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ProblemDetail' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: >-
+        UUID identifying one mutation request. Repeating a key with the same request representation
+        returns the original resource; reusing it with a changed representation returns
+        IDEMPOTENCY_CONFLICT.
+      schema: { type: string, format: uuid }
+    ExperimentId:
+      name: experimentId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    RunId:
+      name: runId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    CaseId:
+      name: caseId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ComparisonId:
+      name: comparisonId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+  responses:
+    Unauthorized:
+      description: Missing, invalid, or expired bearer token
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetail' }
+    InsufficientScope:
+      description: The bearer token lacks a required simulation scope
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetail' }
+    NotFound:
+      description: The requested resource does not exist or is not visible to the caller
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetail' }
+    InvalidExperiment:
+      description: The manifest is invalid (code INVALID_EXPERIMENT)
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetail' }
+    InvalidComparison:
+      description: The comparison request is invalid (code INVALID_COMPARISON)
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetail' }
+    InvalidReplayPerspective:
+      description: The replay query is invalid (code INVALID_REPLAY_PERSPECTIVE)
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetail' }
+    IdempotencyConflict:
+      description: The idempotency key was reused with a different request (code IDEMPOTENCY_CONFLICT)
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetail' }
+    IncomparableRuns:
+      description: The runs do not have compatible paired definitions (code INCOMPARABLE_RUNS)
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetail' }
+
+  schemas:
+    Sha256Digest:
+      type: string
+      pattern: '^[a-f0-9]{64}$'
+      description: Lowercase SHA-256 hexadecimal digest.
+    DecimalUint64:
+      type: string
+      pattern: '^(0|[1-9][0-9]{0,19})$'
+      description: Decimal unsigned 64-bit integer. Implementations reject values above 18446744073709551615.
+    ArtifactReference:
+      type: object
+      additionalProperties: false
+      required: [ digest ]
+      description: >-
+        A portable content-addressed artifact reference. It contains neither credentials nor a
+        machine-local path; the resolved content is retained by the product.
+      properties:
+        digest: { $ref: '#/components/schemas/Sha256Digest' }
+        mediaType:
+          type: string
+          minLength: 1
+          nullable: true
+        name:
+          type: string
+          minLength: 1
+          nullable: true
+
+    Variant:
+      type: object
+      additionalProperties: false
+      required: [ label, rulesArtifact, contentArtifact, effectiveRulesDigest, effectiveContentDigest ]
+      properties:
+        label:
+          type: string
+          minLength: 1
+        rulesArtifact: { $ref: '#/components/schemas/ArtifactReference' }
+        contentArtifact: { $ref: '#/components/schemas/ArtifactReference' }
+        effectiveRulesDigest: { $ref: '#/components/schemas/Sha256Digest' }
+        effectiveContentDigest: { $ref: '#/components/schemas/Sha256Digest' }
+
+    ServiceProvenance:
+      type: object
+      additionalProperties: false
+      required: [ imageDigest, sourceRevision ]
+      properties:
+        imageDigest:
+          type: string
+          pattern: '^sha256:[a-f0-9]{64}$'
+        sourceRevision:
+          type: string
+          pattern: '^[a-f0-9]{7,64}$'
+    ServiceProvenanceMap:
+      type: object
+      additionalProperties: false
+      required: [ gameService, timelineService, readService ]
+      properties:
+        gameService: { $ref: '#/components/schemas/ServiceProvenance' }
+        timelineService: { $ref: '#/components/schemas/ServiceProvenance' }
+        readService: { $ref: '#/components/schemas/ServiceProvenance' }
+    ContractVersions:
+      type: object
+      minProperties: 1
+      additionalProperties:
+        type: string
+        pattern: '^[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$'
+      description: Exact published participant and event module versions keyed by artifact name.
+
+    SeatPolicyAssignment:
+      type: object
+      additionalProperties: false
+      required: [ seatIndex, policyId, policyVersion ]
+      properties:
+        seatIndex:
+          type: integer
+          minimum: 0
+        policyId:
+          type: string
+          minLength: 1
+        policyVersion:
+          type: string
+          minLength: 1
+    Policy:
+      type: object
+      additionalProperties: false
+      required: [ id, version, artifactDigest, parameters, seatAssignment ]
+      properties:
+        id:
+          type: string
+          minLength: 1
+        version:
+          type: string
+          minLength: 1
+        artifactDigest: { $ref: '#/components/schemas/Sha256Digest' }
+        parameters:
+          type: object
+          additionalProperties: true
+        seatAssignment:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/SeatPolicyAssignment' }
+    FactionSet:
+      type: array
+      minItems: 3
+      maxItems: 5
+      uniqueItems: true
+      items: { $ref: '#/components/schemas/Faction' }
+
+    ExperimentManifest:
+      type: object
+      additionalProperties: false
+      required:
+        - schemaVersion
+        - name
+        - variants
+        - services
+        - contracts
+        - policies
+        - seeds
+        - playerCounts
+        - factionSets
+        - seatRotationMode
+        - timingMode
+        - concurrency
+        - caseWallTimeoutSeconds
+        - maxRejectedCandidatesPerWindow
+      properties:
+        schemaVersion:
+          type: integer
+          enum: [ 1 ]
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        variants:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/Variant' }
+          description: Variant labels are unique.
+        services: { $ref: '#/components/schemas/ServiceProvenanceMap' }
+        contracts: { $ref: '#/components/schemas/ContractVersions' }
+        policies:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/Policy' }
+        seeds:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/DecimalUint64' }
+        playerCounts:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            type: integer
+            enum: [ 3, 4, 5 ]
+        factionSets:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/FactionSet' }
+          description: Every set's size must match a selected player count.
+        seatRotationMode:
+          type: string
+          enum: [ CYCLIC ]
+        timingMode:
+          type: string
+          enum: [ LOGICAL ]
+        concurrency:
+          type: integer
+          minimum: 1
+        caseWallTimeoutSeconds:
+          type: integer
+          minimum: 1
+        maxRejectedCandidatesPerWindow:
+          type: integer
+          minimum: 1
+
+    Experiment:
+      type: object
+      additionalProperties: false
+      required: [ experimentId, manifest, manifestDigest, createdAt ]
+      properties:
+        experimentId: { type: string, format: uuid }
+        manifest: { $ref: '#/components/schemas/ExperimentManifest' }
+        manifestDigest: { $ref: '#/components/schemas/Sha256Digest' }
+        createdAt: { type: string, format: date-time }
+    StartRunRequest:
+      type: object
+      additionalProperties: false
+      description: Empty by design: the experiment's manifest already freezes every execution input.
+
+    RunState:
+      type: string
+      enum: [ QUEUED, RUNNING, INTERRUPTED, CANCELLING, CANCELLED, COMPLETED, FAILED ]
+    CaseCounts:
+      type: object
+      additionalProperties: false
+      required: [ requested, pending, running, succeeded, failed, cancelled ]
+      properties:
+        requested: { type: integer, minimum: 0 }
+        pending: { type: integer, minimum: 0 }
+        running: { type: integer, minimum: 0 }
+        succeeded: { type: integer, minimum: 0 }
+        failed: { type: integer, minimum: 0 }
+        cancelled: { type: integer, minimum: 0 }
+    Failure:
+      type: object
+      additionalProperties: false
+      required: [ code, message ]
+      properties:
+        code: { type: string, minLength: 1 }
+        message: { type: string, minLength: 1 }
+    Run:
+      type: object
+      additionalProperties: false
+      required: [ runId, experimentId, state, counts, createdAt, startedAt, finishedAt, failure ]
+      properties:
+        runId: { type: string, format: uuid }
+        experimentId: { type: string, format: uuid }
+        state: { $ref: '#/components/schemas/RunState' }
+        counts: { $ref: '#/components/schemas/CaseCounts' }
+        createdAt: { type: string, format: date-time }
+        startedAt: { type: string, format: date-time, nullable: true }
+        finishedAt: { type: string, format: date-time, nullable: true }
+        failure:
+          allOf: [ { $ref: '#/components/schemas/Failure' } ]
+          nullable: true
+
+    CaseState:
+      type: string
+      enum: [ PENDING, RUNNING, SUCCEEDED, FAILED, CANCELLED ]
+    AttemptState:
+      type: string
+      enum: [ RUNNING, SUCCEEDED, FAILED, CANCELLED, INTERRUPTED ]
+    SeatAssignment:
+      type: object
+      additionalProperties: false
+      required: [ seatIndex, faction, policyId, policyVersion ]
+      properties:
+        seatIndex: { type: integer, minimum: 0 }
+        faction: { $ref: '#/components/schemas/Faction' }
+        policyId: { type: string, minLength: 1 }
+        policyVersion: { type: string, minLength: 1 }
+    CaseResult:
+      type: object
+      additionalProperties: false
+      required: [ endReason, winners, finalScores, eras, rounds, decisions, semanticDigest ]
+      properties:
+        endReason:
+          $ref: '#/components/schemas/TerminalEndReason'
+        winners:
+          type: array
+          items: { $ref: '#/components/schemas/Winner' }
+        finalScores:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/FinalScore' }
+        eras: { type: integer, minimum: 0 }
+        rounds: { type: integer, minimum: 0 }
+        decisions: { type: integer, minimum: 0 }
+        semanticDigest: { $ref: '#/components/schemas/Sha256Digest' }
+    Attempt:
+      type: object
+      additionalProperties: false
+      required: [ attemptId, ordinal, state, gameId, checkpointArtifact, failure ]
+      properties:
+        attemptId: { type: string, format: uuid }
+        ordinal: { type: integer, minimum: 1 }
+        state: { $ref: '#/components/schemas/AttemptState' }
+        gameId: { type: string, format: uuid, nullable: true }
+        checkpointArtifact:
+          allOf: [ { $ref: '#/components/schemas/ArtifactReference' } ]
+          nullable: true
+        failure:
+          allOf: [ { $ref: '#/components/schemas/Failure' } ]
+          nullable: true
+    Case:
+      type: object
+      additionalProperties: false
+      required: [ caseId, caseKey, runId, variantLabel, seed, playerCount, assignments, state, attempts, result ]
+      properties:
+        caseId: { type: string, format: uuid }
+        caseKey: { type: string, format: uuid }
+        runId: { type: string, format: uuid }
+        variantLabel: { type: string, minLength: 1 }
+        seed: { $ref: '#/components/schemas/DecimalUint64' }
+        playerCount: { type: integer, enum: [ 3, 4, 5 ] }
+        assignments:
+          type: array
+          minItems: 3
+          maxItems: 5
+          items: { $ref: '#/components/schemas/SeatAssignment' }
+        state: { $ref: '#/components/schemas/CaseState' }
+        attempts:
+          type: array
+          items: { $ref: '#/components/schemas/Attempt' }
+        result:
+          allOf: [ { $ref: '#/components/schemas/CaseResult' } ]
+          nullable: true
+
+    ReproductionState:
+      type: string
+      enum: [ QUEUED, RUNNING, MATCH, DIVERGED, FAILED ]
+    Divergence:
+      type: object
+      additionalProperties: false
+      required: [ step, kind, expected, actual ]
+      properties:
+        step: { type: integer, minimum: 0 }
+        kind: { type: string, minLength: 1 }
+        expected: { type: object, additionalProperties: true }
+        actual: { type: object, additionalProperties: true }
+    Reproduction:
+      type: object
+      additionalProperties: false
+      required: [ reproductionId, attemptId, state, firstDivergence ]
+      properties:
+        reproductionId: { type: string, format: uuid }
+        attemptId: { type: string, format: uuid }
+        state: { $ref: '#/components/schemas/ReproductionState' }
+        firstDivergence:
+          allOf: [ { $ref: '#/components/schemas/Divergence' } ]
+          nullable: true
+
+    ReportCaseCounts:
+      type: object
+      additionalProperties: false
+      required: [ requested, pending, succeeded, failed, cancelled ]
+      properties:
+        requested: { type: integer, minimum: 0 }
+        pending: { type: integer, minimum: 0 }
+        succeeded: { type: integer, minimum: 0 }
+        failed: { type: integer, minimum: 0 }
+        cancelled: { type: integer, minimum: 0 }
+    MetricStatus:
+      type: string
+      enum: [ AVAILABLE, NO_DATA, INSUFFICIENT_SAMPLE ]
+    ConfidenceInterval:
+      type: object
+      additionalProperties: false
+      required: [ level, lower, upper, method ]
+      properties:
+        level: { type: number, enum: [ 0.95 ] }
+        lower: { type: number }
+        upper: { type: number }
+        method: { type: string, enum: [ BLOCK_BOOTSTRAP ] }
+    Metric:
+      type: object
+      additionalProperties: false
+      required: [ name, value, numerator, denominator, unit, status, interval, unknownCount ]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          description: >-
+            Named metric such as faction_win_rate, shared_win_rate, score_distribution,
+            ending_cause, eras, rounds, decisions, cards_offered, cards_kept, cards_played,
+            special_attempts, special_accepts, special_rejections, declarations,
+            paradox_findings, or distinct_cascaded_events.
+        value: { type: number, nullable: true }
+        numerator: { type: number, nullable: true }
+        denominator: { type: integer, minimum: 0 }
+        unit: { type: string, minLength: 1 }
+        status: { $ref: '#/components/schemas/MetricStatus' }
+        interval:
+          allOf: [ { $ref: '#/components/schemas/ConfidenceInterval' } ]
+          nullable: true
+        unknownCount:
+          type: integer
+          minimum: 0
+          description: Named count of opportunities whose playability is unknown.
+    Cohort:
+      type: object
+      additionalProperties: false
+      required:
+        - playerCount
+        - factionSet
+        - seatIndex
+        - policyId
+        - policyVersion
+        - variantLabel
+        - eligibleGames
+        - independentBlocks
+        - failedCases
+        - unmatchedCases
+        - metrics
+      properties:
+        playerCount: { type: integer, enum: [ 3, 4, 5 ] }
+        factionSet: { $ref: '#/components/schemas/FactionSet' }
+        seatIndex: { type: integer, minimum: 0 }
+        policyId: { type: string, minLength: 1 }
+        policyVersion: { type: string, minLength: 1 }
+        variantLabel: { type: string, minLength: 1 }
+        eligibleGames: { type: integer, minimum: 0 }
+        independentBlocks: { type: integer, minimum: 0 }
+        failedCases: { type: integer, minimum: 0 }
+        unmatchedCases: { type: integer, minimum: 0 }
+        metrics:
+          type: array
+          items: { $ref: '#/components/schemas/Metric' }
+    Report:
+      type: object
+      additionalProperties: false
+      required: [ runId, manifestDigest, analysisVersion, analysisSeed, complete, caseCounts, cohorts ]
+      properties:
+        runId: { type: string, format: uuid }
+        manifestDigest: { $ref: '#/components/schemas/Sha256Digest' }
+        analysisVersion: { type: string, minLength: 1 }
+        analysisSeed: { $ref: '#/components/schemas/DecimalUint64' }
+        complete:
+          type: boolean
+          description: False whenever requested cases remain pending, running, failed, or cancelled.
+        caseCounts: { $ref: '#/components/schemas/ReportCaseCounts' }
+        cohorts:
+          type: array
+          items: { $ref: '#/components/schemas/Cohort' }
+
+    ComparisonRequest:
+      type: object
+      additionalProperties: false
+      required: [ baselineRunId, candidateRunId ]
+      properties:
+        baselineRunId: { type: string, format: uuid }
+        candidateRunId: { type: string, format: uuid }
+    PairedMetricDifference:
+      type: object
+      additionalProperties: false
+      required: [ name, value, interval ]
+      properties:
+        name: { type: string, minLength: 1 }
+        value: { type: number, nullable: true }
+        interval:
+          allOf: [ { $ref: '#/components/schemas/ConfidenceInterval' } ]
+          nullable: true
+    Comparison:
+      type: object
+      additionalProperties: false
+      required:
+        - comparisonId
+        - baselineRunId
+        - candidateRunId
+        - declaredDifferences
+        - matchedBlocks
+        - unmatchedCases
+        - failedCounterparts
+        - metricDifferences
+        - analysisVersion
+        - analysisSeed
+      properties:
+        comparisonId: { type: string, format: uuid }
+        baselineRunId: { type: string, format: uuid }
+        candidateRunId: { type: string, format: uuid }
+        declaredDifferences:
+          type: array
+          items: { type: string, minLength: 1 }
+        matchedBlocks: { type: integer, minimum: 0 }
+        unmatchedCases: { type: integer, minimum: 0 }
+        failedCounterparts: { type: integer, minimum: 0 }
+        metricDifferences:
+          type: array
+          items: { $ref: '#/components/schemas/PairedMetricDifference' }
+        analysisVersion: { type: string, minLength: 1 }
+        analysisSeed: { $ref: '#/components/schemas/DecimalUint64' }
+
+    ReplayPerspective:
+      type: string
+      enum: [ PLAYER, OBSERVER ]
+    ReplayStep:
+      type: object
+      additionalProperties: false
+      required: [ step, eraNumber, roundNumber, phase, logicalTime, observations, decision, acceptedResult ]
+      properties:
+        step: { type: integer, minimum: 0 }
+        eraNumber: { type: integer, minimum: 1, nullable: true }
+        roundNumber: { type: integer, minimum: 1, nullable: true }
+        phase: { type: string, minLength: 1 }
+        logicalTime: { type: string, format: date-time }
+        observations: { type: object, additionalProperties: true, nullable: true }
+        decision: { type: object, additionalProperties: true, nullable: true }
+        acceptedResult: { type: object, additionalProperties: true, nullable: true }
+    Replay:
+      type: object
+      additionalProperties: false
+      required: [ caseId, manifestDigest, perspective, steps, nextStep ]
+      properties:
+        caseId: { type: string, format: uuid }
+        manifestDigest: { $ref: '#/components/schemas/Sha256Digest' }
+        perspective: { $ref: '#/components/schemas/ReplayPerspective' }
+        steps:
+          type: array
+          items: { $ref: '#/components/schemas/ReplayStep' }
+        nextStep: { type: integer, minimum: 0, nullable: true }
+
+    Faction:
+      $ref: './shared/enums.yaml#/Faction'
+    CardType:
+      $ref: './shared/enums.yaml#/CardType'
+    CardGrade:
+      $ref: './shared/enums.yaml#/CardGrade'
+    TerminalEndReason:
+      type: string
+      enum: [ WIN_CONDITION_MET, TIMELINE_COLLAPSED, TIMELINE_STABILIZED, DECK_EXHAUSTED, RESOLUTION_FAILED, ALL_PLAYERS_ABANDONED ]
+      description: >-
+        Mirrors the terminal-result vocabulary pinned by the manifest's participant/event contract versions.
+    Winner:
+      type: object
+      additionalProperties: false
+      required: [ seatIndex, faction, winType ]
+      properties:
+        seatIndex: { type: integer, minimum: 0 }
+        faction: { $ref: '#/components/schemas/Faction' }
+        winType:
+          type: string
+          enum: [ SCORE_THRESHOLD, FACTION_OBJECTIVE, LAST_PLAYER_STANDING ]
+    FinalScore:
+      type: object
+      additionalProperties: false
+      required: [ seatIndex, faction, score ]
+      properties:
+        seatIndex: { type: integer, minimum: 0 }
+        faction: { $ref: '#/components/schemas/Faction' }
+        score: { type: integer }
+    ProblemDetail:
+      type: object
+      additionalProperties: true
+      required: [ type, title, status, code ]
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string, format: uri }
+        code:
+          type: string
+          enum:
+            - INVALID_EXPERIMENT
+            - INVALID_REPLAY_PERSPECTIVE
+            - INVALID_COMPARISON
+            - IDEMPOTENCY_CONFLICT
+            - EXPERIMENT_IMMUTABLE
+            - INVALID_RUN_STATE
+            - MANIFEST_MISMATCH
+            - INCOMPARABLE_RUNS
+            - CONTRACT_MISMATCH
+            - CONFIGURATION_DRIFT
