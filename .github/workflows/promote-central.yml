@@ -1,8 +1,6 @@
-name: Publish API contracts to GitHub Packages
+name: Promote API contracts to Maven Central
 
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:
 
 permissions:
@@ -33,13 +31,11 @@ jobs:
         module: ${{ fromJson(needs.discover-modules.outputs.modules) }}
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-      packages: write
+      contents: read
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          fetch-depth: 2
           persist-credentials: false
 
       - name: Setup Maven Action
@@ -52,9 +48,9 @@ jobs:
           settings-servers: |
             [
               {
-                "id": "github",
-                "username": "${{ github.actor }}",
-                "password": "${{ secrets.GITHUB_TOKEN }}"
+                "id": "central",
+                "username": "${{ secrets.SONATYPE_USERNAME }}",
+                "password": "${{ secrets.SONATYPE_PASSWORD }}"
               }
             ]
 
@@ -65,11 +61,16 @@ jobs:
           key: ${{ runner.os }}-m2-publish-${{ matrix.module }}-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2-publish-${{ matrix.module }}-
 
+      - name: Import GPG key
+        uses: crazy-max/ghaction-import-gpg@e89d40939c28e39f97cf32126055eeae86ba74ec # v6
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.GPG_PASSPHRASE }}
+
       - name: Check if module version already published
         id: version_check
         env:
           MODULE: ${{ matrix.module }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         working-directory: ${{ matrix.module }}
         run: |
           echo "--- Resolving $MODULE groupId + artifactId + version ---"
@@ -79,7 +80,7 @@ jobs:
           echo "Resolved: $GROUP_ID:$ARTIFACT_ID:$VERSION"
 
           if [[ "$VERSION" == *-SNAPSHOT ]]; then
-            echo "::error::$MODULE has a SNAPSHOT version ($VERSION) — releases are pinned by consumers, so SNAPSHOTs are never published."
+            echo "::error::$MODULE has a SNAPSHOT version ($VERSION) — Maven Central does not accept SNAPSHOTs."
             exit 1
           fi
 
@@ -87,37 +88,26 @@ jobs:
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
 
           GROUP_PATH=$(echo "$GROUP_ID" | tr '.' '/')
-          REGISTRY_URL="https://maven.pkg.github.com/temporal-rift/apis/${GROUP_PATH}/${ARTIFACT_ID}/${VERSION}/${ARTIFACT_ID}-${VERSION}.pom"
-          echo "--- Checking GitHub Packages ---"
+          REGISTRY_URL="https://repo1.maven.org/maven2/${GROUP_PATH}/${ARTIFACT_ID}/${VERSION}/${ARTIFACT_ID}-${VERSION}.pom"
+          echo "--- Checking Maven Central ---"
           echo "URL: $REGISTRY_URL"
 
-          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -L -u "x-access-token:${GITHUB_TOKEN}" --retry 3 --retry-delay 5 --retry-connrefused "$REGISTRY_URL")
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -L --retry 3 --retry-delay 5 --retry-connrefused "$REGISTRY_URL")
           echo "HTTP status: $RESPONSE"
 
           if [ "$RESPONSE" = "200" ]; then
-            echo "Version $VERSION already exists in GitHub Packages — skipping publish"
+            echo "Version $VERSION already exists in Maven Central — skipping publish"
             echo "VERSION_CHANGED=false" >> "$GITHUB_ENV"
           elif [ "$RESPONSE" = "404" ]; then
-            echo "Version $VERSION not found in GitHub Packages — will publish"
+            echo "Version $VERSION not found in Maven Central — will publish"
             echo "VERSION_CHANGED=true" >> "$GITHUB_ENV"
           else
-            echo "::error::Unexpected HTTP status $RESPONSE checking GitHub Packages for $MODULE — aborting rather than risking a false publish."
+            echo "::error::Unexpected HTTP status $RESPONSE checking Maven Central for $MODULE — aborting rather than risking a false publish."
             exit 1
           fi
 
-      - name: Publish module to GitHub Packages
+      - name: Deploy module to Maven Central
         if: env.VERSION_CHANGED == 'true'
         env:
           MODULE: ${{ matrix.module }}
-        run: mvn --batch-mode -pl "$MODULE" deploy -Pgithub
-
-      - name: Create and push tag
-        if: env.VERSION_CHANGED == 'true' && github.ref == 'refs/heads/main'
-        env:
-          MODULE: ${{ matrix.module }}
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          TAG="$MODULE/v${VERSION}"
-          git tag "$TAG"
-          git push "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/temporal-rift/apis.git" "$TAG"
+        run: mvn --batch-mode -pl "$MODULE" deploy -Pcentral
