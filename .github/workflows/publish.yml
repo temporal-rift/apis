@@ -106,18 +106,22 @@ jobs:
           fi
 
       - name: Publish module to GitHub Packages
-        if: env.VERSION_CHANGED == 'true'
+        if: env.VERSION_CHANGED == 'true' && github.ref == 'refs/heads/main'
         env:
           MODULE: ${{ matrix.module }}
         run: mvn --batch-mode -pl "$MODULE" deploy -Pgithub
 
       - name: Create and push tag
-        if: env.VERSION_CHANGED == 'true' && github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main'
         env:
           MODULE: ${{ matrix.module }}
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           TAG="$MODULE/v${VERSION}"
+          if git ls-remote --exit-code --tags "https://github.com/temporal-rift/apis.git" "refs/tags/$TAG" > /dev/null; then
+            echo "Tag $TAG already exists — skipping"
+            exit 0
+          fi
           git tag "$TAG"
           git push "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/temporal-rift/apis.git" "$TAG"
