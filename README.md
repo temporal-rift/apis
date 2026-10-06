@@ -146,11 +146,15 @@ collision.
 ## Publishing
 
 `.github/workflows/publish.yml` discovers every top-level module automatically, checks whether its current
-`pom.xml` version is already on Maven Central, and publishes only the ones that changed — each module tagged
-and versioned independently (`{module}/v{version}`), triggered on push to `main`.
+`pom.xml` version is already in GitHub Packages, and publishes only the ones that changed — each module tagged
+and versioned independently (`{module}/v{version}`), triggered on push to `main`. Consumers resolve these from
+the GitHub Packages registry `https://maven.pkg.github.com/temporal-rift/apis`; GitHub Packages requires
+authentication even for public packages, so declare a `github` server with a token that has `read:packages` (in
+GitHub Actions, `GITHUB_TOKEN` with `packages: read`).
 
-Requires these repo secrets configured before merging any change to the publish workflow — the workflow will
-succeed at CI level but do nothing meaningful without them:
+Maven Central is promoted manually: run the `Promote API contracts to Maven Central` workflow
+(`promote-central.yml`) to deploy every module version Central does not yet have. Nothing else publishes to
+Central. The promotion requires these repo secrets:
 
 - `SONATYPE_USERNAME` / `SONATYPE_PASSWORD` — Central Publisher Portal token.
 - `GPG_PRIVATE_KEY` / `GPG_PASSPHRASE` — signs artifacts (required by Central).
