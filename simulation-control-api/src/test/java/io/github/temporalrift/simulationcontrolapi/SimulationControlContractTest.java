@@ -96,10 +96,16 @@ class SimulationControlContractTest {
 
     @Test
     void singleLineDescriptionsContainingColonsAreQuoted() throws IOException {
-        var unquoted = Pattern.compile("^\s*description: [^|>\"'].*: .*$");
+        var prefix = "description: ";
 
         for (var line : Files.readAllLines(SPECIFICATION)) {
-            assertFalse(unquoted.matcher(line).matches(), "Unquoted description is invalid YAML: " + line);
+            var trimmed = line.strip();
+            if (!trimmed.startsWith(prefix)) {
+                continue;
+            }
+            var value = trimmed.substring(prefix.length());
+            var plainScalar = !value.isEmpty() && "|>\"'".indexOf(value.charAt(0)) < 0;
+            assertFalse(plainScalar && value.contains(": "), "Unquoted description is invalid YAML: " + line);
         }
     }
 
