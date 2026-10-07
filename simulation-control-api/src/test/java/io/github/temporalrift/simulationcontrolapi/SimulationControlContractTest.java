@@ -21,7 +21,8 @@ class SimulationControlContractTest {
                     + "1844674[0-3][0-9]{12}|184467440[0-6][0-9]{10}|1844674407[0-2][0-9]{9}|"
                     + "18446744073[0-6][0-9]{8}|1844674407370[0-8][0-9]{6}|"
                     + "18446744073709[0-4][0-9]{5}|184467440737095[0-4][0-9]{4}|"
-                    + "18446744073709551[0-5][0-9]{2}|1844674407370955161[0-4]|"
+                    + "18446744073709550[0-9]{3}|18446744073709551[0-5][0-9]{2}|"
+                    + "1844674407370955160[0-9]|1844674407370955161[0-4]|"
                     + "18446744073709551615)$";
 
     @Test
@@ -57,6 +58,10 @@ class SimulationControlContractTest {
 
         assertTrue(pattern.matcher("0").matches());
         assertTrue(pattern.matcher("42").matches());
+        assertTrue(pattern.matcher("18446744073709550000").matches());
+        assertTrue(pattern.matcher("18446744073709550999").matches());
+        assertTrue(pattern.matcher("18446744073709551600").matches());
+        assertTrue(pattern.matcher("18446744073709551609").matches());
         assertTrue(pattern.matcher("18446744073709551615").matches());
         assertFalse(pattern.matcher("18446744073709551616").matches());
         assertFalse(pattern.matcher("-1").matches());
@@ -86,6 +91,15 @@ class SimulationControlContractTest {
         assertTrue(specification.contains("required: [ code ]"));
         for (var errorCode : namedErrorCodes()) {
             assertTrue(specification.contains(errorCode), () -> "Missing error code " + errorCode);
+        }
+    }
+
+    @Test
+    void singleLineDescriptionsContainingColonsAreQuoted() throws IOException {
+        var unquoted = Pattern.compile("^\s*description: [^|>\"'].*: .*$");
+
+        for (var line : Files.readAllLines(SPECIFICATION)) {
+            assertFalse(unquoted.matcher(line).matches(), "Unquoted description is invalid YAML: " + line);
         }
     }
 
