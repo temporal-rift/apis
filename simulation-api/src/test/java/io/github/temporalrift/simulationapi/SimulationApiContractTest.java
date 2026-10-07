@@ -90,4 +90,9 @@ class SimulationApiContractTest {
     private static String schema(String specification, String start, String end) {
         return specification.substring(specification.indexOf(start), specification.indexOf(end));
     }
+
+    @Test
+    void moduleDeclaresTheGithubPublishingProfile() throws IOException {
+        assertTrue(Files.readString(Path.of("pom.xml")).contains("<id>github</id>"));
+    }
 }

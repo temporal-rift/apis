@@ -6,7 +6,7 @@
 
     <groupId>io.github.temporal-rift</groupId>
     <artifactId>simulation-api</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
     <packaging>jar</packaging>
 
     <properties>
@@ -134,6 +134,16 @@
                     </plugin>
                 </plugins>
             </build>
+        </profile>
+        <profile>
+            <id>github</id>
+            <distributionManagement>
+                <repository>
+                    <id>github</id>
+                    <name>GitHub Packages</name>
+                    <url>https://maven.pkg.github.com/temporal-rift/apis</url>
+                </repository>
+            </distributionManagement>
         </profile>
     </profiles>
 </project>

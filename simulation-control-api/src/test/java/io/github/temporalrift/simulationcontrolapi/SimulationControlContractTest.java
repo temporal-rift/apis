@@ -109,6 +109,33 @@ class SimulationControlContractTest {
         }
     }
 
+    @Test
+    void dateTimePropertiesDoNotCombineTheFormatWithAStringPattern() throws IOException {
+        var lines = Files.readAllLines(SPECIFICATION);
+
+        for (var index = 0; index < lines.size(); index++) {
+            if (!lines.get(index).strip().equals("format: date-time")) {
+                continue;
+            }
+            var indent = indentation(lines.get(index));
+            for (var next = index + 1; next < lines.size() && indentation(lines.get(next)) >= indent; next++) {
+                assertFalse(
+                        lines.get(next).strip().startsWith("pattern:"),
+                        "A date-time property must not carry a string pattern, which no generated validator accepts: "
+                                + lines.get(index - 2).strip());
+            }
+        }
+    }
+
+    @Test
+    void moduleDeclaresTheGithubPublishingProfile() throws IOException {
+        assertTrue(Files.readString(Path.of("pom.xml")).contains("<id>github</id>"));
+    }
+
+    private static int indentation(String line) {
+        return line.length() - line.stripLeading().length();
+    }
+
     private String readSpecification() throws IOException {
         return Files.readString(SPECIFICATION);
     }
