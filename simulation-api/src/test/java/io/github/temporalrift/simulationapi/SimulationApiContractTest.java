@@ -84,7 +84,7 @@ class SimulationApiContractTest {
     }
 
     private static String specification() throws IOException {
-        return Files.readString(Path.of("src/main/resources/openapi/v1/simulation.yml"));
+        return Files.readString(Path.of("src/main/resources/openapi/v1/simulation.yml")).replace("\r\n", "\n");
     }
 
     private static String schema(String specification, String start, String end) {
