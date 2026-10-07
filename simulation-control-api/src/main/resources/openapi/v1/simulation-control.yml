@@ -211,7 +211,7 @@ components:
         logicalTime:
           type: string
           format: date-time
-          description: UTC logical time in RFC 3339 form with a Z offset; any other offset is malformed.
+          description: UTC logical time in RFC 3339 form; responses use the Z offset.
         seats:
           type: array
           minItems: 3
@@ -330,7 +330,7 @@ components:
           type: string
           format: date-time
           description: |
-            UTC logical time in RFC 3339 form with a Z offset; any other offset is malformed. Equal to the current
+            UTC logical time in RFC 3339 form; responses use the Z offset. Equal to the current
             time is a legal idempotent advance.
 
     ClockAcknowledgement:
