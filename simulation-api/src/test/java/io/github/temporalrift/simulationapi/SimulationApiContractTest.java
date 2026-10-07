@@ -74,11 +74,13 @@ class SimulationApiContractTest {
     void exposesOnlyThePublishedTerminalAndSharedEnumVocabulary() throws IOException {
         var specification = specification();
 
-        assertTrue(specification.contains("$ref: './shared/enums.yaml#/Faction'"));
-        assertTrue(specification.contains("$ref: './shared/enums.yaml#/CardType'"));
+        assertTrue(specification.contains("$ref: '../shared/enums.yaml#/Faction'"));
+        assertTrue(specification.contains("$ref: '../shared/enums.yaml#/CardType'"));
         assertTrue(specification.contains("WIN_CONDITION_MET, TIMELINE_COLLAPSED, TIMELINE_STABILIZED"));
         assertTrue(specification.contains("CONTRACT_MISMATCH"));
         assertTrue(specification.contains("CONFIGURATION_DRIFT"));
+        assertTrue(specification.contains("RESOURCE_NOT_FOUND"));
+        assertTrue(specification.contains("INSUFFICIENT_SCOPE"));
     }
 
     private static String specification() throws IOException {

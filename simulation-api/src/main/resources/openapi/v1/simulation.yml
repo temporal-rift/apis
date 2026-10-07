@@ -473,7 +473,7 @@ components:
       minProperties: 1
       additionalProperties:
         type: string
-        pattern: '^[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$'
+        pattern: '^[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$'
       description: Exact published participant and event module versions keyed by artifact name.
 
     SeatPolicyAssignment:
@@ -600,7 +600,7 @@ components:
     StartRunRequest:
       type: object
       additionalProperties: false
-      description: Empty by design: the experiment's manifest already freezes every execution input.
+      description: "Empty by design: the experiment's manifest already freezes every execution input."
 
     RunState:
       type: string
@@ -621,7 +621,10 @@ components:
       additionalProperties: false
       required: [ code, message ]
       properties:
-        code: { type: string, minLength: 1 }
+        code:
+          type: string
+          minLength: 1
+          description: Recorded attempt-failure code such as CONTRACT_MISMATCH or CONFIGURATION_DRIFT.
         message: { type: string, minLength: 1 }
     Run:
       type: object
@@ -905,11 +908,11 @@ components:
         nextStep: { type: integer, minimum: 0, nullable: true }
 
     Faction:
-      $ref: './shared/enums.yaml#/Faction'
+      $ref: '../shared/enums.yaml#/Faction'
     CardType:
-      $ref: './shared/enums.yaml#/CardType'
+      $ref: '../shared/enums.yaml#/CardType'
     CardGrade:
-      $ref: './shared/enums.yaml#/CardGrade'
+      $ref: '../shared/enums.yaml#/CardGrade'
     TerminalEndReason:
       type: string
       enum: [ WIN_CONDITION_MET, TIMELINE_COLLAPSED, TIMELINE_STABILIZED, DECK_EXHAUSTED, RESOLUTION_FAILED, ALL_PLAYERS_ABANDONED ]
@@ -954,5 +957,6 @@ components:
             - INVALID_RUN_STATE
             - MANIFEST_MISMATCH
             - INCOMPARABLE_RUNS
-            - CONTRACT_MISMATCH
-            - CONFIGURATION_DRIFT
+            - UNAUTHORIZED
+            - INSUFFICIENT_SCOPE
+            - RESOURCE_NOT_FOUND
