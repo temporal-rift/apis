@@ -211,8 +211,7 @@ components:
         logicalTime:
           type: string
           format: date-time
-          pattern: '.*Z$'
-          description: UTC logical time in RFC 3339 form.
+          description: UTC logical time in RFC 3339 form with a Z offset; any other offset is malformed.
         seats:
           type: array
           minItems: 3
@@ -259,7 +258,7 @@ components:
         logicalTime:
           type: string
           format: date-time
-          pattern: '.*Z$'
+          description: The service logical time in UTC (Z offset).
         gameId:
           type: string
           format: uuid
@@ -283,7 +282,7 @@ components:
         nextDeadline:
           type: string
           format: date-time
-          pattern: '.*Z$'
+          description: Earliest unhandled deadline after the logical time, in UTC (Z offset).
           nullable: true
         sourceWatermarks:
           type: array
@@ -330,8 +329,9 @@ components:
         targetTime:
           type: string
           format: date-time
-          pattern: '.*Z$'
-          description: UTC logical time. Equal to the current time is a legal idempotent advance.
+          description: |
+            UTC logical time in RFC 3339 form with a Z offset; any other offset is malformed. Equal to the current
+            time is a legal idempotent advance.
 
     ClockAcknowledgement:
       type: object
@@ -348,7 +348,7 @@ components:
         logicalTime:
           type: string
           format: date-time
-          pattern: '.*Z$'
+          description: The logical time the acknowledged operation set, in UTC (Z offset).
 
     ProblemDetail:
       type: object
