@@ -25,5 +25,6 @@
         <module>scoring-api</module>
         <module>chains-api</module>
         <module>simulation-api</module>
+        <module>simulation-control-api</module>
     </modules>
 </project>
