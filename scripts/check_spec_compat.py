@@ -537,8 +537,9 @@ def compare_parameters(base_params, head_params, where, severity, findings, reso
     def key_of(param):
         return (param.get("name"), param.get("in"))
 
-    base_map = {key_of(p): p for p in base_params or []}
-    head_map = {key_of(p): p for p in head_params or []}
+    # A parameter may be a $ref to components/parameters; key and compare the resolved parameter.
+    base_map = {key_of(p): p for p in (resolvers[0](p) for p in base_params or [])}
+    head_map = {key_of(p): p for p in (resolvers[1](p) for p in head_params or [])}
     for key in sorted(set(base_map) - set(head_map)):
         severity = combine(severity, findings,
                            f"BREAKING: {where} removes parameter '{key[0]}' in '{key[1]}'", MAJOR)

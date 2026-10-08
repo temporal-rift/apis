@@ -206,6 +206,40 @@ class DocumentDiffTests(unittest.TestCase):
         severity, _ = self.classify(base, head)
         self.assertEqual(severity, gate.MINOR)
 
+    def parameter_docs(self, base_params, head_params):
+        components = {"parameters": {
+            "RunId": {"name": "runId", "in": "path", "required": True, "schema": {"type": "string"}},
+            "Key": {"name": "Idempotency-Key", "in": "header", "required": True,
+                    "schema": {"type": "string"}}},
+            "schemas": {}}
+        op = {"operationId": "getA", "responses": {"200": {"description": "ok"}}}
+        base = {"paths": {"/a": {"get": dict(op, parameters=base_params)}}, "components": components}
+        head = {"paths": {"/a": {"get": dict(op, parameters=head_params)}}, "components": components}
+        return base, head
+
+    def test_referenced_parameters_mixed_with_inline_ones_are_compared_by_name(self):
+        params = [{"$ref": "#/components/parameters/RunId"},
+                  {"name": "perspective", "in": "query", "required": True, "schema": {"type": "string"}},
+                  {"$ref": "#/components/parameters/Key"}]
+        severity, findings = self.classify(*self.parameter_docs(params, list(params)))
+        self.assertEqual(severity, gate.NONE)
+        self.assertEqual(findings, [])
+
+    def test_removing_a_referenced_parameter_is_breaking(self):
+        base, head = self.parameter_docs(
+            [{"$ref": "#/components/parameters/RunId"}, {"$ref": "#/components/parameters/Key"}],
+            [{"$ref": "#/components/parameters/RunId"}])
+        severity, findings = self.classify(base, head)
+        self.assertEqual(severity, gate.MAJOR)
+        self.assertTrue(any("removes parameter 'Idempotency-Key'" in f for f in findings))
+
+    def test_adding_a_required_referenced_parameter_is_breaking(self):
+        base, head = self.parameter_docs(
+            [{"$ref": "#/components/parameters/RunId"}],
+            [{"$ref": "#/components/parameters/RunId"}, {"$ref": "#/components/parameters/Key"}])
+        severity, _ = self.classify(base, head)
+        self.assertEqual(severity, gate.MAJOR)
+
     def test_removed_asyncapi_message_is_breaking(self):
         base = {"channels": {}, "operations": {},
                 "components": {"messages": {"Known": {"name": "Known",
