@@ -92,6 +92,16 @@ class SimulationApiContractTest {
     }
 
     @Test
+    void winnersOfSpecialEndingsHaveNoWinType() throws IOException {
+        var specification = specification();
+        var winner = schema(specification, "    Winner:", "    FinalScore:");
+
+        assertTrue(winner.contains("required: [ seatIndex, faction, winType ]"));
+        assertTrue(winner.contains("nullable: true"));
+        assertTrue(winner.contains("TIMELINE_COLLAPSED and TIMELINE_STABILIZED"));
+    }
+
+    @Test
     void moduleDeclaresTheGithubPublishingProfile() throws IOException {
         assertTrue(Files.readString(Path.of("pom.xml")).contains("<id>github</id>"));
     }
