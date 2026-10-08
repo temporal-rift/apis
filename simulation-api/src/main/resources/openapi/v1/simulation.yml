@@ -930,9 +930,9 @@ components:
           nullable: true
           enum: [ SCORE_THRESHOLD, FACTION_OBJECTIVE, LAST_PLAYER_STANDING ]
           description: >-
-            Always present, and null for the winners of TIMELINE_COLLAPSED and TIMELINE_STABILIZED: the
-            participant contract assigns a win type only to a normal victory (WIN_CONDITION_MET), and those
-            endings decide their winners by highest score or by stabilization claims.
+            Always present, and null unless the ending is WIN_CONDITION_MET: the participant contract assigns a
+            win type only to a normal victory, while the special endings (TIMELINE_COLLAPSED and
+            TIMELINE_STABILIZED) decide their winners by highest score or by stabilization claims.
     FinalScore:
       type: object
       additionalProperties: false

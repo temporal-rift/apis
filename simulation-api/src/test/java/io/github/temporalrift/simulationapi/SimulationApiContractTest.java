@@ -1,5 +1,6 @@
 package io.github.temporalrift.simulationapi;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -92,13 +93,17 @@ class SimulationApiContractTest {
     }
 
     @Test
-    void winnersOfSpecialEndingsHaveNoWinType() throws IOException {
+    void winTypeIsRequiredButNullableAndNothingElseOnAWinnerIs() throws IOException {
         var specification = specification();
         var winner = schema(specification, "    Winner:", "    FinalScore:");
+        var winType = winner.substring(winner.indexOf("        winType:"));
+        var others = winner.replace(winType, "");
 
         assertTrue(winner.contains("required: [ seatIndex, faction, winType ]"));
-        assertTrue(winner.contains("nullable: true"));
-        assertTrue(winner.contains("TIMELINE_COLLAPSED and TIMELINE_STABILIZED"));
+        assertTrue(winType.contains("nullable: true"));
+        assertTrue(winType.contains("enum: [ SCORE_THRESHOLD, FACTION_OBJECTIVE, LAST_PLAYER_STANDING ]"));
+        assertTrue(winType.contains("null unless the ending is WIN_CONDITION_MET"));
+        assertFalse(others.contains("nullable"));
     }
 
     @Test
