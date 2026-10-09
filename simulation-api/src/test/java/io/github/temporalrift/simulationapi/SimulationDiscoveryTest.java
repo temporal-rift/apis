@@ -118,6 +118,27 @@ class SimulationDiscoveryTest {
     }
 
     @Test
+    void aComparisonListNamesEachComparisonWithoutComputingIt() {
+        var list = """
+                { "items": [ {
+                    "comparisonId": "%s",
+                    "baseline": { "runId": "%s", "variantLabel": "threshold-20" },
+                    "candidate": { "runId": "%s", "variantLabel": "threshold-22" },
+                    "analysisVersion": "1", "analysisSeed": "42", "createdAt": "2026-10-09T12:00:00Z"
+                  } ], "total": 1 }
+                """.formatted(ID, ID, ID);
+
+        assertValid(validator.validateResponse("/api/v1/comparisons", Request.Method.GET, json(list)));
+        assertFalse(validator
+                .validateResponse(
+                        "/api/v1/comparisons",
+                        Request.Method.GET,
+                        json(list.replace("\"createdAt\": \"2026-10-09T12:00:00Z\"", "\"cohorts\": []")))
+                .getMessages()
+                .isEmpty());
+    }
+
+    @Test
     void thePolicyCatalogNamesEachBundleByIdVersionAndDigest() {
         var catalog = """
                 { "items": [ { "id": "random", "version": "v1", "artifactDigest": "%s",
