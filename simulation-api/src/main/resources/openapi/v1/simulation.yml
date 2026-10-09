@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Temporal Rift Simulation Workbench API
-  version: 2.1.0
+  version: 3.0.0
   description: >-
     Creates immutable experiment manifests and provides durable run control, evidence inspection,
     statistical reporting, paired comparisons, and perspective-safe replay for the separate
@@ -1380,6 +1380,19 @@ components:
           type: array
           items: { $ref: '#/components/schemas/CaseSummary' }
         total: { type: integer, minimum: 0 }
+    ComparisonSummary:
+      type: object
+      additionalProperties: false
+      description: >-
+        Identifies a stored comparison without computing it; `getComparison` returns the result.
+      required: [ comparisonId, baseline, candidate, analysisVersion, analysisSeed, createdAt ]
+      properties:
+        comparisonId: { type: string, format: uuid }
+        baseline: { $ref: '#/components/schemas/ComparisonSide' }
+        candidate: { $ref: '#/components/schemas/ComparisonSide' }
+        analysisVersion: { type: string, minLength: 1 }
+        analysisSeed: { $ref: '#/components/schemas/DecimalUint64' }
+        createdAt: { type: string, format: date-time }
     ComparisonList:
       type: object
       additionalProperties: false
@@ -1387,7 +1400,7 @@ components:
       properties:
         items:
           type: array
-          items: { $ref: '#/components/schemas/Comparison' }
+          items: { $ref: '#/components/schemas/ComparisonSummary' }
         total: { type: integer, minimum: 0 }
     PreviewBreakdown:
       type: object
