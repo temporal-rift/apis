@@ -183,7 +183,16 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Report' }
             text/csv:
-              schema: { type: string }
+              schema:
+                type: string
+                description: >-
+                  RFC 4180 CSV. A header row, then one row per cohort metric in report order, with the
+                  columns formatVersion, runId, manifestDigest, analysisVersion, analysisSeed, complete,
+                  variantLabel, policyId, policyVersion, playerCount, factionSet (factions joined by `|`),
+                  seatIndex, eligibleGames, independentBlocks, requested, pending, running, succeeded,
+                  failed, cancelled, metric, statistic, faction, cardType, cardGrade, specialAction,
+                  paradoxType, endReason, quantile, unit, value, numerator, denominator, status,
+                  intervalLower, intervalUpper, unknownCount. An empty field is a null value.
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/InsufficientScope' }
         '404': { $ref: '#/components/responses/NotFound' }
@@ -242,7 +251,16 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Comparison' }
             text/csv:
-              schema: { type: string }
+              schema:
+                type: string
+                description: >-
+                  RFC 4180 CSV. A header row, then one row per cohort metric difference, with the columns
+                  formatVersion, comparisonId, baselineRunId, baselineVariantLabel, candidateRunId,
+                  candidateVariantLabel, analysisVersion, analysisSeed, complete, policyId, policyVersion,
+                  playerCount, factionSet (factions joined by `|`), seatIndex, matchedBlocks,
+                  excludedBlocks, metric, statistic, faction, cardType, cardGrade, specialAction,
+                  paradoxType, endReason, quantile, unit, baselineValue, candidateValue, difference,
+                  status, intervalLower, intervalUpper. An empty field is a null value.
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/InsufficientScope' }
         '404': { $ref: '#/components/responses/NotFound' }
@@ -889,7 +907,10 @@ components:
       additionalProperties: false
       required: [ formatVersion, runId, manifestDigest, analysisVersion, analysisSeed, complete, caseCounts, cohorts ]
       properties:
-        formatVersion: { type: integer, enum: [ 1 ] }
+        formatVersion:
+          type: integer
+          enum: [ 1 ]
+          description: Version of the report's JSON and CSV layout; the first CSV column.
         runId: { type: string, format: uuid }
         manifestDigest: { $ref: '#/components/schemas/Sha256Digest' }
         analysisVersion: { type: string, minLength: 1 }
@@ -1030,7 +1051,10 @@ components:
         - excludedPairs
         - cohorts
       properties:
-        formatVersion: { type: integer, enum: [ 1 ] }
+        formatVersion:
+          type: integer
+          enum: [ 1 ]
+          description: Version of the comparison's JSON and CSV layout; the first CSV column.
         comparisonId: { type: string, format: uuid }
         baseline: { $ref: '#/components/schemas/ComparisonSide' }
         candidate: { $ref: '#/components/schemas/ComparisonSide' }
