@@ -1,0 +1,97 @@
+{
+  "formatVersion": 1,
+  "runId": "6f3f2a52-4f0a-4c69-9a39-2a8f0e2b9d11",
+  "manifestDigest": "5d41402abc4b2a76b9719d911017c592ae7f1e2b5f3a2c1d0e9f8a7b6c5d4e3f",
+  "analysisVersion": "1",
+  "analysisSeed": "1",
+  "complete": false,
+  "caseCounts": { "requested": 12, "pending": 0, "running": 0, "succeeded": 10, "failed": 2, "cancelled": 0 },
+  "cohorts": [
+    {
+      "variantLabel": "threshold-20",
+      "policyId": "random",
+      "policyVersion": "1.0.0",
+      "playerCount": 3,
+      "factionSet": null,
+      "seatIndex": null,
+      "caseCounts": { "requested": 12, "pending": 0, "running": 0, "succeeded": 10, "failed": 2, "cancelled": 0 },
+      "eligibleGames": 10,
+      "independentBlocks": 5,
+      "metrics": [
+        {
+          "name": "faction_win_rate",
+          "statistic": "RATE",
+          "dimensions": { "faction": "ERASERS" },
+          "value": 0.4,
+          "numerator": 4,
+          "denominator": 10,
+          "unit": "games",
+          "status": "AVAILABLE",
+          "interval": { "level": 0.95, "lower": 0.1, "upper": 0.7, "method": "BLOCK_BOOTSTRAP" },
+          "unknownCount": 0
+        },
+        {
+          "name": "faction_shared_win_rate",
+          "statistic": "RATE",
+          "dimensions": { "faction": "ERASERS" },
+          "value": 0.1,
+          "numerator": 1,
+          "denominator": 10,
+          "unit": "games",
+          "status": "AVAILABLE",
+          "interval": { "level": 0.95, "lower": 0, "upper": 0.3, "method": "BLOCK_BOOTSTRAP" },
+          "unknownCount": 0
+        },
+        {
+          "name": "score",
+          "statistic": "QUANTILE",
+          "dimensions": { "faction": "ERASERS", "quantile": 0.5 },
+          "value": 18,
+          "numerator": null,
+          "denominator": 10,
+          "unit": "points",
+          "status": "AVAILABLE",
+          "interval": { "level": 0.95, "lower": 15, "upper": 21, "method": "BLOCK_BOOTSTRAP" },
+          "unknownCount": 0
+        }
+      ]
+    },
+    {
+      "variantLabel": "threshold-20",
+      "policyId": "random",
+      "policyVersion": "1.0.0",
+      "playerCount": 3,
+      "factionSet": [ "ERASERS", "PROPHETS", "WEAVERS" ],
+      "seatIndex": 0,
+      "caseCounts": { "requested": 1, "pending": 0, "running": 0, "succeeded": 1, "failed": 0, "cancelled": 0 },
+      "eligibleGames": 1,
+      "independentBlocks": 1,
+      "metrics": [
+        {
+          "name": "card_playable_rate",
+          "statistic": "RATE",
+          "dimensions": { "cardType": "SCAN", "cardGrade": "II" },
+          "value": 0.666667,
+          "numerator": 2,
+          "denominator": 3,
+          "unit": "card-rounds",
+          "status": "INSUFFICIENT_SAMPLE",
+          "interval": null,
+          "unknownCount": 1
+        },
+        {
+          "name": "faction_win_rate",
+          "statistic": "RATE",
+          "dimensions": { "faction": "ACTIVISTS" },
+          "value": null,
+          "numerator": 0,
+          "denominator": 0,
+          "unit": "games",
+          "status": "NO_DATA",
+          "interval": null,
+          "unknownCount": 0
+        }
+      ]
+    }
+  ]
+}
