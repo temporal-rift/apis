@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Temporal Rift Simulation Workbench API
-  version: 2.0.0
+  version: 2.1.0
   description: >-
     Creates immutable experiment manifests and provides durable run control, evidence inspection,
     statistical reporting, paired comparisons, and perspective-safe replay for the separate
@@ -20,9 +20,27 @@ tags:
   - name: Reports
   - name: Comparisons
   - name: Cases
+  - name: Policies
 
 paths:
   /api/v1/experiments:
+    get:
+      tags: [ Experiments ]
+      operationId: listExperiments
+      summary: List frozen experiments, newest first
+      description: Requires `simulation:read`.
+      x-required-scopes: [ simulation:read ]
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: One page of experiment summaries
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ExperimentList' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/InsufficientScope' }
     post:
       tags: [ Experiments ]
       operationId: createExperiment
@@ -51,6 +69,58 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/InsufficientScope' }
         '409': { $ref: '#/components/responses/IdempotencyConflict' }
+
+  /api/v1/experiment-previews:
+    post:
+      tags: [ Experiments ]
+      operationId: previewExperiment
+      summary: Preview the exact case matrix of a manifest without freezing it
+      description: >-
+        Requires `simulation:write`. Stateless: nothing is stored, and no experiment, idempotency
+        record or run results. The manifest is validated exactly as `createExperiment` validates it,
+        and the digest, case keys and order equal those of the experiment frozen from the same
+        manifest and of any run started from it. Cases are paged; `breakdown` and `caseCount` cover
+        the whole matrix.
+      x-required-scopes: [ simulation:write ]
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 500, default: 100 }
+        - $ref: '#/components/parameters/Offset'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExperimentManifest'
+      responses:
+        '200':
+          description: The matrix the manifest would freeze
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ExperimentPreview' }
+        '400': { $ref: '#/components/responses/InvalidExperiment' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/InsufficientScope' }
+
+  /api/v1/experiments/{experimentId}:
+    get:
+      tags: [ Experiments ]
+      operationId: getExperiment
+      summary: Get a frozen experiment
+      x-required-scopes: [ simulation:read ]
+      parameters:
+        - $ref: '#/components/parameters/ExperimentId'
+      responses:
+        '200':
+          description: The experiment exactly as frozen
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Experiment' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/InsufficientScope' }
+        '404': { $ref: '#/components/responses/NotFound' }
 
   /api/v1/experiments/{experimentId}/runs:
     post:
@@ -86,6 +156,33 @@ paths:
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/ProblemDetail' }
+
+  /api/v1/runs:
+    get:
+      tags: [ Runs ]
+      operationId: listRuns
+      summary: List runs, newest first
+      description: Requires `simulation:read`.
+      x-required-scopes: [ simulation:read ]
+      parameters:
+        - name: experimentId
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: state
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/RunState' }
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: One page of runs
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RunList' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/InsufficientScope' }
 
   /api/v1/runs/{runId}:
     get:
@@ -198,6 +295,27 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
 
   /api/v1/comparisons:
+    get:
+      tags: [ Comparisons ]
+      operationId: listComparisons
+      summary: List comparisons, newest first
+      description: Requires `simulation:read`. `runId` matches a comparison's baseline or candidate run.
+      x-required-scopes: [ simulation:read ]
+      parameters:
+        - name: runId
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: One page of comparisons
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ComparisonList' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/InsufficientScope' }
     post:
       tags: [ Comparisons ]
       operationId: createComparison
@@ -261,6 +379,35 @@ paths:
                   excludedBlocks, metric, statistic, faction, cardType, cardGrade, specialAction,
                   paradoxType, endReason, quantile, unit, baselineValue, candidateValue, difference,
                   status, intervalLower, intervalUpper. An empty field is a null value.
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/InsufficientScope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/runs/{runId}/cases:
+    get:
+      tags: [ Cases ]
+      operationId: listCases
+      summary: List the cases of a run in matrix order
+      description: Requires `simulation:read`.
+      x-required-scopes: [ simulation:read ]
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+        - name: state
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/CaseState' }
+        - name: variantLabel
+          in: query
+          required: false
+          schema: { type: string, minLength: 1 }
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: One page of case summaries
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CaseList' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/InsufficientScope' }
         '404': { $ref: '#/components/responses/NotFound' }
@@ -366,6 +513,24 @@ paths:
             application/problem+json:
               schema: { $ref: '#/components/schemas/ProblemDetail' }
 
+  /api/v1/policies:
+    get:
+      tags: [ Policies ]
+      operationId: listPolicies
+      summary: List the bot policy bundles a manifest may reference
+      description: >-
+        Requires `simulation:read`. A manifest policy built from an entry's `id`, `version` and
+        `artifactDigest` passes policy verification.
+      x-required-scopes: [ simulation:read ]
+      responses:
+        '200':
+          description: Every referenceable policy bundle
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PolicyCatalog' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/InsufficientScope' }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -383,6 +548,16 @@ components:
         returns the original resource; reusing it with a changed representation returns
         IDEMPOTENCY_CONFLICT.
       schema: { type: string, format: uuid }
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema: { type: integer, minimum: 1, maximum: 500, default: 50 }
+    Offset:
+      name: offset
+      in: query
+      required: false
+      schema: { type: integer, minimum: 0, default: 0 }
     ExperimentId:
       name: experimentId
       in: path
@@ -1152,6 +1327,126 @@ components:
         seatIndex: { type: integer, minimum: 0 }
         faction: { $ref: '#/components/schemas/Faction' }
         score: { type: integer }
+    ExperimentSummary:
+      type: object
+      additionalProperties: false
+      required: [ experimentId, name, manifestDigest, createdAt ]
+      properties:
+        experimentId: { type: string, format: uuid }
+        name: { type: string, minLength: 1 }
+        manifestDigest: { $ref: '#/components/schemas/Sha256Digest' }
+        createdAt: { type: string, format: date-time }
+    ExperimentList:
+      type: object
+      additionalProperties: false
+      required: [ items, total ]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/ExperimentSummary' }
+        total: { type: integer, minimum: 0 }
+    RunList:
+      type: object
+      additionalProperties: false
+      required: [ items, total ]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Run' }
+        total: { type: integer, minimum: 0 }
+    CaseSummary:
+      type: object
+      additionalProperties: false
+      required: [ caseId, caseKey, runId, variantLabel, seed, playerCount, state, endReason ]
+      properties:
+        caseId: { type: string, format: uuid }
+        caseKey: { type: string, format: uuid }
+        runId: { type: string, format: uuid }
+        variantLabel: { type: string, minLength: 1 }
+        seed: { $ref: '#/components/schemas/DecimalUint64' }
+        playerCount: { type: integer, enum: [ 3, 4, 5 ] }
+        state: { $ref: '#/components/schemas/CaseState' }
+        endReason:
+          type: string
+          nullable: true
+          enum: [ WIN_CONDITION_MET, TIMELINE_COLLAPSED, TIMELINE_STABILIZED, DECK_EXHAUSTED, RESOLUTION_FAILED, ALL_PLAYERS_ABANDONED ]
+          description: The case's ending cause; null until the case has a result.
+    CaseList:
+      type: object
+      additionalProperties: false
+      required: [ items, total ]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/CaseSummary' }
+        total: { type: integer, minimum: 0 }
+    ComparisonList:
+      type: object
+      additionalProperties: false
+      required: [ items, total ]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Comparison' }
+        total: { type: integer, minimum: 0 }
+    PreviewBreakdown:
+      type: object
+      additionalProperties: false
+      required: [ variantLabel, playerCount, caseCount ]
+      properties:
+        variantLabel: { type: string, minLength: 1 }
+        playerCount: { type: integer, enum: [ 3, 4, 5 ] }
+        caseCount: { type: integer, minimum: 0 }
+    PreviewCase:
+      type: object
+      additionalProperties: false
+      required: [ caseKey, variantLabel, seed, playerCount, assignments ]
+      properties:
+        caseKey: { type: string, format: uuid }
+        variantLabel: { type: string, minLength: 1 }
+        seed: { $ref: '#/components/schemas/DecimalUint64' }
+        playerCount: { type: integer, enum: [ 3, 4, 5 ] }
+        assignments:
+          type: array
+          minItems: 3
+          maxItems: 5
+          items: { $ref: '#/components/schemas/SeatAssignment' }
+    ExperimentPreview:
+      type: object
+      additionalProperties: false
+      required: [ manifestDigest, caseCount, breakdown, cases, limit, offset ]
+      properties:
+        manifestDigest: { $ref: '#/components/schemas/Sha256Digest' }
+        caseCount: { type: integer, minimum: 0 }
+        breakdown:
+          type: array
+          items: { $ref: '#/components/schemas/PreviewBreakdown' }
+        cases:
+          type: array
+          items: { $ref: '#/components/schemas/PreviewCase' }
+        limit: { type: integer, minimum: 1 }
+        offset: { type: integer, minimum: 0 }
+    PolicyBundle:
+      type: object
+      additionalProperties: false
+      required: [ id, version, artifactDigest, description, parameters ]
+      properties:
+        id: { type: string, minLength: 1 }
+        version: { type: string, minLength: 1 }
+        artifactDigest: { $ref: '#/components/schemas/Sha256Digest' }
+        description: { type: string, minLength: 1 }
+        parameters:
+          type: object
+          additionalProperties: true
+          description: The parameters the bundle accepts; empty when it accepts none.
+    PolicyCatalog:
+      type: object
+      additionalProperties: false
+      required: [ items ]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/PolicyBundle' }
     ProblemDetail:
       type: object
       additionalProperties: true
