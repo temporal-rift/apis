@@ -1,0 +1,61 @@
+{
+  "formatVersion": 1,
+  "comparisonId": "0c2b8f1e-7d3a-4e55-8b8e-1f7a9c3d2e44",
+  "baseline": { "runId": "6f3f2a52-4f0a-4c69-9a39-2a8f0e2b9d11", "variantLabel": "threshold-20" },
+  "candidate": { "runId": "6f3f2a52-4f0a-4c69-9a39-2a8f0e2b9d11", "variantLabel": "threshold-22" },
+  "declaredDifferences": [
+    {
+      "field": "RULES",
+      "baselineDigest": "1111111111111111111111111111111111111111111111111111111111111111",
+      "candidateDigest": "2222222222222222222222222222222222222222222222222222222222222222"
+    }
+  ],
+  "analysisVersion": "1",
+  "analysisSeed": "1",
+  "complete": false,
+  "matchedBlocks": 9,
+  "unmatchedCases": 0,
+  "failedCounterparts": 1,
+  "excludedPairs": [
+    {
+      "seed": "7",
+      "playerCount": 3,
+      "policyId": "random",
+      "policyVersion": "1.0.0",
+      "seats": [
+        { "seatIndex": 0, "faction": "ERASERS" },
+        { "seatIndex": 1, "faction": "PROPHETS" },
+        { "seatIndex": 2, "faction": "WEAVERS" }
+      ],
+      "baselineCaseId": "8a1e5a0b-3c1d-4b7e-9f2a-6d5c4b3a2f10",
+      "candidateCaseId": "9b2f6b1c-4d2e-4c8f-8a3b-7e6d5c4b3a21",
+      "baselineState": "SUCCEEDED",
+      "candidateState": "FAILED",
+      "reason": "FAILED_COUNTERPART"
+    }
+  ],
+  "cohorts": [
+    {
+      "policyId": "random",
+      "policyVersion": "1.0.0",
+      "playerCount": 3,
+      "factionSet": null,
+      "seatIndex": null,
+      "matchedBlocks": 9,
+      "excludedBlocks": 1,
+      "metricDifferences": [
+        {
+          "name": "faction_win_rate",
+          "statistic": "RATE",
+          "dimensions": { "faction": "ERASERS" },
+          "unit": "games",
+          "baselineValue": 0.333333,
+          "candidateValue": 0.37037,
+          "difference": 0.037037,
+          "status": "AVAILABLE",
+          "interval": { "level": 0.95, "lower": -0.074074, "upper": 0.148148, "method": "BLOCK_BOOTSTRAP" }
+        }
+      ]
+    }
+  ]
+}

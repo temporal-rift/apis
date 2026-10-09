@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Temporal Rift Simulation Workbench API
-  version: 1.0.0
+  version: 2.0.0
   description: >-
     Creates immutable experiment manifests and provides durable run control, evidence inspection,
     statistical reporting, paired comparisons, and perspective-safe replay for the separate
@@ -17,6 +17,7 @@ security:
 tags:
   - name: Experiments
   - name: Runs
+  - name: Reports
   - name: Comparisons
   - name: Cases
 
@@ -162,22 +163,27 @@ paths:
 
   /api/v1/runs/{runId}/report:
     get:
-      tags: [ Runs ]
+      tags: [ Reports ]
       operationId: getRunReport
       summary: Get the stratified statistical report for a run
       description: >-
-        Requires `simulation:read`. A partial report remains explicitly partial: incomplete,
-        failed, cancelled, and unmatched case counts are never silently folded into a metric
-        denominator.
+        Requires `simulation:read`. For every variant, policy and player count the report holds a
+        pooled cohort, one cohort per seat, one per faction set, and one per faction set and seat.
+        Only succeeded cases are games: pending, running, failed and cancelled cases appear in case
+        counts and never in a metric denominator, and the report stays explicitly incomplete while
+        any requested case has not succeeded. `Accept: text/csv` returns the same report as RFC 4180
+        CSV with a header row and one row per cohort metric.
       x-required-scopes: [ simulation:read ]
       parameters:
         - $ref: '#/components/parameters/RunId'
       responses:
         '200':
-          description: Report with completeness and cohort denominators
+          description: Report with completeness, cohort populations and attributed metrics
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Report' }
+            text/csv:
+              schema: { type: string }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/InsufficientScope' }
         '404': { $ref: '#/components/responses/NotFound' }
@@ -186,10 +192,15 @@ paths:
     post:
       tags: [ Comparisons ]
       operationId: createComparison
-      summary: Create a paired comparison between compatible runs
+      summary: Create a paired comparison between two run variants
       description: >-
-        Requires `simulation:write`. Runs must have equal cohort, seed, policy, service, content,
-        and timing definitions except for declared variant differences.
+        Requires `simulation:write`. Each side names a run and one of its variants; both sides may
+        name the same run. The two frozen manifests must be equal in services, contracts, policies
+        with their parameters, seeds, player counts, faction sets, seat rotation mode, timing mode,
+        and maximum rejected candidates per window; they may differ in the compared variants' rules
+        and content and in execution-only bounds. A baseline and a candidate case pair when they
+        share seed, player count, policy, and seat-to-faction assignment; a seed is one block, and
+        only blocks whose every pair succeeded on both sides enter the paired estimates.
       x-required-scopes: [ simulation:write ]
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -207,6 +218,7 @@ paths:
         '400': { $ref: '#/components/responses/InvalidComparison' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/InsufficientScope' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/IdempotencyConflict' }
         '422': { $ref: '#/components/responses/IncomparableRuns' }
 
@@ -215,6 +227,11 @@ paths:
       tags: [ Comparisons ]
       operationId: getComparison
       summary: Get a paired comparison
+      description: >-
+        Requires `simulation:read`. The comparison is recomputed from current case results under the
+        analysis version and seed pinned at creation, and stays explicitly incomplete while any pair
+        has a side that has not succeeded. `Accept: text/csv` returns one row per cohort metric
+        difference.
       x-required-scopes: [ simulation:read ]
       parameters:
         - $ref: '#/components/parameters/ComparisonId'
@@ -224,6 +241,8 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Comparison' }
+            text/csv:
+              schema: { type: string }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/InsufficientScope' }
         '404': { $ref: '#/components/responses/NotFound' }
@@ -389,7 +408,9 @@ components:
         application/problem+json:
           schema: { $ref: '#/components/schemas/ProblemDetail' }
     InvalidComparison:
-      description: The comparison request is invalid (code INVALID_COMPARISON)
+      description: >-
+        The comparison request is invalid, names a variant absent from its run's manifest, or names
+        the same run and variant on both sides (code INVALID_COMPARISON)
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/ProblemDetail' }
@@ -404,7 +425,9 @@ components:
         application/problem+json:
           schema: { $ref: '#/components/schemas/ProblemDetail' }
     IncomparableRuns:
-      description: The runs do not have compatible paired definitions (code INCOMPARABLE_RUNS)
+      description: >-
+        The two sides' manifests differ in a gameplay-affecting definition; the detail names every
+        differing definition (code INCOMPARABLE_RUNS)
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/ProblemDetail' }
@@ -741,20 +764,53 @@ components:
     ReportCaseCounts:
       type: object
       additionalProperties: false
-      required: [ requested, pending, succeeded, failed, cancelled ]
+      required: [ requested, pending, running, succeeded, failed, cancelled ]
       properties:
         requested: { type: integer, minimum: 0 }
         pending: { type: integer, minimum: 0 }
+        running: { type: integer, minimum: 0 }
         succeeded: { type: integer, minimum: 0 }
         failed: { type: integer, minimum: 0 }
         cancelled: { type: integer, minimum: 0 }
     MetricStatus:
       type: string
       enum: [ AVAILABLE, NO_DATA, INSUFFICIENT_SAMPLE ]
+      description: >-
+        NO_DATA when the denominator is 0 (value and interval null); INSUFFICIENT_SAMPLE when fewer
+        than two independent blocks support the value (value present, interval null).
+    MetricStatistic:
+      type: string
+      enum: [ RATE, MEAN, QUANTILE ]
+      description: >-
+        RATE is numerator over denominator; MEAN is a sum over its sample size; QUANTILE is the
+        smallest observed value whose cumulative share reaches the quantile, with a null numerator
+        and the sample size as denominator.
+    MetricDimensions:
+      type: object
+      additionalProperties: false
+      description: >-
+        What the metric is restricted to. An absent property means the metric is not split by it.
+      properties:
+        faction: { $ref: '#/components/schemas/Faction' }
+        cardType: { $ref: '#/components/schemas/CardType' }
+        cardGrade: { $ref: '#/components/schemas/CardGrade' }
+        specialAction: { $ref: '#/components/schemas/SpecialAction' }
+        paradoxType: { $ref: '#/components/schemas/ParadoxType' }
+        endReason: { $ref: '#/components/schemas/TerminalEndReason' }
+        quantile:
+          type: number
+          minimum: 0
+          maximum: 1
+          exclusiveMinimum: true
+          exclusiveMaximum: true
     ConfidenceInterval:
       type: object
       additionalProperties: false
       required: [ level, lower, upper, method ]
+      description: >-
+        Percentile interval over resamples of independent blocks. A seed is the independent block:
+        cases that share it share their gameplay randomness across faction sets, seat rotations and
+        variants.
       properties:
         level: { type: number, enum: [ 0.95 ] }
         lower: { type: number }
@@ -763,16 +819,17 @@ components:
     Metric:
       type: object
       additionalProperties: false
-      required: [ name, value, numerator, denominator, unit, status, interval, unknownCount ]
+      required: [ name, statistic, dimensions, value, numerator, denominator, unit, status, interval, unknownCount ]
       properties:
         name:
           type: string
           minLength: 1
           description: >-
-            Named metric such as faction_win_rate, shared_win_rate, score_distribution,
-            ending_cause, eras, rounds, decisions, cards_offered, cards_kept, cards_played,
-            special_attempts, special_accepts, special_rejections, declarations,
-            paradox_findings, or distinct_cascaded_events.
+            Metric of the report's analysis version, such as faction_win_rate,
+            faction_shared_win_rate, score, ending_cause_rate, eras, cards_played,
+            card_playable_rate, special_accepts, paradox_findings, or distinct_cascaded_events.
+        statistic: { $ref: '#/components/schemas/MetricStatistic' }
+        dimensions: { $ref: '#/components/schemas/MetricDimensions' }
         value: { type: number, nullable: true }
         numerator: { type: number, nullable: true }
         denominator: { type: integer, minimum: 0 }
@@ -784,41 +841,55 @@ components:
         unknownCount:
           type: integer
           minimum: 0
-          description: Named count of opportunities whose playability is unknown.
+          description: >-
+            Named count of opportunities whose playability is unknown; they are excluded from the
+            denominator.
     Cohort:
       type: object
       additionalProperties: false
       required:
+        - variantLabel
+        - policyId
+        - policyVersion
         - playerCount
         - factionSet
         - seatIndex
-        - policyId
-        - policyVersion
-        - variantLabel
+        - caseCounts
         - eligibleGames
         - independentBlocks
-        - failedCases
-        - unmatchedCases
         - metrics
       properties:
-        playerCount: { type: integer, enum: [ 3, 4, 5 ] }
-        factionSet: { $ref: '#/components/schemas/FactionSet' }
-        seatIndex: { type: integer, minimum: 0 }
+        variantLabel: { type: string, minLength: 1 }
         policyId: { type: string, minLength: 1 }
         policyVersion: { type: string, minLength: 1 }
-        variantLabel: { type: string, minLength: 1 }
-        eligibleGames: { type: integer, minimum: 0 }
-        independentBlocks: { type: integer, minimum: 0 }
-        failedCases: { type: integer, minimum: 0 }
-        unmatchedCases: { type: integer, minimum: 0 }
+        playerCount: { type: integer, enum: [ 3, 4, 5 ] }
+        factionSet:
+          allOf: [ { $ref: '#/components/schemas/FactionSet' } ]
+          nullable: true
+          description: Null when the cohort pools every faction set of its player count.
+        seatIndex:
+          type: integer
+          minimum: 0
+          nullable: true
+          description: Null when the cohort pools every seat.
+        caseCounts: { $ref: '#/components/schemas/ReportCaseCounts' }
+        eligibleGames:
+          type: integer
+          minimum: 0
+          description: Succeeded cases of the cohort, each counted once.
+        independentBlocks:
+          type: integer
+          minimum: 0
+          description: Distinct seeds among the cohort's eligible games.
         metrics:
           type: array
           items: { $ref: '#/components/schemas/Metric' }
     Report:
       type: object
       additionalProperties: false
-      required: [ runId, manifestDigest, analysisVersion, analysisSeed, complete, caseCounts, cohorts ]
+      required: [ formatVersion, runId, manifestDigest, analysisVersion, analysisSeed, complete, caseCounts, cohorts ]
       properties:
+        formatVersion: { type: integer, enum: [ 1 ] }
         runId: { type: string, format: uuid }
         manifestDigest: { $ref: '#/components/schemas/Sha256Digest' }
         analysisVersion: { type: string, minLength: 1 }
@@ -831,52 +902,164 @@ components:
           type: array
           items: { $ref: '#/components/schemas/Cohort' }
 
+    ComparisonSide:
+      type: object
+      additionalProperties: false
+      required: [ runId, variantLabel ]
+      properties:
+        runId: { type: string, format: uuid }
+        variantLabel: { type: string, minLength: 1 }
     ComparisonRequest:
       type: object
       additionalProperties: false
-      required: [ baselineRunId, candidateRunId ]
+      required: [ baseline, candidate ]
       properties:
-        baselineRunId: { type: string, format: uuid }
-        candidateRunId: { type: string, format: uuid }
+        baseline: { $ref: '#/components/schemas/ComparisonSide' }
+        candidate: { $ref: '#/components/schemas/ComparisonSide' }
+    DeclaredDifference:
+      type: object
+      additionalProperties: false
+      required: [ field, baselineDigest, candidateDigest ]
+      properties:
+        field: { type: string, enum: [ RULES, CONTENT ] }
+        baselineDigest: { $ref: '#/components/schemas/Sha256Digest' }
+        candidateDigest: { $ref: '#/components/schemas/Sha256Digest' }
+    PairSeat:
+      type: object
+      additionalProperties: false
+      required: [ seatIndex, faction ]
+      properties:
+        seatIndex: { type: integer, minimum: 0 }
+        faction: { $ref: '#/components/schemas/Faction' }
+    ExcludedPair:
+      type: object
+      additionalProperties: false
+      required:
+        - seed
+        - playerCount
+        - policyId
+        - policyVersion
+        - seats
+        - baselineCaseId
+        - candidateCaseId
+        - baselineState
+        - candidateState
+        - reason
+      properties:
+        seed: { $ref: '#/components/schemas/DecimalUint64' }
+        playerCount: { type: integer, enum: [ 3, 4, 5 ] }
+        policyId: { type: string, minLength: 1 }
+        policyVersion: { type: string, minLength: 1 }
+        seats:
+          type: array
+          minItems: 3
+          maxItems: 5
+          items: { $ref: '#/components/schemas/PairSeat' }
+        baselineCaseId: { type: string, format: uuid, nullable: true }
+        candidateCaseId: { type: string, format: uuid, nullable: true }
+        baselineState: { $ref: '#/components/schemas/CaseState' }
+        candidateState: { $ref: '#/components/schemas/CaseState' }
+        reason:
+          type: string
+          enum: [ FAILED_COUNTERPART, UNFINISHED ]
+          description: >-
+            FAILED_COUNTERPART when a side failed or was cancelled; UNFINISHED when a side is still
+            pending or running.
     PairedMetricDifference:
       type: object
       additionalProperties: false
-      required: [ name, value, interval ]
+      required: [ name, statistic, dimensions, unit, baselineValue, candidateValue, difference, status, interval ]
       properties:
         name: { type: string, minLength: 1 }
-        value: { type: number, nullable: true }
+        statistic: { $ref: '#/components/schemas/MetricStatistic' }
+        dimensions: { $ref: '#/components/schemas/MetricDimensions' }
+        unit: { type: string, minLength: 1 }
+        baselineValue: { type: number, nullable: true }
+        candidateValue: { type: number, nullable: true }
+        difference:
+          type: number
+          nullable: true
+          description: Candidate minus baseline, both computed over matched blocks only.
+        status: { $ref: '#/components/schemas/MetricStatus' }
         interval:
           allOf: [ { $ref: '#/components/schemas/ConfidenceInterval' } ]
           nullable: true
+    ComparisonCohort:
+      type: object
+      additionalProperties: false
+      required:
+        - policyId
+        - policyVersion
+        - playerCount
+        - factionSet
+        - seatIndex
+        - matchedBlocks
+        - excludedBlocks
+        - metricDifferences
+      properties:
+        policyId: { type: string, minLength: 1 }
+        policyVersion: { type: string, minLength: 1 }
+        playerCount: { type: integer, enum: [ 3, 4, 5 ] }
+        factionSet:
+          allOf: [ { $ref: '#/components/schemas/FactionSet' } ]
+          nullable: true
+        seatIndex: { type: integer, minimum: 0, nullable: true }
+        matchedBlocks:
+          type: integer
+          minimum: 0
+          description: Seeds whose every pair in the cohort succeeded on both sides.
+        excludedBlocks: { type: integer, minimum: 0 }
+        metricDifferences:
+          type: array
+          items: { $ref: '#/components/schemas/PairedMetricDifference' }
     Comparison:
       type: object
       additionalProperties: false
       required:
+        - formatVersion
         - comparisonId
-        - baselineRunId
-        - candidateRunId
+        - baseline
+        - candidate
         - declaredDifferences
+        - analysisVersion
+        - analysisSeed
+        - complete
         - matchedBlocks
         - unmatchedCases
         - failedCounterparts
-        - metricDifferences
-        - analysisVersion
-        - analysisSeed
+        - excludedPairs
+        - cohorts
       properties:
+        formatVersion: { type: integer, enum: [ 1 ] }
         comparisonId: { type: string, format: uuid }
-        baselineRunId: { type: string, format: uuid }
-        candidateRunId: { type: string, format: uuid }
+        baseline: { $ref: '#/components/schemas/ComparisonSide' }
+        candidate: { $ref: '#/components/schemas/ComparisonSide' }
         declaredDifferences:
           type: array
-          items: { type: string, minLength: 1 }
-        matchedBlocks: { type: integer, minimum: 0 }
-        unmatchedCases: { type: integer, minimum: 0 }
-        failedCounterparts: { type: integer, minimum: 0 }
-        metricDifferences:
-          type: array
-          items: { $ref: '#/components/schemas/PairedMetricDifference' }
+          items: { $ref: '#/components/schemas/DeclaredDifference' }
         analysisVersion: { type: string, minLength: 1 }
         analysisSeed: { $ref: '#/components/schemas/DecimalUint64' }
+        complete:
+          type: boolean
+          description: False while any pair has a side that has not succeeded.
+        matchedBlocks:
+          type: integer
+          minimum: 0
+          description: Matched blocks summed over the pooled cohorts.
+        unmatchedCases:
+          type: integer
+          minimum: 0
+          description: Pairs with a pending or running side.
+        failedCounterparts:
+          type: integer
+          minimum: 0
+          description: Pairs with a failed or cancelled side.
+        excludedPairs:
+          type: array
+          items: { $ref: '#/components/schemas/ExcludedPair' }
+        cohorts:
+          type: array
+          items: { $ref: '#/components/schemas/ComparisonCohort' }
 
     ReplayPerspective:
       type: string
@@ -913,6 +1096,10 @@ components:
       $ref: '../shared/enums.yaml#/CardType'
     CardGrade:
       $ref: '../shared/enums.yaml#/CardGrade'
+    SpecialAction:
+      $ref: '../shared/enums.yaml#/SpecialAction'
+    ParadoxType:
+      $ref: '../shared/enums.yaml#/ParadoxType'
     TerminalEndReason:
       type: string
       enum: [ WIN_CONDITION_MET, TIMELINE_COLLAPSED, TIMELINE_STABILIZED, DECK_EXHAUSTED, RESOLUTION_FAILED, ALL_PLAYERS_ABANDONED ]
