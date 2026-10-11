@@ -1470,6 +1470,12 @@ components:
         status: { type: integer }
         detail: { type: string }
         instance: { type: string, format: uri }
+        field:
+          type: string
+          minLength: 1
+          description: >-
+            Path of the offending manifest value, such as `seeds` or `policies[0].seatAssignment`. Present
+            on `INVALID_EXPERIMENT` when the refusal is attributable to one value; absent otherwise.
         code:
           type: string
           enum:

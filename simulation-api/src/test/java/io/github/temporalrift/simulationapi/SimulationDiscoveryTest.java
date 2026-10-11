@@ -103,6 +103,24 @@ class SimulationDiscoveryTest {
     }
 
     @Test
+    void anInvalidExperimentNamesTheOffendingManifestValue() {
+        var problem = """
+                { "type": "about:blank", "title": "Bad Request", "status": 400,
+                  "detail": "seeds must be unique: 5", "code": "INVALID_EXPERIMENT", "field": "seeds" }
+                """;
+
+        assertValid(validator.validateResponse(
+                "/api/v1/experiment-previews", Request.Method.POST, problemJson(400, problem)));
+        assertFalse(validator
+                .validateResponse(
+                        "/api/v1/experiment-previews",
+                        Request.Method.POST,
+                        problemJson(400, problem.replace("\"field\": \"seeds\"", "\"field\": 3")))
+                .getMessages()
+                .isEmpty());
+    }
+
+    @Test
     void listsReturnAnItemsAndTotalEnvelope() {
         var experiments = """
                 { "items": [ { "experimentId": "%s", "name": "e", "manifestDigest": "%s",
@@ -167,6 +185,13 @@ class SimulationDiscoveryTest {
     private static SimpleResponse json(String body) {
         return SimpleResponse.Builder.ok()
                 .withContentType("application/json")
+                .withBody(body)
+                .build();
+    }
+
+    private static SimpleResponse problemJson(int status, String body) {
+        return new SimpleResponse.Builder(status)
+                .withContentType("application/problem+json")
                 .withBody(body)
                 .build();
     }
