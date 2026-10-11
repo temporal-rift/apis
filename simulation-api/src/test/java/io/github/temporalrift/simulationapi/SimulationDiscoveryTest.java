@@ -16,6 +16,7 @@ import com.atlassian.oai.validator.model.SimpleResponse;
 import com.atlassian.oai.validator.report.ValidationReport;
 
 import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.media.Schema;
 import io.swagger.v3.parser.OpenAPIV3Parser;
 
 /** Pins the discovery operations a designer client uses to find and preview what it can act on. */
@@ -118,6 +119,18 @@ class SimulationDiscoveryTest {
                         problemJson(400, problem.replace("\"field\": \"seeds\"", "\"field\": 3")))
                 .getMessages()
                 .isEmpty());
+    }
+
+    @Test
+    void aNullableEnumListsNullSoStrictClientsAcceptIt() {
+        var schemas = openApi.getComponents().getSchemas();
+
+        assertTrue(enumOf(schemas.get("CaseSummary"), "endReason").contains(null));
+        assertTrue(enumOf(schemas.get("Winner"), "winType").contains(null));
+    }
+
+    private static List<?> enumOf(Schema<?> schema, String property) {
+        return ((Schema<?>) schema.getProperties().get(property)).getEnum();
     }
 
     @Test
