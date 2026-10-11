@@ -101,7 +101,7 @@ class SimulationApiContractTest {
 
         assertTrue(winner.contains("required: [ seatIndex, faction, winType ]"));
         assertTrue(winType.contains("nullable: true"));
-        assertTrue(winType.contains("enum: [ SCORE_THRESHOLD, FACTION_OBJECTIVE, LAST_PLAYER_STANDING ]"));
+        assertTrue(winType.contains("enum: [ SCORE_THRESHOLD, FACTION_OBJECTIVE, LAST_PLAYER_STANDING, null ]"));
         assertTrue(winType.contains("null unless the ending is WIN_CONDITION_MET"));
         assertFalse(others.contains("nullable"));
     }

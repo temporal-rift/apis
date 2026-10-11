@@ -1314,7 +1314,7 @@ components:
         winType:
           type: string
           nullable: true
-          enum: [ SCORE_THRESHOLD, FACTION_OBJECTIVE, LAST_PLAYER_STANDING ]
+          enum: [ SCORE_THRESHOLD, FACTION_OBJECTIVE, LAST_PLAYER_STANDING, null ]
           description: >-
             Always present, and null unless the ending is WIN_CONDITION_MET: the participant contract assigns a
             win type only to a normal victory, while the special endings (TIMELINE_COLLAPSED and
@@ -1369,7 +1369,7 @@ components:
         endReason:
           type: string
           nullable: true
-          enum: [ WIN_CONDITION_MET, TIMELINE_COLLAPSED, TIMELINE_STABILIZED, DECK_EXHAUSTED, RESOLUTION_FAILED, ALL_PLAYERS_ABANDONED ]
+          enum: [ WIN_CONDITION_MET, TIMELINE_COLLAPSED, TIMELINE_STABILIZED, DECK_EXHAUSTED, RESOLUTION_FAILED, ALL_PLAYERS_ABANDONED, null ]
           description: The case's ending cause; null until the case has a result.
     CaseList:
       type: object
