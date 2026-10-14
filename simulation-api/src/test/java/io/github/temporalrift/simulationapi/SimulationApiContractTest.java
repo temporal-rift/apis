@@ -1,5 +1,6 @@
 package io.github.temporalrift.simulationapi;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -63,6 +64,48 @@ class SimulationApiContractTest {
                 .forEach(field -> assertTrue(bundle.contains(field), field));
         assertTrue(specification.contains(
                 "required: [ templateId, name, description, variantCount, defaults ]"));
+    }
+
+    @Test
+    void experimentDefaultsMirrorTheManifestFieldForField() throws IOException {
+        var specification = specification();
+        var manifest = schema(specification, "    ExperimentManifest:", "    Experiment:");
+        var defaults = schema(specification, "    ExperimentDefaults:", "    ExperimentTemplate:");
+
+        List.of(
+                        "seeds",
+                        "playerCounts",
+                        "factionSets",
+                        "seatRotationMode",
+                        "timingMode",
+                        "policies",
+                        "concurrency",
+                        "caseWallTimeoutSeconds",
+                        "maxRejectedCandidatesPerWindow")
+                .forEach(field -> assertEquals(property(manifest, field), property(defaults, field), field));
+    }
+
+    private static String property(String schemaBlock, String field) {
+        var marker = "\n        " + field + ":\n";
+        var start = schemaBlock.indexOf(marker);
+        assertTrue(start >= 0, field);
+
+        var body = schemaBlock.substring(start + marker.length());
+        var end = body.length();
+        var cursor = 0;
+        while (true) {
+            var next = body.indexOf("\n        ", cursor);
+            if (next < 0) {
+                break;
+            }
+            var after = next + "\n        ".length();
+            if (after >= body.length() || body.charAt(after) != ' ') {
+                end = next;
+                break;
+            }
+            cursor = next + 1;
+        }
+        return body.substring(0, end).stripTrailing();
     }
 
     @Test
