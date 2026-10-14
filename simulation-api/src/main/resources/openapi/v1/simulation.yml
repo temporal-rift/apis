@@ -1,12 +1,12 @@
 openapi: 3.0.3
 info:
   title: Temporal Rift Simulation Workbench API
-  version: 3.1.1
+  version: 3.2.0
   description: >-
     Creates immutable experiment manifests and provides durable run control, evidence inspection,
-    statistical reporting, paired comparisons, and perspective-safe replay for the separate
-    simulation workbench. The workbench orchestrates real game services; it never replaces their
-    authoritative gameplay rules.
+    statistical reporting, paired comparisons, perspective-safe replay, and guided setup discovery
+    (lane bundles and experiment templates) for the separate simulation workbench. The workbench
+    orchestrates real game services; it never replaces their authoritative gameplay rules.
 
 servers:
   - url: /
@@ -531,6 +531,58 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/InsufficientScope' }
 
+  /api/v1/lane-bundles:
+    get:
+      tags: [ Experiments ]
+      operationId: listLaneBundles
+      summary: List distinct lane-served rules and content bundles
+      description: >-
+        Requires `simulation:read`. Returns every distinct bundle some configured lane serves,
+        so a client can let the designer select a variant's rules and content instead of typing
+        digests. A bundle is one pair of effective rules digest and effective content digest,
+        together with the service provenance and contract versions of the lanes that serve it.
+        Items are ordered ascending `effectiveRulesDigest`, then ascending
+        `effectiveContentDigest`. With no configured lane the response is `200` with `items`
+        empty and `total` 0. Never returns a lane identifier, URL, credential or bot identity.
+      x-required-scopes: [ simulation:read ]
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: One page of lane bundles in digest order
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LaneBundlePage' }
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/InsufficientScope' }
+
+  /api/v1/experiment-templates:
+    get:
+      tags: [ Experiments ]
+      operationId: listExperimentTemplates
+      summary: List named experiment starting points
+      description: >-
+        Requires `simulation:read`. Returns named starting points, each with complete defaults
+        for every manifest field that does not identify a bundle, so a client can pre-fill a
+        draft that it then assembles with the chosen bundles and the designer's edits into an
+        `ExperimentManifest` for `createExperiment` or `previewExperiment`. Items are ordered
+        ascending `templateId`.
+      x-required-scopes: [ simulation:read ]
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: One page of experiment templates in template order
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ExperimentTemplatePage' }
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/InsufficientScope' }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -621,6 +673,11 @@ components:
       description: >-
         The two sides' manifests differ in a gameplay-affecting definition; the detail names every
         differing definition (code INCOMPARABLE_RUNS)
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetail' }
+    InvalidRequest:
+      description: The request paging is invalid, such as a limit outside 1 to 500 (code INVALID_REQUEST)
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/ProblemDetail' }
@@ -1460,6 +1517,128 @@ components:
         items:
           type: array
           items: { $ref: '#/components/schemas/PolicyBundle' }
+    LaneBundle:
+      type: object
+      additionalProperties: false
+      required:
+        - rulesArtifact
+        - contentArtifact
+        - effectiveRulesDigest
+        - effectiveContentDigest
+        - services
+        - contracts
+        - laneCount
+      description: >-
+        One distinct bundle some configured lane serves: one pair of effective rules and content
+        digests with the service provenance and contract versions of the lanes that serve it.
+        Carries no lane identifier, URL, credential or bot identity. Lanes serving exactly this
+        bundle are counted in `laneCount`, busy or free.
+      properties:
+        rulesArtifact: { $ref: '#/components/schemas/ArtifactReference' }
+        contentArtifact: { $ref: '#/components/schemas/ArtifactReference' }
+        effectiveRulesDigest: { $ref: '#/components/schemas/Sha256Digest' }
+        effectiveContentDigest: { $ref: '#/components/schemas/Sha256Digest' }
+        services: { $ref: '#/components/schemas/ServiceProvenanceMap' }
+        contracts: { $ref: '#/components/schemas/ContractVersions' }
+        laneCount:
+          type: integer
+          minimum: 1
+    LaneBundlePage:
+      type: object
+      additionalProperties: false
+      required: [ items, total ]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/LaneBundle' }
+        total: { type: integer, minimum: 0 }
+    ExperimentDefaults:
+      type: object
+      additionalProperties: false
+      required:
+        - seeds
+        - playerCounts
+        - factionSets
+        - seatRotationMode
+        - timingMode
+        - policies
+        - concurrency
+        - caseWallTimeoutSeconds
+        - maxRejectedCandidatesPerWindow
+      description: >-
+        Complete defaults for every manifest field that does not identify a bundle, each with
+        exactly the type and constraints it has in `ExperimentManifest`. A client assembles an
+        `ExperimentManifest` from a template's defaults, the chosen bundles and the designer's
+        edits for `createExperiment` or `previewExperiment`.
+      properties:
+        seeds:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/DecimalUint64' }
+        playerCounts:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            type: integer
+            enum: [ 3, 4, 5 ]
+        factionSets:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/FactionSet' }
+          description: Every set's size must match a selected player count.
+        seatRotationMode:
+          type: string
+          enum: [ CYCLIC ]
+        timingMode:
+          type: string
+          enum: [ LOGICAL ]
+        policies:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/Policy' }
+        concurrency:
+          type: integer
+          minimum: 1
+        caseWallTimeoutSeconds:
+          type: integer
+          minimum: 1
+        maxRejectedCandidatesPerWindow:
+          type: integer
+          minimum: 1
+    ExperimentTemplate:
+      type: object
+      additionalProperties: false
+      required: [ templateId, name, description, variantCount, defaults ]
+      description: >-
+        A named starting point for the common experiment shapes, with complete defaults for every
+        manifest field that does not identify a bundle.
+      properties:
+        templateId:
+          type: string
+          minLength: 1
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+          minLength: 1
+        variantCount:
+          type: integer
+          minimum: 1
+          description: Variants the template needs, each from a distinct bundle.
+        defaults: { $ref: '#/components/schemas/ExperimentDefaults' }
+    ExperimentTemplatePage:
+      type: object
+      additionalProperties: false
+      required: [ items, total ]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/ExperimentTemplate' }
+        total: { type: integer, minimum: 0 }
     ProblemDetail:
       type: object
       additionalProperties: true
@@ -1487,6 +1666,7 @@ components:
             - INVALID_RUN_STATE
             - MANIFEST_MISMATCH
             - INCOMPARABLE_RUNS
+            - INVALID_REQUEST
             - UNAUTHORIZED
             - INSUFFICIENT_SCOPE
             - RESOURCE_NOT_FOUND
