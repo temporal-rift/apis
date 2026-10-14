@@ -27,10 +27,42 @@ class SimulationApiContractTest {
                         "getComparison",
                         "getCase",
                         "getCaseReplay",
-                        "reproduceCase")
+                        "reproduceCase",
+                        "listLaneBundles",
+                        "listExperimentTemplates")
                 .forEach(operation -> assertTrue(specification.contains("operationId: " + operation)));
         assertTrue(specification.contains("name: Idempotency-Key"));
         assertTrue(specification.contains("format: uuid"));
+        assertTrue(specification.contains("/api/v1/lane-bundles"));
+        assertTrue(specification.contains("/api/v1/experiment-templates"));
+        assertTrue(specification.contains("version: 3.2.0"));
+    }
+
+    @Test
+    void exposesLaneBundleAndTemplateDiscoveryPages() throws IOException {
+        var specification = specification();
+
+        assertTrue(specification.contains("LaneBundlePage"));
+        assertTrue(specification.contains("ExperimentTemplatePage"));
+        assertTrue(specification.contains("ExperimentDefaults"));
+        assertTrue(specification.contains("INVALID_REQUEST"));
+        assertTrue(specification.contains("operationId: listLaneBundles"));
+        assertTrue(specification.contains("operationId: listExperimentTemplates"));
+        assertTrue(specification.contains("ascending `effectiveRulesDigest`"));
+        assertTrue(specification.contains("ascending `templateId`"));
+
+        var bundle = schema(specification, "    LaneBundle:", "    LaneBundlePage:");
+        List.of(
+                        "rulesArtifact",
+                        "contentArtifact",
+                        "effectiveRulesDigest",
+                        "effectiveContentDigest",
+                        "services",
+                        "contracts",
+                        "laneCount")
+                .forEach(field -> assertTrue(bundle.contains(field), field));
+        assertTrue(specification.contains(
+                "required: [ templateId, name, description, variantCount, defaults ]"));
     }
 
     @Test
