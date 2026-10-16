@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Temporal Rift Simulation Workbench API
-  version: 3.3.0
+  version: 3.3.1
   description: >-
     Creates immutable experiment manifests and provides durable run control, evidence inspection,
     statistical reporting, paired comparisons, perspective-safe replay, guided setup discovery
@@ -270,7 +270,7 @@ paths:
         Requires `simulation:read`. For every variant, policy and player count the report holds a
         pooled cohort, one cohort per seat, one per faction set, and one per faction set and seat.
         Only succeeded cases are games: pending, running, failed and cancelled cases appear in case
-        counts and never in a metric denominator, and the report stays explicitly incomplete while
+        counts and never in a game metric's denominator, and the report stays explicitly incomplete while
         any requested case has not succeeded. `Accept: text/csv` returns the same report as RFC 4180
         CSV with a header row and one row per cohort metric.
       x-required-scopes: [ simulation:read ]

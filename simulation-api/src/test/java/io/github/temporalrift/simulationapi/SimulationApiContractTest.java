@@ -41,7 +41,7 @@ class SimulationApiContractTest {
         assertTrue(specification.contains("/api/v1/experiment-templates"));
         assertTrue(specification.contains("/api/v1/balance-criteria"));
         assertTrue(specification.contains("/api/v1/runs/{runId}/evaluation"));
-        assertTrue(specification.contains("version: 3.3.0"));
+        assertTrue(specification.contains("version: 3.3.1"));
     }
 
     @Test
