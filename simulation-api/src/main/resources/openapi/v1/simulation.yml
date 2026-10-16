@@ -1,11 +1,12 @@
 openapi: 3.0.3
 info:
   title: Temporal Rift Simulation Workbench API
-  version: 3.2.0
+  version: 3.3.0
   description: >-
     Creates immutable experiment manifests and provides durable run control, evidence inspection,
-    statistical reporting, paired comparisons, perspective-safe replay, and guided setup discovery
-    (lane bundles and experiment templates) for the separate simulation workbench. The workbench
+    statistical reporting, paired comparisons, perspective-safe replay, guided setup discovery
+    (lane bundles and experiment templates), balance criterion publication, and derived run
+    evaluation for the separate simulation workbench. The workbench
     orchestrates real game services; it never replaces their authoritative gameplay rules.
 
 servers:
@@ -21,6 +22,8 @@ tags:
   - name: Comparisons
   - name: Cases
   - name: Policies
+  - name: Criteria
+  - name: Evaluations
 
 paths:
   /api/v1/experiments:
@@ -583,6 +586,86 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/InsufficientScope' }
 
+  /api/v1/balance-criteria:
+    get:
+      tags: [ Criteria ]
+      operationId: listBalanceCriteria
+      summary: List every served balance criterion version, ordered by version
+      description: >-
+        Requires `simulation:read`. Returns every criterion version the workbench serves,
+        ordered ascending `version`. Criteria are read-only resources served from the
+        workbench's configuration; a new version is added by configuration, never through
+        the API.
+      x-required-scopes: [ simulation:read ]
+      responses:
+        '200':
+          description: Every served criterion version in version order
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BalanceCriterionCatalog' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/InsufficientScope' }
+
+  /api/v1/balance-criteria/{criterionVersion}:
+    get:
+      tags: [ Criteria ]
+      operationId: getBalanceCriterion
+      summary: Get one balance criterion version
+      description: >-
+        Requires `simulation:read`. Returns one criterion version. An unknown version
+        returns `404 RESOURCE_NOT_FOUND`.
+      x-required-scopes: [ simulation:read ]
+      parameters:
+        - $ref: '#/components/parameters/CriterionVersion'
+      responses:
+        '200':
+          description: The requested criterion version
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BalanceCriterion' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/InsufficientScope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/runs/{runId}/evaluation:
+    get:
+      tags: [ Evaluations ]
+      operationId: getRunEvaluation
+      summary: Get the derived evaluation of a run variant against a criterion
+      description: >-
+        Requires `simulation:read`. The evaluation is computed from the run's cases on every
+        read, with the analysis seed; the same run, variant, criterion version and mode always
+        return byte-identical documents, and nothing is persisted. Every criterion line is
+        expanded into one evaluated line per cohort and dimension value it covers. The faction
+        ratio and the sum of several `failure_share` codes are each recomputed in every
+        bootstrap resample; their interval is the interval of the derived value, never a
+        combination of separate intervals. `SCREENING` mode never returns `CONFIRMED`.
+      x-required-scopes: [ simulation:read ]
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+        - name: variantLabel
+          in: query
+          required: true
+          schema: { type: string, minLength: 1 }
+        - name: criterionVersion
+          in: query
+          required: true
+          schema: { type: integer, minimum: 1 }
+        - name: mode
+          in: query
+          required: false
+          schema: { type: string, enum: [ SCREENING, CONFIRMATION ], default: SCREENING }
+      responses:
+        '200':
+          description: Derived evaluation with validity, verdict, score and evaluated lines
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RunEvaluation' }
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/InsufficientScope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -630,6 +713,11 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
+    CriterionVersion:
+      name: criterionVersion
+      in: path
+      required: true
+      schema: { type: integer, minimum: 1 }
 
   responses:
     Unauthorized:
@@ -677,7 +765,9 @@ components:
         application/problem+json:
           schema: { $ref: '#/components/schemas/ProblemDetail' }
     InvalidRequest:
-      description: The request paging is invalid, such as a limit outside 1 to 500 (code INVALID_REQUEST)
+      description: >-
+        The request is invalid, such as paging outside 1 to 500 or a missing or invalid
+        evaluation query parameter (code INVALID_REQUEST)
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/ProblemDetail' }
@@ -1053,6 +1143,7 @@ components:
           maximum: 1
           exclusiveMinimum: true
           exclusiveMaximum: true
+        failureCode: { $ref: '#/components/schemas/AttemptFailureCode' }
     ConfidenceInterval:
       type: object
       additionalProperties: false
@@ -1078,6 +1169,8 @@ components:
             Metric of the report's analysis version, such as faction_win_rate,
             faction_shared_win_rate, score, ending_cause_rate, eras, cards_played,
             card_playable_rate, special_accepts, paradox_findings, or distinct_cascaded_events.
+            Reports of analysis version `2` additionally carry `failure_share` (statistic
+            `RATE`, unit `cases`) in every cohort that pools seats.
         statistic: { $ref: '#/components/schemas/MetricStatistic' }
         dimensions: { $ref: '#/components/schemas/MetricDimensions' }
         value: { type: number, nullable: true }
@@ -1639,6 +1732,292 @@ components:
           type: array
           items: { $ref: '#/components/schemas/ExperimentTemplate' }
         total: { type: integer, minimum: 0 }
+    AttemptFailureCode:
+      type: string
+      enum: [ RUNNER_TIMEOUT, EXECUTION_FAILED, CONTRACT_MISMATCH, CONFIGURATION_DRIFT, POLICY_EXHAUSTED ]
+      description: >-
+        Recorded attempt-failure code. A case's code is the code of its final failed attempt;
+        retried attempts that later succeeded do not count.
+    Band:
+      type: object
+      additionalProperties: false
+      required: [ lower, upper, scale ]
+      description: >-
+        Closed interval `[lower, upper]`, or a one-sided limit (`>= lower` or `<= upper`) with
+        the normalisation scale. At least one bound is present; `scale` (greater than 0) is
+        required exactly when one bound is null.
+      properties:
+        lower: { type: number, nullable: true }
+        upper: { type: number, nullable: true }
+        scale:
+          type: number
+          nullable: true
+          minimum: 0
+          exclusiveMinimum: true
+    CriterionDerivation:
+      type: string
+      enum: [ DIRECT, RATIO_TO_WIN_REFERENCE, SUM_OF_FAILURE_CODES ]
+      description: >-
+        How the line's value is derived: directly from one report metric, as a faction ratio to
+        the win reference, or as a sum of several `failure_share` codes.
+    CriterionPooling:
+      type: string
+      enum: [ POOLED, PER_FACTION_SET ]
+    CriterionRole:
+      type: string
+      enum: [ GATE, SCORED ]
+      description: >-
+        `GATE` lines reject the configuration when they `FAIL`; `SCORED` lines contribute to the
+        aggregate score.
+    CriterionAggregation:
+      type: string
+      enum: [ WEIGHTED_SUM_OF_SQUARED_DEVIATIONS ]
+    CriterionDimension:
+      type: object
+      additionalProperties: false
+      required: [ eachFaction, endReason, quantile, failureCodes ]
+      properties:
+        eachFaction:
+          type: boolean
+          description: One line per faction when true.
+        endReason:
+          type: string
+          nullable: true
+          enum: [ WIN_CONDITION_MET, TIMELINE_COLLAPSED, TIMELINE_STABILIZED, DECK_EXHAUSTED, RESOLUTION_FAILED, ALL_PLAYERS_ABANDONED, null ]
+          description: The line's end-reason dimension; null when the line is not split by it.
+        quantile: { type: number, nullable: true }
+        failureCodes:
+          type: array
+          nullable: true
+          description: Used by `SUM_OF_FAILURE_CODES` derivations.
+          items: { $ref: '#/components/schemas/AttemptFailureCode' }
+    CriterionLine:
+      type: object
+      additionalProperties: false
+      required: [ id, metric, derivation, dimension, policies, playerCounts, pooling, band, role, weight, rationale ]
+      properties:
+        id:
+          type: string
+          pattern: '^[GL]-[0-9]{2}$'
+        metric:
+          type: string
+          minLength: 1
+        derivation: { $ref: '#/components/schemas/CriterionDerivation' }
+        dimension: { $ref: '#/components/schemas/CriterionDimension' }
+        policies:
+          type: array
+          minItems: 1
+          items: { type: string, minLength: 1 }
+        playerCounts:
+          type: array
+          minItems: 1
+          items: { type: integer, enum: [ 3, 4, 5 ] }
+        pooling: { $ref: '#/components/schemas/CriterionPooling' }
+        band: { $ref: '#/components/schemas/Band' }
+        weight:
+          type: number
+          nullable: true
+          minimum: 0
+          exclusiveMinimum: true
+          description: Greater than 0 for `SCORED` lines; null for `GATE` lines.
+        role: { $ref: '#/components/schemas/CriterionRole' }
+        rationale:
+          type: string
+          minLength: 1
+    CriterionEvidence:
+      type: object
+      additionalProperties: false
+      required: [ confidenceLevel, executionFailedShareLimit, invalidatingFailureCodes, invalidatingEndReasons, confirmationMinimumSeeds ]
+      properties:
+        confidenceLevel: { type: number, enum: [ 0.95 ] }
+        executionFailedShareLimit: { type: number }
+        invalidatingFailureCodes:
+          type: array
+          items: { $ref: '#/components/schemas/AttemptFailureCode' }
+        invalidatingEndReasons:
+          type: array
+          items: { $ref: '#/components/schemas/TerminalEndReason' }
+        confirmationMinimumSeeds:
+          type: integer
+          minimum: 2
+    BalanceCriterion:
+      type: object
+      additionalProperties: false
+      required: [ version, digest, title, analysisVersion, lines, aggregation, evidence ]
+      description: >-
+        One read-only balance criterion version served from the workbench's configuration.
+      properties:
+        version:
+          type: integer
+          minimum: 1
+        digest: { $ref: '#/components/schemas/Sha256Digest' }
+        title:
+          type: string
+          minLength: 1
+        analysisVersion:
+          type: string
+          minLength: 1
+        lines:
+          type: array
+          items: { $ref: '#/components/schemas/CriterionLine' }
+        aggregation: { $ref: '#/components/schemas/CriterionAggregation' }
+        evidence: { $ref: '#/components/schemas/CriterionEvidence' }
+    BalanceCriterionCatalog:
+      type: object
+      additionalProperties: false
+      required: [ criteria ]
+      properties:
+        criteria:
+          type: array
+          items: { $ref: '#/components/schemas/BalanceCriterion' }
+    EvaluationMode:
+      type: string
+      enum: [ SCREENING, CONFIRMATION ]
+    EvaluationVerdict:
+      type: string
+      enum: [ REJECTED, CONFIRMED, UNCONFIRMED, INVALID ]
+    LineVerdict:
+      type: string
+      enum: [ MEETS, FAILS, INCONCLUSIVE ]
+      description: >-
+        `MEETS` when the interval lies inside the band; `FAILS` when it lies wholly outside;
+        `INCONCLUSIVE` otherwise, and always when the status is `INSUFFICIENT_SAMPLE` or
+        `NO_DATA`.
+    ValidityReasonCode:
+      type: string
+      enum: [ UNFINISHED_CASES, CONTRACT_MISMATCH, CONFIGURATION_DRIFT, EXECUTION_FAILED_SHARE, ALL_PLAYERS_ABANDONED ]
+    EvaluationValidityReason:
+      type: object
+      additionalProperties: false
+      required: [ code, detail ]
+      properties:
+        code: { $ref: '#/components/schemas/ValidityReasonCode' }
+        detail:
+          type: string
+          minLength: 1
+    EvaluationValidity:
+      type: object
+      additionalProperties: false
+      required: [ valid, reasons ]
+      properties:
+        valid: { type: boolean }
+        reasons:
+          type: array
+          items: { $ref: '#/components/schemas/EvaluationValidityReason' }
+    ConfirmationSample:
+      type: object
+      additionalProperties: false
+      required: [ requiredSeeds, seeds, fullMatrix, satisfied ]
+      description: >-
+        The confirmation sample: at least the criterion's minimum seeds and the full case
+        matrix with every policy the criterion names.
+      properties:
+        requiredSeeds:
+          type: integer
+          minimum: 0
+        seeds:
+          type: integer
+          minimum: 0
+        fullMatrix: { type: boolean }
+        satisfied: { type: boolean }
+    EvaluatedLineDimensions:
+      type: object
+      additionalProperties: false
+      description: >-
+        What the evaluated line is restricted to: the report metric dimensions plus the
+        `failureCodes` summed by a `SUM_OF_FAILURE_CODES` derivation. An absent property means
+        the line is not split by it.
+      properties:
+        faction: { $ref: '#/components/schemas/Faction' }
+        cardType: { $ref: '#/components/schemas/CardType' }
+        cardGrade: { $ref: '#/components/schemas/CardGrade' }
+        specialAction: { $ref: '#/components/schemas/SpecialAction' }
+        paradoxType: { $ref: '#/components/schemas/ParadoxType' }
+        endReason:
+          type: string
+          nullable: true
+          enum: [ WIN_CONDITION_MET, TIMELINE_COLLAPSED, TIMELINE_STABILIZED, DECK_EXHAUSTED, RESOLUTION_FAILED, ALL_PLAYERS_ABANDONED, null ]
+        quantile: { type: number, nullable: true }
+        failureCode: { $ref: '#/components/schemas/AttemptFailureCode' }
+        failureCodes:
+          type: array
+          nullable: true
+          items: { $ref: '#/components/schemas/AttemptFailureCode' }
+    EvaluatedLine:
+      type: object
+      additionalProperties: false
+      required: [ lineId, role, metric, dimensions, policyId, playerCount, factionSet, band, value, interval, status, deviation, verdict, weight ]
+      description: >-
+        One criterion line expanded for one cohort and dimension value. Deviation `d` is 0
+        inside the band; outside it `(lower - value) / w` or `(value - upper) / w`, where
+        `w` is the band width for a two-sided band and `scale` for a one-sided limit. A
+        `NO_DATA` line has `d = 0`.
+      properties:
+        lineId:
+          type: string
+          minLength: 1
+        role: { $ref: '#/components/schemas/CriterionRole' }
+        metric:
+          type: string
+          minLength: 1
+        dimensions: { $ref: '#/components/schemas/EvaluatedLineDimensions' }
+        policyId:
+          type: string
+          minLength: 1
+        playerCount:
+          type: integer
+          enum: [ 3, 4, 5 ]
+        factionSet:
+          allOf: [ { $ref: '#/components/schemas/FactionSet' } ]
+          nullable: true
+        band: { $ref: '#/components/schemas/Band' }
+        value: { type: number, nullable: true }
+        interval:
+          allOf: [ { $ref: '#/components/schemas/ConfidenceInterval' } ]
+          nullable: true
+        status: { $ref: '#/components/schemas/MetricStatus' }
+        deviation:
+          type: number
+          minimum: 0
+        verdict: { $ref: '#/components/schemas/LineVerdict' }
+        weight:
+          type: number
+          nullable: true
+          minimum: 0
+          exclusiveMinimum: true
+    RunEvaluation:
+      type: object
+      additionalProperties: false
+      required: [ runId, variantLabel, criterionVersion, criterionDigest, analysisVersion, analysisSeed, mode, validity, verdict, score, confirmationSample, lines ]
+      description: >-
+        The derived evaluation of one run variant against one criterion version. Score is the
+        sum of `weight x deviation^2` over the `SCORED` lines; it is null when the evaluation
+        is `INVALID`.
+      properties:
+        runId: { type: string, format: uuid }
+        variantLabel:
+          type: string
+          minLength: 1
+        criterionVersion:
+          type: integer
+          minimum: 1
+        criterionDigest: { $ref: '#/components/schemas/Sha256Digest' }
+        analysisVersion:
+          type: string
+          minLength: 1
+        analysisSeed: { $ref: '#/components/schemas/DecimalUint64' }
+        mode: { $ref: '#/components/schemas/EvaluationMode' }
+        validity: { $ref: '#/components/schemas/EvaluationValidity' }
+        verdict: { $ref: '#/components/schemas/EvaluationVerdict' }
+        score:
+          type: number
+          nullable: true
+        confirmationSample:
+          allOf: [ { $ref: '#/components/schemas/ConfirmationSample' } ]
+          nullable: true
+        lines:
+          type: array
+          items: { $ref: '#/components/schemas/EvaluatedLine' }
     ProblemDetail:
       type: object
       additionalProperties: true

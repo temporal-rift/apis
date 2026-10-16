@@ -30,13 +30,18 @@ class SimulationApiContractTest {
                         "getCaseReplay",
                         "reproduceCase",
                         "listLaneBundles",
-                        "listExperimentTemplates")
+                        "listExperimentTemplates",
+                        "listBalanceCriteria",
+                        "getBalanceCriterion",
+                        "getRunEvaluation")
                 .forEach(operation -> assertTrue(specification.contains("operationId: " + operation)));
         assertTrue(specification.contains("name: Idempotency-Key"));
         assertTrue(specification.contains("format: uuid"));
         assertTrue(specification.contains("/api/v1/lane-bundles"));
         assertTrue(specification.contains("/api/v1/experiment-templates"));
-        assertTrue(specification.contains("version: 3.2.0"));
+        assertTrue(specification.contains("/api/v1/balance-criteria"));
+        assertTrue(specification.contains("/api/v1/runs/{runId}/evaluation"));
+        assertTrue(specification.contains("version: 3.3.0"));
     }
 
     @Test
@@ -179,6 +184,43 @@ class SimulationApiContractTest {
         assertTrue(winType.contains("enum: [ SCORE_THRESHOLD, FACTION_OBJECTIVE, LAST_PLAYER_STANDING, null ]"));
         assertTrue(winType.contains("null unless the ending is WIN_CONDITION_MET"));
         assertFalse(others.contains("nullable"));
+    }
+
+    @Test
+    void exposesBalanceCriterionAndEvaluationSchemas() throws IOException {
+        var specification = specification();
+
+        assertTrue(specification.contains("AttemptFailureCode"));
+        assertTrue(specification.contains(
+                "enum: [ RUNNER_TIMEOUT, EXECUTION_FAILED, CONTRACT_MISMATCH, CONFIGURATION_DRIFT, POLICY_EXHAUSTED ]"));
+        assertTrue(specification.contains("failureCode"));
+        assertTrue(specification.contains("failure_share"));
+        assertTrue(specification.contains("BalanceCriterion"));
+        assertTrue(specification.contains("CriterionLine"));
+        assertTrue(specification.contains("CriterionDimension"));
+        assertTrue(specification.contains("CriterionEvidence"));
+        assertTrue(specification.contains("BalanceCriterionCatalog"));
+        assertTrue(specification.contains("RunEvaluation"));
+        assertTrue(specification.contains("EvaluationValidity"));
+        assertTrue(specification.contains("ConfirmationSample"));
+        assertTrue(specification.contains("EvaluatedLine"));
+        assertTrue(specification.contains("WEIGHTED_SUM_OF_SQUARED_DEVIATIONS"));
+        assertTrue(specification.contains("RATIO_TO_WIN_REFERENCE"));
+        assertTrue(specification.contains("SUM_OF_FAILURE_CODES"));
+        assertTrue(specification.contains("UNFINISHED_CASES"));
+        assertTrue(specification.contains("EXECUTION_FAILED_SHARE"));
+        assertTrue(specification.contains("ALL_PLAYERS_ABANDONED"));
+        assertTrue(specification.contains("CONFIRMED"));
+        assertTrue(specification.contains("UNCONFIRMED"));
+        assertTrue(specification.contains("INCONCLUSIVE"));
+
+        var line = schema(specification, "    CriterionLine:", "    CriterionEvidence:");
+        assertTrue(line.contains("pattern: '^[GL]-[0-9]{2}$'"));
+        assertTrue(line.contains("weight"));
+        assertTrue(line.contains("rationale"));
+
+        var band = schema(specification, "    Band:", "    CriterionDerivation:");
+        List.of("lower", "upper", "scale").forEach(field -> assertTrue(band.contains(field), field));
     }
 
     @Test
