@@ -30,6 +30,7 @@ class SimulationControlContractTest {
         var specification = readSpecification();
 
         assertTrue(specification.contains("operationId: configureSimulationExecution"));
+        assertTrue(specification.contains("operationId: closeSimulationExecution"));
         assertTrue(specification.contains("operationId: getSimulationCheckpoint"));
         assertTrue(specification.contains("operationId: advanceSimulationClock"));
     }
@@ -38,15 +39,17 @@ class SimulationControlContractTest {
     void executionContextUsesStrictDeterministicInputsAndSharedFactionEnum() throws IOException {
         var specification = readSpecification();
 
-        assertTrue(
-                specification.contains(
-                        "required: [ schemaVersion, caseKey, seed, entropyVersion, manifestDigest, logicalTime, seats ]"));
+        assertTrue(specification.contains(
+                "[ schemaVersion, caseKey, seed, entropyVersion, manifestDigest, logicalTime, rules, rulesDigest, seats ]"));
         assertTrue(specification.contains("enum: [ 1 ]"));
         assertTrue(specification.contains("format: uint64"));
         assertTrue(specification.contains("pattern: '" + UINT64_DECIMAL_PATTERN + "'"));
         assertTrue(specification.contains("18446744073709551615"));
         assertTrue(specification.contains("enum: [ SHA256_V1 ]"));
         assertTrue(specification.contains("pattern: '^[0-9a-f]{64}$'"));
+        assertTrue(specification.contains("rules:"));
+        assertTrue(specification.contains("rulesDigest:"));
+        assertTrue(specification.contains("$ref: '#/components/schemas/EffectiveRules'"));
         assertTrue(specification.contains("minItems: 3"));
         assertTrue(specification.contains("maxItems: 5"));
         assertTrue(specification.contains("$ref: '../shared/enums.yaml#/Faction'"));
@@ -73,6 +76,7 @@ class SimulationControlContractTest {
         var specification = readSpecification();
 
         assertTrue(specification.contains("ExecutionCheckpoint:"));
+        assertTrue(specification.contains("Digest of the open context's rules."));
         assertTrue(specification.contains("gameId:"));
         assertTrue(specification.contains("nextDeadline:"));
         assertTrue(specification.contains("nullable: true"));
@@ -125,6 +129,18 @@ class SimulationControlContractTest {
                                 + lines.get(index - 2).strip());
             }
         }
+    }
+
+    @Test
+    void moduleAndSpecificationVersionAreTwoZeroZero() throws IOException {
+        assertTrue(Files.readString(Path.of("pom.xml")).contains("<version>2.0.0</version>"));
+
+        var specification = readSpecification();
+        assertTrue(specification.contains("version: 2.0.0"));
+        assertTrue(specification.contains("operationId: closeSimulationExecution"));
+        assertTrue(specification.contains("/internal/simulation/v1/execution"));
+        assertTrue(specification.contains("name: caseKey"));
+        assertTrue(specification.contains("in: query"));
     }
 
     @Test

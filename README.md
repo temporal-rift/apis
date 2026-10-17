@@ -31,6 +31,8 @@ apis/
 │   └── src/main/resources/openapi/v1/chains.yml
 ├── simulation-api/      ← OpenAPI contract for the simulation workbench (experiments, runs, reports, variants as baseline plus overrides, parameter spaces)
 │   └── src/main/resources/openapi/v1/simulation.yml
+├── simulation-control-api/ ← OpenAPI contract for isolated per-game simulation execution contexts
+│   └── src/main/resources/openapi/v1/simulation-control.yml
 └── projection-api/      ← OpenAPI contract for per-player game-state projection endpoints
     └── src/main/resources/openapi/v1/projection.yml
 ```
