@@ -1,0 +1,34 @@
+EffectiveRules:
+  type: object
+  additionalProperties: false
+  required: [ schemaVersion, properties ]
+  description: >-
+    A complete, materialised rules document. `properties` holds every rules property keyed by its full path.
+    Keys start with `game.rules.`; path segments are lowercase kebab-case, except map keys that are enum
+    constants, which keep their constant name (for example
+    `game.rules.card-category-weights.PROBABILITY_SHIFTER` or
+    `game.rules.scoring.score-deltas.CHAIN_COMPLETED`), and nested maps are flattened with `.`. Values are JSON
+    numbers, booleans, strings, or arrays of those, in served order. The effective rules digest is the lowercase
+    hex SHA-256 of the UTF-8 bytes of the RFC 8785 (JSON Canonicalization Scheme) serialisation of `properties`,
+    so key order and number spelling do not matter: `2.0` and `2` give the same digest. For example, the
+    properties `{"game.rules.probability.amplify-multiplier.II": 2, "game.rules.win-score-threshold": 20}`
+    canonicalise to `{"game.rules.probability.amplify-multiplier.II":2,"game.rules.win-score-threshold":20}`
+    and have effective rules digest
+    `2f4e77d6f2f5ad41eb3b05de091e524133995ef6f274a58f539adbf2d5b06fad`; the same keys supplied in the other
+    order with `2.0` canonicalise to the same bytes and digest.
+  properties:
+    schemaVersion:
+      type: integer
+      enum: [ 1 ]
+      description: Document format version.
+    properties:
+      type: object
+      additionalProperties: true
+      description: >-
+        Every rules property keyed by its full `game.rules.` path, with nested maps flattened using `.`.
+        Each value is a JSON number, boolean, string, or array of those, in served order.
+  example:
+    schemaVersion: 1
+    properties:
+      game.rules.probability.amplify-multiplier.II: 2
+      game.rules.win-score-threshold: 20

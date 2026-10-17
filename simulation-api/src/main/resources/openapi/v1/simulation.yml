@@ -1,13 +1,14 @@
 openapi: 3.0.3
 info:
   title: Temporal Rift Simulation Workbench API
-  version: 3.3.1
+  version: 3.4.0
   description: >-
     Creates immutable experiment manifests and provides durable run control, evidence inspection,
     statistical reporting, paired comparisons, perspective-safe replay, guided setup discovery
-    (lane bundles and experiment templates), balance criterion publication, and derived run
-    evaluation for the separate simulation workbench. The workbench
-    orchestrates real game services; it never replaces their authoritative gameplay rules.
+    (lane bundles and experiment templates), balance criteria and run evaluation, and variant rules
+    expressed as a baseline document plus validated parameter overrides (parameter spaces and
+    variant-rules previews) for the separate simulation workbench. The workbench orchestrates real
+    game services; it never replaces their authoritative gameplay rules.
 
 servers:
   - url: /
@@ -22,6 +23,8 @@ tags:
   - name: Comparisons
   - name: Cases
   - name: Policies
+  - name: ParameterSpaces
+  - name: VariantRules
   - name: Criteria
   - name: Evaluations
 
@@ -666,6 +669,95 @@ paths:
         '403': { $ref: '#/components/responses/InsufficientScope' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /api/v1/parameter-spaces:
+    get:
+      tags: [ ParameterSpaces ]
+      operationId: listParameterSpaces
+      summary: List every parameter space version the workbench serves
+      description: >-
+        Requires `simulation:read`. Returns every parameter space version the workbench serves, ordered
+        ascending by `version`.
+      x-required-scopes: [ simulation:read ]
+      responses:
+        '200':
+          description: Every served parameter space version in version order
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ParameterSpaceCatalog' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/InsufficientScope' }
+
+  /api/v1/parameter-spaces/{version}:
+    get:
+      tags: [ ParameterSpaces ]
+      operationId: getParameterSpace
+      summary: Get one served parameter space version
+      description: Requires `simulation:read`. An unknown version is not found.
+      x-required-scopes: [ simulation:read ]
+      parameters:
+        - name: version
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: The requested parameter space
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ParameterSpace' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/InsufficientScope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/variant-rules-previews:
+    post:
+      tags: [ VariantRules ]
+      operationId: previewVariantRules
+      summary: Apply and validate a variant's overrides without persisting anything
+      description: >-
+        Requires `simulation:read`. Stateless: nothing is stored. Applies and validates the overrides
+        against the named parameter space, drops overrides equal to the baseline value, and returns the
+        effective rules, their digest and the normalised overrides that `createExperiment` would freeze.
+      x-required-scopes: [ simulation:read ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VariantRulesPreviewRequest'
+      responses:
+        '200':
+          description: The effective rules the variant would freeze
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/VariantRulesPreview' }
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/InsufficientScope' }
+
+  /api/v1/experiments/{experimentId}/variants/{label}/rules:
+    get:
+      tags: [ VariantRules ]
+      operationId: getVariantRules
+      summary: Read the frozen effective rules of one experiment variant
+      description: Requires `simulation:read`. An unknown experiment or variant label is not found.
+      x-required-scopes: [ simulation:read ]
+      parameters:
+        - $ref: '#/components/parameters/ExperimentId'
+        - name: label
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      responses:
+        '200':
+          description: The variant's frozen effective rules
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EffectiveRules' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/InsufficientScope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -736,7 +828,9 @@ components:
         application/problem+json:
           schema: { $ref: '#/components/schemas/ProblemDetail' }
     InvalidExperiment:
-      description: The manifest is invalid (code INVALID_EXPERIMENT)
+      description: >-
+        The manifest is invalid (code INVALID_EXPERIMENT). A refused variant's overrides also carry a
+        `reason` and name the offending value in `field`.
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/ProblemDetail' }
@@ -766,8 +860,9 @@ components:
           schema: { $ref: '#/components/schemas/ProblemDetail' }
     InvalidRequest:
       description: >-
-        The request is invalid, such as paging outside 1 to 500 or a missing or invalid
-        evaluation query parameter (code INVALID_REQUEST)
+        The request is invalid, such as paging outside 1 to 500, a missing or invalid evaluation query
+        parameter, or a refused variant-rules preview (code INVALID_REQUEST). A refused variant's
+        overrides carry a `reason` and name the offending value in `field`.
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/ProblemDetail' }
@@ -803,6 +898,10 @@ components:
       type: object
       additionalProperties: false
       required: [ label, rulesArtifact, contentArtifact, effectiveRulesDigest, effectiveContentDigest ]
+      description: >-
+        A baseline rules document plus optional parameter overrides. `rulesArtifact` names the baseline;
+        `effectiveRulesDigest` is the effective rules digest of that baseline with the overrides and their
+        derived values applied. An empty `overrides` means the baseline itself.
       properties:
         label:
           type: string
@@ -811,6 +910,27 @@ components:
         contentArtifact: { $ref: '#/components/schemas/ArtifactReference' }
         effectiveRulesDigest: { $ref: '#/components/schemas/Sha256Digest' }
         effectiveContentDigest: { $ref: '#/components/schemas/Sha256Digest' }
+        parameterSpaceVersion:
+          type: integer
+          minimum: 1
+          description: >-
+            The parameter space the overrides are validated against. Required when `overrides` is
+            non-empty, and absent or ignored when it is empty.
+        overrides:
+          type: object
+          additionalProperties: { type: number }
+          default: {}
+          description: >-
+            Values replacing the baseline's, keyed by parameter key. An override equal to the baseline
+            value is dropped when the manifest is frozen.
+      not:
+        required: [ overrides ]
+        properties:
+          overrides:
+            type: object
+            minProperties: 1
+        not:
+          required: [ parameterSpaceVersion ]
 
     ServiceProvenance:
       type: object
@@ -1449,6 +1569,8 @@ components:
       $ref: '../shared/enums.yaml#/SpecialAction'
     ParadoxType:
       $ref: '../shared/enums.yaml#/ParadoxType'
+    EffectiveRules:
+      $ref: '../shared/effective-rules.yaml#/EffectiveRules'
     TerminalEndReason:
       type: string
       enum: [ WIN_CONDITION_MET, TIMELINE_COLLAPSED, TIMELINE_STABILIZED, DECK_EXHAUSTED, RESOLUTION_FAILED, ALL_PLAYERS_ABANDONED ]
@@ -1624,8 +1746,9 @@ components:
       description: >-
         One distinct bundle some configured lane serves: one pair of effective rules and content
         digests with the service provenance and contract versions of the lanes that serve it.
-        Carries no lane identifier, URL, credential or bot identity. Lanes serving exactly this
-        bundle are counted in `laneCount`, busy or free.
+        `rulesArtifact` names the lane's baseline rules document and `effectiveRulesDigest` is that
+        document's effective rules digest. Carries no lane identifier, URL, credential or bot
+        identity. Lanes serving exactly this bundle are counted in `laneCount`, busy or free.
       properties:
         rulesArtifact: { $ref: '#/components/schemas/ArtifactReference' }
         contentArtifact: { $ref: '#/components/schemas/ArtifactReference' }
@@ -2018,6 +2141,91 @@ components:
         lines:
           type: array
           items: { $ref: '#/components/schemas/EvaluatedLine' }
+    ParameterSpaceCatalog:
+      type: object
+      additionalProperties: false
+      required: [ items ]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/ParameterSpace' }
+    ParameterSpace:
+      type: object
+      additionalProperties: false
+      required: [ version, parameters, derived, constraints, heldFixed ]
+      properties:
+        version: { type: integer, minimum: 1 }
+        parameters:
+          type: array
+          items: { $ref: '#/components/schemas/ParameterDefinition' }
+        derived:
+          type: array
+          items: { $ref: '#/components/schemas/DerivedParameter' }
+        constraints:
+          type: array
+          items: { $ref: '#/components/schemas/ParameterConstraint' }
+        heldFixed:
+          type: array
+          items: { $ref: '#/components/schemas/HeldFixedParameter' }
+    ParameterDefinition:
+      type: object
+      additionalProperties: false
+      required: [ key, services, baseline, min, max, step ]
+      properties:
+        key: { type: string, minLength: 1 }
+        services:
+          type: array
+          minItems: 1
+          items: { type: string, minLength: 1 }
+        baseline: { type: number }
+        min: { type: number }
+        max: { type: number }
+        step: { type: number }
+    DerivedParameter:
+      type: object
+      additionalProperties: false
+      required: [ key, from, factor ]
+      description: A derived value whose `key` always equals `factor` times `from`.
+      properties:
+        key: { type: string, minLength: 1 }
+        from: { type: string, minLength: 1 }
+        factor: { type: number }
+    ParameterConstraint:
+      type: object
+      additionalProperties: false
+      required: [ id, expression, description ]
+      properties:
+        id: { type: string, minLength: 1 }
+        expression: { type: string, minLength: 1 }
+        description: { type: string, minLength: 1 }
+    HeldFixedParameter:
+      type: object
+      additionalProperties: false
+      required: [ key, reason ]
+      properties:
+        key: { type: string, minLength: 1 }
+        reason: { type: string, minLength: 1 }
+    VariantRulesPreviewRequest:
+      type: object
+      additionalProperties: false
+      required: [ rulesArtifact, parameterSpaceVersion, overrides ]
+      properties:
+        rulesArtifact: { $ref: '#/components/schemas/ArtifactReference' }
+        parameterSpaceVersion: { type: integer, minimum: 1 }
+        overrides:
+          type: object
+          additionalProperties: { type: number }
+    VariantRulesPreview:
+      type: object
+      additionalProperties: false
+      required: [ rules, effectiveRulesDigest, overrides ]
+      properties:
+        rules: { $ref: '#/components/schemas/EffectiveRules' }
+        effectiveRulesDigest: { $ref: '#/components/schemas/Sha256Digest' }
+        overrides:
+          type: object
+          additionalProperties: { type: number }
+          description: The normalised overrides, with baseline-equal values removed, as freezing would store them.
     ProblemDetail:
       type: object
       additionalProperties: true
@@ -2032,8 +2240,27 @@ components:
           type: string
           minLength: 1
           description: >-
-            Path of the offending manifest value, such as `seeds` or `policies[0].seatAssignment`. Present
-            on `INVALID_EXPERIMENT` and `MANIFEST_MISMATCH` when the refusal is attributable to one value; absent otherwise.
+            Path of the offending manifest or request value, such as `seeds`,
+            `policies[0].seatAssignment`, or `variants[1].overrides.game.rules.win-score-threshold`. Present
+            on `INVALID_EXPERIMENT`, `INVALID_REQUEST` and `MANIFEST_MISMATCH` when the refusal is attributable
+            to one value; absent otherwise.
+        reason:
+          type: string
+          enum:
+            - UNKNOWN_PARAMETER_SPACE
+            - UNKNOWN_BASELINE
+            - UNKNOWN_PARAMETER
+            - OUT_OF_RANGE
+            - OFF_STEP
+            - CONSTRAINT_VIOLATED
+          description: >-
+            Why a variant's overrides or baseline were refused. Present on variant-rule refusals; absent
+            otherwise.
+        constraintId:
+          type: string
+          minLength: 1
+          description: >-
+            The violated parameter space constraint. Present only when `reason` is `CONSTRAINT_VIOLATED`.
         code:
           type: string
           enum:
