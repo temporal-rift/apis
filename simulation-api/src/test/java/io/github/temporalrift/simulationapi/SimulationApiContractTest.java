@@ -33,7 +33,11 @@ class SimulationApiContractTest {
                         "listExperimentTemplates",
                         "listBalanceCriteria",
                         "getBalanceCriterion",
-                        "getRunEvaluation")
+                        "getRunEvaluation",
+                        "listParameterSpaces",
+                        "getParameterSpace",
+                        "previewVariantRules",
+                        "getVariantRules")
                 .forEach(operation -> assertTrue(specification.contains("operationId: " + operation)));
         assertTrue(specification.contains("name: Idempotency-Key"));
         assertTrue(specification.contains("format: uuid"));
@@ -41,7 +45,10 @@ class SimulationApiContractTest {
         assertTrue(specification.contains("/api/v1/experiment-templates"));
         assertTrue(specification.contains("/api/v1/balance-criteria"));
         assertTrue(specification.contains("/api/v1/runs/{runId}/evaluation"));
-        assertTrue(specification.contains("version: 3.3.1"));
+        assertTrue(specification.contains("/api/v1/parameter-spaces"));
+        assertTrue(specification.contains("/api/v1/variant-rules-previews"));
+        assertTrue(specification.contains("/api/v1/experiments/{experimentId}/variants/{label}/rules"));
+        assertTrue(specification.contains("version: 3.4.0"));
     }
 
     @Test

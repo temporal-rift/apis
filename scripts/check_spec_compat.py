@@ -381,6 +381,46 @@ def compare_bounds(base, head, where, severity, findings):
     return severity
 
 
+def referenced_property_names(node, names=None):
+    """Return every property name a schema's constraints mention."""
+    if names is None:
+        names = set()
+    if isinstance(node, dict):
+        required = node.get("required")
+        if isinstance(required, list):
+            names.update(item for item in required if isinstance(item, str))
+        properties = node.get("properties")
+        if isinstance(properties, dict):
+            names.update(properties)
+            for child in properties.values():
+                referenced_property_names(child, names)
+        for key in ("not", "allOf", "anyOf", "oneOf"):
+            child = node.get(key)
+            if isinstance(child, dict):
+                referenced_property_names(child, names)
+            elif isinstance(child, list):
+                for item in child:
+                    referenced_property_names(item, names)
+    return names
+
+
+def added_not_only_constrains_new_properties(base, head, not_schema):
+    """True when a new 'not' can only reject documents base already rejected.
+
+    A document valid under `base` cannot carry a property that only exists in
+    `head` when `base` closes additional properties, so a new 'not' that
+    mentions nothing but those new properties is a compatible addition.
+    """
+    if not isinstance(not_schema, dict):
+        return False
+    if base.get("additionalProperties") is not False:
+        return False
+    base_properties = set((base.get("properties") or {}))
+    head_properties = set((head.get("properties") or {}))
+    mentioned = referenced_property_names(not_schema)
+    return bool(mentioned) and mentioned <= (head_properties - base_properties)
+
+
 def compare_schemas(base, head, where, severity, findings):
     """Recursively compare two (ref-resolved) schema nodes."""
     base = base if isinstance(base, dict) else {}
@@ -479,8 +519,14 @@ def compare_schemas(base, head, where, severity, findings):
 
     if "not" in base or "not" in head:
         if without_ignored(base.get("not")) != without_ignored(head.get("not")):
-            severity = combine(severity, findings,
-                               f"BREAKING: {where} changes 'not' subschema", MAJOR)
+            if "not" not in base and added_not_only_constrains_new_properties(
+                    base, head, head.get("not")):
+                severity = combine(
+                    severity, findings,
+                    f"ADDED: {where} constrains new properties with 'not'", MINOR)
+            else:
+                severity = combine(severity, findings,
+                                   f"BREAKING: {where} changes 'not' subschema", MAJOR)
 
     severity = compare_bounds(base, head, where, severity, findings)
     return severity

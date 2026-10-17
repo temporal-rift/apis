@@ -139,6 +139,32 @@ class SchemaDiffTests(unittest.TestCase):
         head = {"allOf": [schema({"a": prop("string")}, ["a"])]}
         self.assertEqual(self.compare(base, head), gate.PATCH)
 
+    def test_added_not_that_only_constrains_new_properties_is_addition(self):
+        base = schema({"a": prop("string")}, ["a"], additionalProperties=False)
+        head = schema(
+            {"a": prop("string"), "b": prop("object"), "c": prop("integer")},
+            ["a"],
+            additionalProperties=False,
+            **{"not": {
+                "required": ["b"],
+                "properties": {"b": {"type": "object", "minProperties": 1}},
+                "not": {"required": ["c"]},
+            }},
+        )
+        self.assertEqual(self.compare(base, head), gate.MINOR)
+
+    def test_added_not_that_constrains_an_existing_property_is_breaking(self):
+        base = schema({"a": prop("string")}, ["a"], additionalProperties=False)
+        head = schema({"a": prop("string")}, ["a"], additionalProperties=False,
+                      **{"not": {"required": ["a"]}})
+        self.assertEqual(self.compare(base, head), gate.MAJOR)
+
+    def test_added_not_is_breaking_when_base_allows_unknown_properties(self):
+        base = schema({"a": prop("string")}, ["a"])
+        head = schema({"a": prop("string"), "b": prop("string")}, ["a"],
+                      **{"not": {"required": ["b"]}})
+        self.assertEqual(self.compare(base, head), gate.MAJOR)
+
 
 class DocumentDiffTests(unittest.TestCase):
     def setUp(self):
