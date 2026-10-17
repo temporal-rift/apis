@@ -165,6 +165,20 @@ class SchemaDiffTests(unittest.TestCase):
                       **{"not": {"required": ["b"]}})
         self.assertEqual(self.compare(base, head), gate.MAJOR)
 
+    def test_added_not_that_references_a_nested_existing_property_is_breaking(self):
+        base = schema(
+            {"a": {"type": "object", "properties": {"b": prop("string")}}},
+            ["a"],
+            additionalProperties=False,
+        )
+        head = schema(
+            {"a": {"type": "object", "properties": {"b": prop("string")}}},
+            ["a"],
+            additionalProperties=False,
+            **{"not": {"properties": {"a": {"properties": {"b": prop("string")}}}}},
+        )
+        self.assertEqual(self.compare(base, head), gate.MAJOR)
+
 
 class DocumentDiffTests(unittest.TestCase):
     def setUp(self):

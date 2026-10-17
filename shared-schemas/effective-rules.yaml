@@ -23,7 +23,17 @@ EffectiveRules:
       description: Document format version.
     properties:
       type: object
-      additionalProperties: true
+      additionalProperties:
+        oneOf:
+          - type: number
+          - type: boolean
+          - type: string
+          - type: array
+            items:
+              oneOf:
+                - type: number
+                - type: boolean
+                - type: string
       description: >-
         Every rules property keyed by its full `game.rules.` path, with nested maps flattened using `.`.
         Each value is a JSON number, boolean, string, or array of those, in served order.
