@@ -134,13 +134,21 @@ class SimulationVariantRulesTest {
                 """.formatted(DIGEST);
 
         assertValid(validator.validateResponse("/api/v1/variant-rules-previews", Request.Method.POST, json(response)));
-        assertFalse(validator
-                .validateResponse(
-                        "/api/v1/variant-rules-previews",
-                        Request.Method.POST,
-                        json(response.replace("\"overrides\": { \"game.rules.win-score-threshold\": 22 }", "")))
-                .getMessages()
-                .isEmpty());
+        var withoutOverrides = response.replace(
+                ",\n  \"overrides\": { \"game.rules.win-score-threshold\": 22 }", "");
+        assertFalse(withoutOverrides.contains("overrides"));
+        var report = validator.validateResponse(
+                "/api/v1/variant-rules-previews", Request.Method.POST, json(withoutOverrides));
+        assertTrue(
+                report.getMessages().stream()
+                        .anyMatch(message -> message.getKey().equals(
+                                "validation.response.body.schema.required")),
+                report::toString);
+    }
+
+    @Test
+    void anExplicitlyEmptyOverridesMapNeedsNoParameterSpaceVersion() {
+        assertValid(validator.validateRequest(createExperiment(variant("baseline", ", \"overrides\": {}"))));
     }
 
     @Test
