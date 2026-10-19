@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Temporal Rift Simulation Workbench API
-  version: 3.4.0
+  version: 4.0.0
   description: >-
     Creates immutable experiment manifests and provides durable run control, evidence inspection,
     statistical reporting, paired comparisons, perspective-safe replay, guided setup discovery
@@ -294,8 +294,10 @@ paths:
                   variantLabel, policyId, policyVersion, playerCount, factionSet (factions joined by `|`),
                   seatIndex, eligibleGames, independentBlocks, requested, pending, running, succeeded,
                   failed, cancelled, metric, statistic, faction, cardType, cardGrade, specialAction,
-                  paradoxType, endReason, quantile, unit, value, numerator, denominator, status,
-                  intervalLower, intervalUpper, unknownCount. An empty field is a null value.
+                  paradoxType, endReason, quantile, failureCode, unit, value, numerator, denominator,
+                  status, intervalLower, intervalUpper, unknownCount. `failureCode` is empty for a metric
+                  not split by failure code, including the all-codes `failure_share` metric, and holds the
+                  `AttemptFailureCode` of a per-code `failure_share` metric. An empty field is a null value.
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/InsufficientScope' }
         '404': { $ref: '#/components/responses/NotFound' }
@@ -1354,7 +1356,7 @@ components:
       properties:
         formatVersion:
           type: integer
-          enum: [ 1 ]
+          enum: [ 2 ]
           description: Version of the report's JSON and CSV layout; the first CSV column.
         runId: { type: string, format: uuid }
         manifestDigest: { $ref: '#/components/schemas/Sha256Digest' }

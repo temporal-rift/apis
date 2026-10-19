@@ -199,7 +199,7 @@ class SimulationBalanceEvaluationTest {
     void failureShareAppearsPooledWithAndWithoutACode() {
         var report = """
                 {
-                  "formatVersion": 1,
+                  "formatVersion": 2,
                   "runId": "%s",
                   "manifestDigest": "%s",
                   "analysisVersion": "2",
@@ -253,7 +253,7 @@ class SimulationBalanceEvaluationTest {
     void aFailureCodeOutsideTheVocabularyIsRejected() {
         var report = """
                 {
-                  "formatVersion": 1,
+                  "formatVersion": 2,
                   "runId": "%s",
                   "manifestDigest": "%s",
                   "analysisVersion": "2",
