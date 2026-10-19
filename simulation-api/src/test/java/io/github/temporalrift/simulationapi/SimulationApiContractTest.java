@@ -48,7 +48,7 @@ class SimulationApiContractTest {
         assertTrue(specification.contains("/api/v1/parameter-spaces"));
         assertTrue(specification.contains("/api/v1/variant-rules-previews"));
         assertTrue(specification.contains("/api/v1/experiments/{experimentId}/variants/{label}/rules"));
-        assertTrue(specification.contains("version: 3.4.0"));
+        assertTrue(specification.contains("version: 4.0.0"));
     }
 
     @Test
@@ -228,6 +228,22 @@ class SimulationApiContractTest {
 
         var band = schema(specification, "    Band:", "    CriterionDerivation:");
         List.of("lower", "upper", "scale").forEach(field -> assertTrue(band.contains(field), field));
+    }
+
+    @Test
+    void reportCsvDistinguishesFailureCodesAndRaisesTheFormatVersion() throws IOException {
+        var specification = specification();
+        var report = schema(specification, "    Report:", "    ComparisonSide:");
+        var comparison = schema(specification, "    Comparison:", "    ProblemDetail:");
+
+        assertTrue(specification.contains(
+                "paradoxType, endReason, quantile, failureCode, unit, value, numerator, denominator,"));
+        assertTrue(specification.contains(
+                "paradoxType, endReason, quantile, unit, baselineValue, candidateValue, difference,"));
+        assertTrue(report.contains("enum: [ 2 ]"));
+        assertFalse(report.contains("enum: [ 1 ]"));
+        assertTrue(comparison.contains("enum: [ 1 ]"));
+        assertFalse(comparison.contains("enum: [ 2 ]"));
     }
 
     @Test
