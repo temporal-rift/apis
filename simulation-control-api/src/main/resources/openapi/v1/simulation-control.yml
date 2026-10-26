@@ -12,7 +12,7 @@ info:
     is not the open context's game is consumed and ignored, and its offset still advances the
     source watermarks; with no context open every inbound event is ignored the same way, so a
     late event of a closed game never reaches the next game.
-  version: 2.0.0
+  version: 2.0.1
 
 servers:
   - url: /
@@ -32,7 +32,9 @@ paths:
         Opens the execution context for one game. With no context open, the context is accepted,
         its revision starts at 0 and its logical time is the context's `logicalTime`. Repeating an
         identical context is a no-op returning the current checkpoint; any other context while one
-        is open is rejected. The service recomputes the canonical digest of `rules.properties` and
+        is open is rejected. A `caseKey` closed earlier may be opened again: its game is played as a new
+        game with the same identity, and records already in the event source when it was closed never
+        reach it. The service recomputes the canonical digest of `rules.properties` and
         validates the rules it uses for the context's game. This route is registered only in an
         isolated simulation deployment and requires `simulation:control`.
       requestBody:
