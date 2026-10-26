@@ -6,7 +6,7 @@
 
     <groupId>io.github.temporal-rift</groupId>
     <artifactId>simulation-api</artifactId>
-    <version>4.0.0</version>
+    <version>4.1.0</version>
     <packaging>jar</packaging>
 
     <properties>
@@ -29,7 +29,7 @@
     </dependencies>
 
     <name>Temporal Rift Simulation API</name>
-    <description>OpenAPI contract for immutable simulation experiments, runs, reports, comparisons, replay, and guided setup discovery.</description>
+    <description>OpenAPI contract for immutable simulation experiments, runs, reports, comparisons, replay, guided setup discovery, and durable configuration search campaigns.</description>
 
     <licenses>
         <license>

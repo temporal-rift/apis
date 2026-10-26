@@ -1,14 +1,16 @@
 openapi: 3.0.3
 info:
   title: Temporal Rift Simulation Workbench API
-  version: 4.0.0
+  version: 4.1.0
   description: >-
     Creates immutable experiment manifests and provides durable run control, evidence inspection,
     statistical reporting, paired comparisons, perspective-safe replay, guided setup discovery
-    (lane bundles and experiment templates), balance criteria and run evaluation, and variant rules
+    (lane bundles and experiment templates), balance criteria and run evaluation, variant rules
     expressed as a baseline document plus validated parameter overrides (parameter spaces and
-    variant-rules previews) for the separate simulation workbench. The workbench orchestrates real
-    game services; it never replaces their authoritative gameplay rules.
+    variant-rules previews), and durable configuration search campaigns that generate candidates,
+    screen them, and confirm a short list on fresh seeds, for the separate simulation workbench.
+    The workbench orchestrates real game services; it never replaces their authoritative gameplay
+    rules.
 
 servers:
   - url: /
@@ -27,6 +29,7 @@ tags:
   - name: VariantRules
   - name: Criteria
   - name: Evaluations
+  - name: Campaigns
 
 paths:
   /api/v1/experiments:
@@ -760,6 +763,309 @@ paths:
         '403': { $ref: '#/components/responses/InsufficientScope' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /api/v1/campaigns:
+    get:
+      tags: [ Campaigns ]
+      operationId: listCampaigns
+      summary: List configuration search campaigns, newest first
+      description: Requires `simulation:read`.
+      x-required-scopes: [ simulation:read ]
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: One page of campaigns
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CampaignList' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/InsufficientScope' }
+    post:
+      tags: [ Campaigns ]
+      operationId: createCampaign
+      summary: Create and queue a configuration search campaign
+      description: >-
+        Requires `simulation:write`. Validates the definition against the served parameter space,
+        criterion and baseline artifacts, and freezes it with separate search and confirmation
+        master seeds. `budgetSeconds` defaults to 14400 (four active hours) and `parallelism` to 4.
+        The campaign is created in `QUEUED` and starts without further client action. A definition
+        whose master seeds are equal is refused. Repeating the same idempotency key and body
+        returns the original campaign.
+      x-required-scopes: [ simulation:write ]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CampaignDefinition'
+      responses:
+        '201':
+          description: Campaign created and queued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Campaign'
+        '400': { $ref: '#/components/responses/InvalidCampaign' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/InsufficientScope' }
+        '409': { $ref: '#/components/responses/IdempotencyConflict' }
+
+  /api/v1/campaigns/{campaignId}:
+    get:
+      tags: [ Campaigns ]
+      operationId: getCampaign
+      summary: Get one configuration search campaign
+      description: Requires `simulation:read`.
+      x-required-scopes: [ simulation:read ]
+      parameters:
+        - $ref: '#/components/parameters/CampaignId'
+      responses:
+        '200':
+          description: The requested campaign
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Campaign' }
+              examples:
+                paused:
+                  summary: A search paused by the designer
+                  value:
+                    campaignId: 3c1c4a7e-8b2d-4f46-9a71-5d0e2b6c8f91
+                    name: threshold-halving-01
+                    baseline:
+                      rulesArtifact:
+                        digest: 9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08
+                      contentArtifact:
+                        digest: 60303ae22b998861bce3b28f33eec1be758a213c86c93c076dbe9f558c11c752
+                    parameterSpaceVersion: 1
+                    criterionVersion: 1
+                    policies:
+                      - id: faction-greedy
+                        version: 1.0.0
+                        artifactDigest: 5a1c1e2d3f405162738495a6b7c8d9e0f1a2b3c4d5e6f708192a3b4c5d6e7f80
+                        parameters: {}
+                        seatAssignment:
+                          - { seatIndex: 0, policyId: faction-greedy, policyVersion: 1.0.0 }
+                          - { seatIndex: 1, policyId: faction-greedy, policyVersion: 1.0.0 }
+                          - { seatIndex: 2, policyId: faction-greedy, policyVersion: 1.0.0 }
+                          - { seatIndex: 3, policyId: faction-greedy, policyVersion: 1.0.0 }
+                    playerCounts: [ 4 ]
+                    budgetSeconds: 14400
+                    parallelism: 2
+                    searchMasterSeed: '42'
+                    confirmationMasterSeed: '43'
+                    algorithm:
+                      version: SUCCESSIVE_HALVING_V1
+                      initialCandidates: 8
+                      screeningSeeds: 2
+                      eta: 2
+                      shortListSize: 2
+                    state: PAUSED
+                    spentSeconds: 900
+                    round: 2
+                    shortList: []
+                    confirmation: null
+                    failure: null
+                    createdAt: '2026-10-17T10:00:00Z'
+                    startedAt: '2026-10-17T10:00:01Z'
+                    finishedAt: null
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/InsufficientScope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/campaigns/{campaignId}/pause:
+    post:
+      tags: [ Campaigns ]
+      operationId: pauseCampaign
+      summary: Pause a queued or running campaign
+      description: >-
+        Requires `simulation:write`. Allowed from `QUEUED` and `RUNNING`; moves the campaign to
+        `PAUSED`. Games in flight finish or are discarded and are never counted twice. Repeating a
+        pause that already took effect returns the same campaign.
+      x-required-scopes: [ simulation:write ]
+      parameters:
+        - $ref: '#/components/parameters/CampaignId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: The paused campaign
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Campaign' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/InsufficientScope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Idempotency conflict or invalid campaign state
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ProblemDetail' }
+
+  /api/v1/campaigns/{campaignId}/resume:
+    post:
+      tags: [ Campaigns ]
+      operationId: resumeCampaign
+      summary: Resume a paused campaign
+      description: >-
+        Requires `simulation:write`. Allowed from `PAUSED`; moves the campaign to `RUNNING`.
+        Repeating a resume that already took effect returns the same campaign.
+      x-required-scopes: [ simulation:write ]
+      parameters:
+        - $ref: '#/components/parameters/CampaignId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: The resumed campaign
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Campaign' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/InsufficientScope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Idempotency conflict or invalid campaign state
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ProblemDetail' }
+
+  /api/v1/campaigns/{campaignId}/cancel:
+    post:
+      tags: [ Campaigns ]
+      operationId: cancelCampaign
+      summary: Cancel a campaign
+      description: >-
+        Requires `simulation:write`. Allowed from every state except `COMPLETED`, `CANCELLED` and
+        `FAILED`; moves the campaign to `CANCELLED`. Repeating a cancel that already took effect
+        returns the same campaign.
+      x-required-scopes: [ simulation:write ]
+      parameters:
+        - $ref: '#/components/parameters/CampaignId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: The cancelled campaign
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Campaign' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/InsufficientScope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Idempotency conflict or invalid campaign state
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ProblemDetail' }
+
+  /api/v1/campaigns/{campaignId}/parallelism:
+    put:
+      tags: [ Campaigns ]
+      operationId: setCampaignParallelism
+      summary: Change a campaign's parallelism
+      description: >-
+        Requires `simulation:write`. Allowed from every state except `COMPLETED`, `CANCELLED` and
+        `FAILED`. The new value takes effect for the next game started; games already in flight are
+        unaffected.
+      x-required-scopes: [ simulation:write ]
+      parameters:
+        - $ref: '#/components/parameters/CampaignId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CampaignParallelismUpdate'
+      responses:
+        '200':
+          description: The campaign with its new parallelism
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Campaign' }
+        '400': { $ref: '#/components/responses/InvalidCampaign' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/InsufficientScope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Idempotency conflict or invalid campaign state
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ProblemDetail' }
+
+  /api/v1/campaigns/{campaignId}/log:
+    get:
+      tags: [ Campaigns ]
+      operationId: getCampaignLog
+      summary: Read a campaign's decisions in decision order
+      description: Requires `simulation:read`. Entries are ordered by `sequence`.
+      x-required-scopes: [ simulation:read ]
+      parameters:
+        - $ref: '#/components/parameters/CampaignId'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: One page of campaign log entries
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CampaignLogPage' }
+              examples:
+                gate-failure:
+                  summary: One candidate discarded by a failed criterion gate
+                  value:
+                    items:
+                      - sequence: 1
+                        round: 1
+                        candidateId: c-0003
+                        overrides:
+                          game.rules.win-score-threshold: 18
+                        effectiveRulesDigest: 9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08
+                        seeds: [ '42', '43' ]
+                        gamesSpent: 2
+                        evaluation:
+                          verdict: REJECTED
+                          score: null
+                        decision: DISCARDED
+                        reason: GATE_FAILS
+                        evidence:
+                          lineIds: [ 'G-01' ]
+                    total: 1
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/InsufficientScope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/campaigns/{campaignId}/confirmation:
+    post:
+      tags: [ Campaigns ]
+      operationId: startConfirmation
+      summary: Confirm a campaign's short list on fresh seeds
+      description: >-
+        Requires `simulation:write`. Allowed only from `SEARCH_COMPLETED`; moves the campaign to
+        `CONFIRMING` and starts one confirmation run per short-listed candidate and one for the
+        baseline. Confirmation seeds derive from `confirmationMasterSeed` only; if any of them
+        already appears in the campaign log's `seeds`, nothing starts.
+      x-required-scopes: [ simulation:write ]
+      parameters:
+        - $ref: '#/components/parameters/CampaignId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202':
+          description: Confirmation accepted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Campaign' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/InsufficientScope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: >-
+            Idempotency conflict, invalid campaign state, or overlapping confirmation seeds
+            (code IDEMPOTENCY_CONFLICT, INVALID_CAMPAIGN_STATE, or SEED_OVERLAP)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ProblemDetail' }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -812,6 +1118,11 @@ components:
       in: path
       required: true
       schema: { type: integer, minimum: 1 }
+    CampaignId:
+      name: campaignId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
 
   responses:
     Unauthorized:
@@ -865,6 +1176,13 @@ components:
         The request is invalid, such as paging outside 1 to 500, a missing or invalid evaluation query
         parameter, or a refused variant-rules preview (code INVALID_REQUEST). A refused variant's
         overrides carry a `reason` and name the offending value in `field`.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemDetail' }
+    InvalidCampaign:
+      description: >-
+        The campaign definition or parallelism update is invalid (code INVALID_CAMPAIGN). `field`
+        names the offending value and `reason` names why it was refused.
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/ProblemDetail' }
@@ -2228,6 +2546,333 @@ components:
           type: object
           additionalProperties: { type: number }
           description: The normalised overrides, with baseline-equal values removed, as freezing would store them.
+
+    CampaignBaseline:
+      type: object
+      additionalProperties: false
+      required: [ rulesArtifact, contentArtifact ]
+      description: Baseline rules and content every candidate of a campaign builds on.
+      properties:
+        rulesArtifact: { $ref: '#/components/schemas/ArtifactReference' }
+        contentArtifact: { $ref: '#/components/schemas/ArtifactReference' }
+    SearchAlgorithm:
+      type: object
+      additionalProperties: false
+      required: [ version, initialCandidates, screeningSeeds, eta, shortListSize ]
+      properties:
+        version:
+          type: string
+          enum: [ SUCCESSIVE_HALVING_V1 ]
+        initialCandidates:
+          type: integer
+          minimum: 2
+          description: Candidates generated from the baseline and its parameter space.
+        screeningSeeds:
+          type: integer
+          minimum: 2
+          description: Seeds each candidate is screened on before a keep-or-discard decision.
+        eta:
+          type: integer
+          minimum: 2
+          description: Fraction 1/eta of survivors kept after each round.
+        shortListSize:
+          type: integer
+          minimum: 1
+          description: Candidates confirmed on fresh seeds.
+    CampaignDefinition:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+        - baseline
+        - parameterSpaceVersion
+        - criterionVersion
+        - policies
+        - playerCounts
+        - searchMasterSeed
+        - confirmationMasterSeed
+        - algorithm
+      description: >-
+        The frozen inputs of a configuration search. `policies` use the same shape as an
+        `ExperimentManifest` policy. A definition whose `searchMasterSeed` and
+        `confirmationMasterSeed` are equal is refused.
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        baseline: { $ref: '#/components/schemas/CampaignBaseline' }
+        parameterSpaceVersion:
+          type: integer
+          minimum: 1
+        criterionVersion:
+          type: integer
+          minimum: 1
+        policies:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/Policy' }
+        playerCounts:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            type: integer
+            enum: [ 3, 4, 5 ]
+        budgetSeconds:
+          type: integer
+          minimum: 60
+          default: 14400
+          description: Active compute time the search may spend; four hours by default.
+        parallelism:
+          type: integer
+          minimum: 1
+          default: 4
+          description: Games played at once; may be changed while the campaign runs.
+        searchMasterSeed:
+          allOf: [ { $ref: '#/components/schemas/DecimalUint64' } ]
+          description: Derives every search seed.
+        confirmationMasterSeed:
+          allOf: [ { $ref: '#/components/schemas/DecimalUint64' } ]
+          description: Derives every confirmation seed and must differ from `searchMasterSeed`.
+        algorithm: { $ref: '#/components/schemas/SearchAlgorithm' }
+    CampaignState:
+      type: string
+      enum: [ QUEUED, RUNNING, PAUSED, SEARCH_COMPLETED, CONFIRMING, COMPLETED, CANCELLED, FAILED ]
+      description: >-
+        `QUEUED` accepted and not yet started; `RUNNING` spending budget; `PAUSED` stopped by the
+        designer and resumable; `SEARCH_COMPLETED` budget spent or short list stable, with the short
+        list available; `CONFIRMING` confirmation runs in progress; `COMPLETED` confirmation
+        evaluated; `CANCELLED` cancelled by the designer; `FAILED` stopped by an error, which
+        `failure` holds.
+    Campaign:
+      type: object
+      additionalProperties: false
+      required:
+        - campaignId
+        - name
+        - baseline
+        - parameterSpaceVersion
+        - criterionVersion
+        - policies
+        - playerCounts
+        - budgetSeconds
+        - parallelism
+        - searchMasterSeed
+        - confirmationMasterSeed
+        - algorithm
+        - state
+        - spentSeconds
+        - round
+        - shortList
+        - confirmation
+        - failure
+        - createdAt
+        - startedAt
+        - finishedAt
+      description: >-
+        One configuration search campaign: its frozen definition plus its current state.
+        `spentSeconds` is active compute time; `parallelism` is the current value and may change
+        while the campaign runs; `shortList` stays empty until `SEARCH_COMPLETED`; `confirmation`
+        is null until started.
+      properties:
+        campaignId: { type: string, format: uuid }
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        baseline: { $ref: '#/components/schemas/CampaignBaseline' }
+        parameterSpaceVersion:
+          type: integer
+          minimum: 1
+        criterionVersion:
+          type: integer
+          minimum: 1
+        policies:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/Policy' }
+        playerCounts:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            type: integer
+            enum: [ 3, 4, 5 ]
+        budgetSeconds:
+          type: integer
+          minimum: 60
+          description: Active compute time the search may spend.
+        parallelism:
+          type: integer
+          minimum: 1
+          description: Current number of games played at once.
+        searchMasterSeed:
+          allOf: [ { $ref: '#/components/schemas/DecimalUint64' } ]
+          description: Derives every search seed.
+        confirmationMasterSeed:
+          allOf: [ { $ref: '#/components/schemas/DecimalUint64' } ]
+          description: Derives every confirmation seed and must differ from `searchMasterSeed`.
+        algorithm: { $ref: '#/components/schemas/SearchAlgorithm' }
+        state: { $ref: '#/components/schemas/CampaignState' }
+        spentSeconds:
+          type: integer
+          minimum: 0
+          description: Active compute time spent so far.
+        round:
+          type: integer
+          minimum: 0
+        shortList:
+          type: array
+          items: { type: string, minLength: 1 }
+          description: Short-listed candidate ids, empty until `SEARCH_COMPLETED`.
+        confirmation:
+          allOf: [ { $ref: '#/components/schemas/CampaignConfirmation' } ]
+          nullable: true
+        failure:
+          allOf: [ { $ref: '#/components/schemas/CampaignFailure' } ]
+          nullable: true
+        createdAt: { type: string, format: date-time }
+        startedAt: { type: string, format: date-time, nullable: true }
+        finishedAt: { type: string, format: date-time, nullable: true }
+    CampaignFailure:
+      type: object
+      additionalProperties: false
+      required: [ code, message ]
+      description: Why a campaign stopped with state `FAILED`.
+      properties:
+        code: { type: string, minLength: 1 }
+        message: { type: string, minLength: 1 }
+    CampaignList:
+      type: object
+      additionalProperties: false
+      required: [ items, total ]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Campaign' }
+        total: { type: integer, minimum: 0 }
+    CampaignEvaluation:
+      type: object
+      additionalProperties: false
+      required: [ verdict, score ]
+      description: The compact evaluation of one candidate that drove a log decision.
+      properties:
+        verdict: { $ref: '#/components/schemas/EvaluationVerdict' }
+        score: { type: number, nullable: true }
+    CampaignLogDecision:
+      type: string
+      enum: [ GENERATED, KEPT, DISCARDED, SHORT_LISTED ]
+    CampaignLogReason:
+      type: string
+      enum: [ GATE_FAILS, DOMINATED, NOT_IN_TOP_FRACTION, BUDGET_EXHAUSTED ]
+    CampaignLogEvidence:
+      type: object
+      additionalProperties: false
+      description: >-
+        Why a decision was taken. `lineIds` lists the failing criterion lines for `GATE_FAILS`;
+        `dominatedBy` names the dominating candidate for `DOMINATED`.
+      properties:
+        lineIds:
+          type: array
+          items: { type: string, minLength: 1 }
+        dominatedBy:
+          type: string
+          minLength: 1
+    CampaignLogEntry:
+      type: object
+      additionalProperties: false
+      required:
+        - sequence
+        - round
+        - candidateId
+        - overrides
+        - effectiveRulesDigest
+        - seeds
+        - gamesSpent
+        - evaluation
+        - decision
+        - reason
+        - evidence
+      properties:
+        sequence:
+          type: integer
+          minimum: 1
+          description: Decision order within the campaign, starting at 1.
+        round:
+          type: integer
+          minimum: 0
+        candidateId: { type: string, minLength: 1 }
+        overrides:
+          type: object
+          additionalProperties: { type: number }
+        effectiveRulesDigest: { $ref: '#/components/schemas/Sha256Digest' }
+        seeds:
+          type: array
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/DecimalUint64' }
+          description: Seeds played for this candidate so far.
+        gamesSpent:
+          type: integer
+          minimum: 0
+        evaluation:
+          allOf: [ { $ref: '#/components/schemas/CampaignEvaluation' } ]
+          nullable: true
+        decision: { $ref: '#/components/schemas/CampaignLogDecision' }
+        reason:
+          allOf: [ { $ref: '#/components/schemas/CampaignLogReason' } ]
+          nullable: true
+        evidence:
+          allOf: [ { $ref: '#/components/schemas/CampaignLogEvidence' } ]
+          nullable: true
+    CampaignLogPage:
+      type: object
+      additionalProperties: false
+      required: [ items, total ]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/CampaignLogEntry' }
+        total: { type: integer, minimum: 0 }
+    ConfirmationRun:
+      type: object
+      additionalProperties: false
+      required: [ candidateId, experimentId, runId, evaluation ]
+      properties:
+        candidateId:
+          type: string
+          minLength: 1
+          description: The short-listed candidate id, or the literal `baseline` for the baseline run.
+        experimentId: { type: string, format: uuid }
+        runId: { type: string, format: uuid }
+        evaluation:
+          allOf: [ { $ref: '#/components/schemas/CampaignEvaluation' } ]
+          nullable: true
+          description: Null until the confirmation run has an evaluation.
+    CampaignConfirmation:
+      type: object
+      additionalProperties: false
+      required: [ seedCount, runs, seedOverlap ]
+      description: >-
+        One confirmation run per short-listed candidate and one for the baseline. Confirmation
+        seeds derive from `confirmationMasterSeed` only.
+      properties:
+        seedCount:
+          type: integer
+          minimum: 2
+          description: The criterion's `confirmationMinimumSeeds`.
+        runs:
+          type: array
+          items: { $ref: '#/components/schemas/ConfirmationRun' }
+        seedOverlap:
+          type: boolean
+          description: Always false for an accepted confirmation.
+    CampaignParallelismUpdate:
+      type: object
+      additionalProperties: false
+      required: [ parallelism ]
+      properties:
+        parallelism: { type: integer, minimum: 1 }
     ProblemDetail:
       type: object
       additionalProperties: true
@@ -2242,10 +2887,10 @@ components:
           type: string
           minLength: 1
           description: >-
-            Path of the offending manifest or request value, such as `seeds`,
-            `policies[0].seatAssignment`, or `variants[1].overrides.game.rules.win-score-threshold`. Present
-            on `INVALID_EXPERIMENT`, `INVALID_REQUEST` and `MANIFEST_MISMATCH` when the refusal is attributable
-            to one value; absent otherwise.
+            Path of the offending manifest, campaign definition or request value, such as `seeds`,
+            `policies[0].seatAssignment`, `variants[1].overrides.game.rules.win-score-threshold`, or
+            `confirmationMasterSeed`. Present on `INVALID_EXPERIMENT`, `INVALID_CAMPAIGN`, `INVALID_REQUEST` and
+            `MANIFEST_MISMATCH` when the refusal is attributable to one value; absent otherwise.
         reason:
           type: string
           enum:
@@ -2255,9 +2900,15 @@ components:
             - OUT_OF_RANGE
             - OFF_STEP
             - CONSTRAINT_VIOLATED
+            - UNKNOWN_CRITERION
+            - EQUAL_MASTER_SEEDS
+            - INVALID_VALUE
           description: >-
-            Why a variant's overrides or baseline were refused. Present on variant-rule refusals; absent
-            otherwise.
+            Why a variant's overrides or a campaign definition were refused. Present on variant-rule
+            and campaign refusals; absent otherwise. `UNKNOWN_PARAMETER_SPACE` and `UNKNOWN_BASELINE`
+            apply to both; `UNKNOWN_PARAMETER`, `OUT_OF_RANGE`, `OFF_STEP` and `CONSTRAINT_VIOLATED`
+            apply to variant overrides; `UNKNOWN_CRITERION`, `EQUAL_MASTER_SEEDS` and `INVALID_VALUE`
+            apply to campaign definitions.
         constraintId:
           type: string
           minLength: 1
@@ -2275,6 +2926,9 @@ components:
             - MANIFEST_MISMATCH
             - INCOMPARABLE_RUNS
             - INVALID_REQUEST
+            - INVALID_CAMPAIGN
+            - INVALID_CAMPAIGN_STATE
+            - SEED_OVERLAP
             - UNAUTHORIZED
             - INSUFFICIENT_SCOPE
             - RESOURCE_NOT_FOUND
