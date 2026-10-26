@@ -95,6 +95,9 @@ class SimulationApiContractTest {
         assertTrue(specification.contains("enum: [ GATE_FAILS, DOMINATED, NOT_IN_TOP_FRACTION, BUDGET_EXHAUSTED ]"));
         assertTrue(specification.contains("enum: [ SUCCESSIVE_HALVING_V1 ]"));
         assertTrue(specification.contains("INVALID_CAMPAIGN_STATE"));
+        assertTrue(specification.contains("already `PAUSED` campaign returns that"));
+        assertTrue(specification.contains("already `RUNNING` campaign returns that"));
+        assertTrue(specification.contains("already `CANCELLED`"));
         assertTrue(specification.contains("SEED_OVERLAP"));
         assertTrue(specification.contains("EQUAL_MASTER_SEEDS"));
         assertTrue(specification.contains("UNKNOWN_CRITERION"));
