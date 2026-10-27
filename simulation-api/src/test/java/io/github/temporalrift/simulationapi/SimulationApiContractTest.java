@@ -38,6 +38,15 @@ class SimulationApiContractTest {
                         "getParameterSpace",
                         "previewVariantRules",
                         "getVariantRules",
+                        "createCampaign",
+                        "listCampaigns",
+                        "getCampaign",
+                        "pauseCampaign",
+                        "resumeCampaign",
+                        "cancelCampaign",
+                        "setCampaignParallelism",
+                        "getCampaignLog",
+                        "startConfirmation",
                         "startFidelityCheck",
                         "listFidelityChecks",
                         "getFidelityCheck",
@@ -53,7 +62,95 @@ class SimulationApiContractTest {
         assertTrue(specification.contains("/api/v1/parameter-spaces"));
         assertTrue(specification.contains("/api/v1/variant-rules-previews"));
         assertTrue(specification.contains("/api/v1/experiments/{experimentId}/variants/{label}/rules"));
-        assertTrue(specification.contains("version: 4.1.0"));
+        assertTrue(specification.contains("/api/v1/campaigns/{campaignId}/pause"));
+        assertTrue(specification.contains("/api/v1/campaigns/{campaignId}/resume"));
+        assertTrue(specification.contains("/api/v1/campaigns/{campaignId}/cancel"));
+        assertTrue(specification.contains("/api/v1/campaigns/{campaignId}/parallelism"));
+        assertTrue(specification.contains("/api/v1/campaigns/{campaignId}/log"));
+        assertTrue(specification.contains("/api/v1/campaigns/{campaignId}/confirmation"));
+        assertTrue(specification.contains("version: 4.2.0"));
+    }
+
+    @Test
+    void exposesTheSearchCampaignContract() throws IOException {
+        var specification = specification();
+
+        List.of(
+                        "CampaignDefinition",
+                        "CampaignBaseline",
+                        "CampaignFailure",
+                        "SearchAlgorithm",
+                        "Campaign",
+                        "CampaignState",
+                        "CampaignList",
+                        "CampaignLogEntry",
+                        "CampaignLogDecision",
+                        "CampaignLogReason",
+                        "CampaignLogEvidence",
+                        "CampaignEvaluation",
+                        "CampaignLogPage",
+                        "CampaignConfirmation",
+                        "ConfirmationRun",
+                        "CampaignParallelismUpdate")
+                .forEach(schema -> assertTrue(specification.contains("    " + schema + ":"), schema));
+
+        assertTrue(specification.contains(
+                "enum: [ QUEUED, RUNNING, PAUSED, SEARCH_COMPLETED, CONFIRMING, COMPLETED, CANCELLED, FAILED ]"));
+        assertTrue(specification.contains("enum: [ GENERATED, KEPT, DISCARDED, SHORT_LISTED ]"));
+        assertTrue(specification.contains("enum: [ GATE_FAILS, DOMINATED, NOT_IN_TOP_FRACTION, BUDGET_EXHAUSTED ]"));
+        assertTrue(specification.contains("enum: [ SUCCESSIVE_HALVING_V1 ]"));
+        assertTrue(specification.contains("INVALID_CAMPAIGN_STATE"));
+        assertTrue(specification.contains("already `PAUSED` campaign returns that"));
+        assertTrue(specification.contains("already `RUNNING` campaign returns that"));
+        assertTrue(specification.contains("already `CANCELLED`"));
+        assertTrue(specification.contains("SEED_OVERLAP"));
+        assertTrue(specification.contains("EQUAL_MASTER_SEEDS"));
+        assertTrue(specification.contains("UNKNOWN_CRITERION"));
+
+        var definition = schema(specification, "    CampaignDefinition:", "    CampaignState:");
+        assertTrue(definition.contains("default: 14400"));
+        assertTrue(definition.contains("default: 4"));
+        assertTrue(definition.contains("budgetSeconds"));
+        assertTrue(definition.contains("parallelism"));
+
+        var entry = schema(specification, "    CampaignLogEntry:", "    CampaignLogPage:");
+        List.of("sequence", "round", "candidateId", "overrides", "effectiveRulesDigest", "seeds",
+                        "gamesSpent", "evaluation", "decision", "reason", "evidence")
+                .forEach(field -> assertTrue(entry.contains(field), field));
+
+        var evidence = schema(specification, "    CampaignLogEvidence:", "    CampaignLogEntry:");
+        assertTrue(evidence.contains("lineIds"));
+        assertTrue(evidence.contains("dominatedBy"));
+
+        var confirmation = schema(specification, "    CampaignConfirmation:", "    CampaignParallelismUpdate:");
+        assertTrue(confirmation.contains("seedCount"));
+        assertTrue(confirmation.contains("seedOverlap"));
+        assertTrue(specification.contains("literal `baseline`"));
+
+        assertTrue(specification.contains("examples:"));
+        assertTrue(specification.contains("summary: A search paused by the designer"));
+        assertTrue(specification.contains("decision: DISCARDED"));
+        assertTrue(specification.contains("reason: GATE_FAILS"));
+        assertTrue(specification.contains("lineIds: [ 'G-01' ]"));
+    }
+
+    @Test
+    void campaignRepeatsTheDefinitionFieldForField() throws IOException {
+        var specification = specification();
+        var definition = schema(specification, "    CampaignDefinition:", "    CampaignState:");
+        var campaign = schema(specification, "    Campaign:", "    CampaignList:");
+
+        List.of(
+                        "name",
+                        "baseline",
+                        "parameterSpaceVersion",
+                        "criterionVersion",
+                        "policies",
+                        "playerCounts",
+                        "searchMasterSeed",
+                        "confirmationMasterSeed",
+                        "algorithm")
+                .forEach(field -> assertEquals(property(definition, field), property(campaign, field), field));
     }
 
     @Test
@@ -103,7 +200,7 @@ class SimulationApiContractTest {
     }
 
     private static String property(String schemaBlock, String field) {
-        var marker = "\n        " + field + ":\n";
+        var marker = "\n        " + field + ":";
         var start = schemaBlock.indexOf(marker);
         assertTrue(start >= 0, field);
 

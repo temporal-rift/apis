@@ -199,7 +199,10 @@ class SimulationVariantRulesTest {
                         "UNKNOWN_PARAMETER",
                         "OUT_OF_RANGE",
                         "OFF_STEP",
-                        "CONSTRAINT_VIOLATED"),
+                        "CONSTRAINT_VIOLATED",
+                        "UNKNOWN_CRITERION",
+                        "EQUAL_MASTER_SEEDS",
+                        "INVALID_VALUE"),
                 reason.getEnum());
     }
 
