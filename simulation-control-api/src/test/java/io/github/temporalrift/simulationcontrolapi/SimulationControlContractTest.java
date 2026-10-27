@@ -132,11 +132,11 @@ class SimulationControlContractTest {
     }
 
     @Test
-    void moduleAndSpecificationVersionAreTwoZeroZero() throws IOException {
-        assertTrue(Files.readString(Path.of("pom.xml")).contains("<version>2.0.0</version>"));
+    void moduleAndSpecificationVersionAreTwoZeroOne() throws IOException {
+        assertTrue(Files.readString(Path.of("pom.xml")).contains("<version>2.0.1</version>"));
 
         var specification = readSpecification();
-        assertTrue(specification.contains("version: 2.0.0"));
+        assertTrue(specification.contains("version: 2.0.1"));
         assertTrue(specification.contains("operationId: closeSimulationExecution"));
         assertTrue(specification.contains("/internal/simulation/v1/execution"));
         assertTrue(specification.contains("name: caseKey"));
