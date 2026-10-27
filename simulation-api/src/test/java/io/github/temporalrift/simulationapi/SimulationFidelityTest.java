@@ -100,6 +100,14 @@ class SimulationFidelityTest {
     }
 
     @Test
+    void aVerdictThatIsNullUntilTheCheckEndsListsNullAmongItsValues() {
+        Schema<?> verdict = (Schema<?>) openApi.getComponents().getSchemas().get("FidelityCheck").getProperties().get("verdict");
+
+        assertEquals(Boolean.TRUE, verdict.getNullable());
+        assertEquals(java.util.Arrays.asList("PASSED", "FAILED", null), verdict.getEnum());
+    }
+
+    @Test
     void aFailedCheckKeepsItsFirstDivergence() {
         var check = check("FAILED", "\"FAILED\"", "{ \"total\": 330, \"matched\": 329, \"diverged\": 1, "
                 + "\"unreproducible\": 0, \"pending\": 0 }");
