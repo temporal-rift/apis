@@ -37,7 +37,12 @@ class SimulationApiContractTest {
                         "listParameterSpaces",
                         "getParameterSpace",
                         "previewVariantRules",
-                        "getVariantRules")
+                        "getVariantRules",
+                        "startFidelityCheck",
+                        "listFidelityChecks",
+                        "getFidelityCheck",
+                        "listFidelityCases",
+                        "getSimulatorFidelity")
                 .forEach(operation -> assertTrue(specification.contains("operationId: " + operation)));
         assertTrue(specification.contains("name: Idempotency-Key"));
         assertTrue(specification.contains("format: uuid"));
@@ -48,7 +53,7 @@ class SimulationApiContractTest {
         assertTrue(specification.contains("/api/v1/parameter-spaces"));
         assertTrue(specification.contains("/api/v1/variant-rules-previews"));
         assertTrue(specification.contains("/api/v1/experiments/{experimentId}/variants/{label}/rules"));
-        assertTrue(specification.contains("version: 4.0.0"));
+        assertTrue(specification.contains("version: 4.1.0"));
     }
 
     @Test

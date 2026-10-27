@@ -1,13 +1,14 @@
 openapi: 3.0.3
 info:
   title: Temporal Rift Simulation Workbench API
-  version: 4.0.0
+  version: 4.1.0
   description: >-
     Creates immutable experiment manifests and provides durable run control, evidence inspection,
     statistical reporting, paired comparisons, perspective-safe replay, guided setup discovery
-    (lane bundles and experiment templates), balance criteria and run evaluation, and variant rules
+    (lane bundles and experiment templates), balance criteria and run evaluation, variant rules
     expressed as a baseline document plus validated parameter overrides (parameter spaces and
-    variant-rules previews) for the separate simulation workbench. The workbench orchestrates real
+    variant-rules previews), and simulator fidelity checks against a real lane for the separate
+    simulation workbench. The workbench orchestrates real
     game services; it never replaces their authoritative gameplay rules.
 
 servers:
@@ -27,6 +28,7 @@ tags:
   - name: VariantRules
   - name: Criteria
   - name: Evaluations
+  - name: Fidelity
 
 paths:
   /api/v1/experiments:
@@ -760,6 +762,142 @@ paths:
         '403': { $ref: '#/components/responses/InsufficientScope' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /api/v1/fidelity-checks:
+    post:
+      tags: [ Fidelity ]
+      operationId: startFidelityCheck
+      summary: Start a simulator fidelity check
+      description: >-
+        Requires `simulation:write`. For the seed, plays on the simulator the full case matrix (player
+        counts 3, 4 and 5, every faction set and seat rotation, policies `faction-greedy-v1` and
+        `random-v1`) for the variants `baseline`, `low` and `high`, then reproduces every case on one
+        real lane. Repeating the same idempotency key with the same request returns the original check.
+        Refused with `FIDELITY_CHECK_ACTIVE` while another check is `QUEUED` or `RUNNING`, and with
+        `SIMULATOR_NOT_AVAILABLE` when the simulator is not enabled or no real lane fits its source
+        revisions.
+      x-required-scopes: [ simulation:write ]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FidelityCheckRequest' }
+      responses:
+        '202':
+          description: Check accepted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FidelityCheck' }
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/InsufficientScope' }
+        '409':
+          description: >-
+            Idempotency conflict (code IDEMPOTENCY_CONFLICT), another check is active (code
+            FIDELITY_CHECK_ACTIVE), or the simulator or a fitting real lane is unavailable (code
+            SIMULATOR_NOT_AVAILABLE)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ProblemDetail' }
+    get:
+      tags: [ Fidelity ]
+      operationId: listFidelityChecks
+      summary: List fidelity checks, newest first
+      description: Requires `simulation:read`. Ordered by descending `createdAt`, then descending `fidelityCheckId`.
+      x-required-scopes: [ simulation:read ]
+      parameters:
+        - name: state
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/FidelityCheckState' }
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: One page of fidelity checks
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FidelityCheckPage' }
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/InsufficientScope' }
+
+  /api/v1/fidelity-checks/{fidelityCheckId}:
+    get:
+      tags: [ Fidelity ]
+      operationId: getFidelityCheck
+      summary: Get one fidelity check
+      description: Requires `simulation:read`.
+      x-required-scopes: [ simulation:read ]
+      parameters:
+        - $ref: '#/components/parameters/FidelityCheckId'
+      responses:
+        '200':
+          description: The fidelity check
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FidelityCheck' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/InsufficientScope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/fidelity-checks/{fidelityCheckId}/cases:
+    get:
+      tags: [ Fidelity ]
+      operationId: listFidelityCases
+      summary: List the cases of a fidelity check in matrix order
+      description: >-
+        Requires `simulation:read`. Ordered by the variants `baseline`, `low`, `high`, then ascending
+        player count, faction set, seat rotation and policy id.
+      x-required-scopes: [ simulation:read ]
+      parameters:
+        - $ref: '#/components/parameters/FidelityCheckId'
+        - name: variantLabel
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/FidelityVariantLabel' }
+        - name: result
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/FidelityCaseResult' }
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: One page of fidelity cases
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FidelityCasePage' }
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/InsufficientScope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/simulator/fidelity:
+    get:
+      tags: [ Fidelity ]
+      operationId: getSimulatorFidelity
+      summary: Read whether the simulator's service revisions have a passing fidelity record
+      description: >-
+        Requires `simulation:read`. A record applies only to the exact source revisions of
+        game-service, timeline-service and read-service it ran with, so a simulator embedding any
+        other revision has `established` false until a check passes on it.
+      x-required-scopes: [ simulation:read ]
+      responses:
+        '200':
+          description: The simulator's revisions and the newest passing record for exactly them
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SimulatorFidelity' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/InsufficientScope' }
+        '409':
+          description: The simulator is not enabled (code SIMULATOR_NOT_AVAILABLE)
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/ProblemDetail' }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -804,6 +942,11 @@ components:
       schema: { type: string, format: uuid }
     ComparisonId:
       name: comparisonId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    FidelityCheckId:
+      name: fidelityCheckId
       in: path
       required: true
       schema: { type: string, format: uuid }
@@ -2228,6 +2371,169 @@ components:
           type: object
           additionalProperties: { type: number }
           description: The normalised overrides, with baseline-equal values removed, as freezing would store them.
+    FidelityCheckRequest:
+      type: object
+      additionalProperties: false
+      required: [ seed ]
+      properties:
+        seed:
+          allOf: [ { $ref: '#/components/schemas/DecimalUint64' } ]
+          description: The seed every case of every variant plays.
+    FidelityCheckState:
+      type: string
+      enum: [ QUEUED, RUNNING, PASSED, FAILED ]
+      description: >-
+        QUEUED is accepted and not started; RUNNING is playing or reproducing; PASSED means every case
+        reported MATCH; FAILED means a case diverged or could not be reproduced, or the check could not
+        complete.
+    FidelityVariantLabel:
+      type: string
+      enum: [ baseline, low, high ]
+    FidelityCaseResult:
+      type: string
+      enum: [ PENDING, MATCH, DIVERGED, UNREPRODUCIBLE ]
+    FidelityEnvironment:
+      type: object
+      additionalProperties: false
+      required: [ services, contentDigest, contracts ]
+      description: The builds one side of a fidelity check ran.
+      properties:
+        services: { $ref: '#/components/schemas/ServiceProvenanceMap' }
+        contentDigest: { $ref: '#/components/schemas/Sha256Digest' }
+        contracts: { $ref: '#/components/schemas/ContractVersions' }
+    FidelityVariant:
+      type: object
+      additionalProperties: false
+      required: [ label, effectiveRulesDigest, overrides ]
+      properties:
+        label: { $ref: '#/components/schemas/FidelityVariantLabel' }
+        effectiveRulesDigest: { $ref: '#/components/schemas/Sha256Digest' }
+        overrides:
+          type: object
+          additionalProperties: { type: number }
+          description: The normalised overrides on the baseline; empty for `baseline`.
+    FidelityCounts:
+      type: object
+      additionalProperties: false
+      required: [ total, matched, diverged, unreproducible, pending ]
+      properties:
+        total: { type: integer, minimum: 0 }
+        matched: { type: integer, minimum: 0 }
+        diverged: { type: integer, minimum: 0 }
+        unreproducible: { type: integer, minimum: 0 }
+        pending: { type: integer, minimum: 0 }
+    FidelityCheck:
+      type: object
+      additionalProperties: false
+      required:
+        - fidelityCheckId
+        - seed
+        - state
+        - verdict
+        - simulator
+        - lane
+        - variants
+        - counts
+        - failure
+        - createdAt
+        - startedAt
+        - finishedAt
+      description: >-
+        The record of one check. `verdict` is `PASSED` if and only if `counts.total` is above 0 and
+        `counts.matched` equals `counts.total`; any divergence or unreproducible case makes it `FAILED`.
+        No tolerance exists.
+      properties:
+        fidelityCheckId: { type: string, format: uuid }
+        seed: { $ref: '#/components/schemas/DecimalUint64' }
+        state: { $ref: '#/components/schemas/FidelityCheckState' }
+        verdict:
+          type: string
+          enum: [ PASSED, FAILED ]
+          nullable: true
+          description: Null until `state` is `PASSED` or `FAILED`.
+        simulator: { $ref: '#/components/schemas/FidelityEnvironment' }
+        lane:
+          allOf: [ { $ref: '#/components/schemas/FidelityEnvironment' } ]
+          nullable: true
+          description: The real lane the cases were reproduced on; null until one is chosen.
+        variants:
+          type: array
+          items: { $ref: '#/components/schemas/FidelityVariant' }
+        counts: { $ref: '#/components/schemas/FidelityCounts' }
+        failure:
+          allOf: [ { $ref: '#/components/schemas/Failure' } ]
+          nullable: true
+          description: Set when the check failed for a reason other than its cases' results.
+        createdAt: { type: string, format: date-time }
+        startedAt: { type: string, format: date-time, nullable: true }
+        finishedAt: { type: string, format: date-time, nullable: true }
+    FidelityCheckPage:
+      type: object
+      additionalProperties: false
+      required: [ items, total ]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/FidelityCheck' }
+        total: { type: integer, minimum: 0 }
+    FidelityCase:
+      type: object
+      additionalProperties: false
+      required:
+        - caseKey
+        - variantLabel
+        - playerCount
+        - factionSet
+        - seatRotation
+        - policyId
+        - result
+        - firstDivergence
+        - failure
+      properties:
+        caseKey: { type: string, format: uuid }
+        variantLabel: { $ref: '#/components/schemas/FidelityVariantLabel' }
+        playerCount: { type: integer, enum: [ 3, 4, 5 ] }
+        factionSet: { $ref: '#/components/schemas/FactionSet' }
+        seatRotation: { type: integer, minimum: 0 }
+        policyId: { type: string, minLength: 1 }
+        result: { $ref: '#/components/schemas/FidelityCaseResult' }
+        firstDivergence:
+          allOf: [ { $ref: '#/components/schemas/Divergence' } ]
+          nullable: true
+          description: Non-null only when `result` is `DIVERGED`.
+        failure:
+          allOf: [ { $ref: '#/components/schemas/Failure' } ]
+          nullable: true
+          description: Non-null only when `result` is `UNREPRODUCIBLE`.
+    FidelityCasePage:
+      type: object
+      additionalProperties: false
+      required: [ items, total ]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/FidelityCase' }
+        total: { type: integer, minimum: 0 }
+    SimulatorFidelity:
+      type: object
+      additionalProperties: false
+      required: [ sourceRevisions, established, record ]
+      properties:
+        sourceRevisions:
+          type: object
+          additionalProperties: false
+          required: [ gameService, timelineService, readService ]
+          properties:
+            gameService: { type: string, pattern: '^[a-f0-9]{7,64}$' }
+            timelineService: { type: string, pattern: '^[a-f0-9]{7,64}$' }
+            readService: { type: string, pattern: '^[a-f0-9]{7,64}$' }
+        established:
+          type: boolean
+          description: A `PASSED` record exists for exactly these three source revisions.
+        record:
+          allOf: [ { $ref: '#/components/schemas/FidelityCheck' } ]
+          nullable: true
+          description: The newest `PASSED` record for exactly these revisions; null when `established` is false.
     ProblemDetail:
       type: object
       additionalProperties: true
@@ -2275,6 +2581,8 @@ components:
             - MANIFEST_MISMATCH
             - INCOMPARABLE_RUNS
             - INVALID_REQUEST
+            - FIDELITY_CHECK_ACTIVE
+            - SIMULATOR_NOT_AVAILABLE
             - UNAUTHORIZED
             - INSUFFICIENT_SCOPE
             - RESOURCE_NOT_FOUND
