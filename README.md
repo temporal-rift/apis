@@ -29,7 +29,7 @@ apis/
 │   └── src/main/resources/openapi/v1/scoring.yml
 ├── chains-api/          ← OpenAPI contract for timeline-service's gated Weaver chain endpoint
 │   └── src/main/resources/openapi/v1/chains.yml
-├── simulation-api/      ← OpenAPI contract for the simulation workbench (experiments, runs, reports, variants as baseline plus overrides, parameter spaces)
+├── simulation-api/      ← OpenAPI contract for the simulation workbench (experiments, runs, reports, variants as baseline plus overrides, parameter spaces, simulator fidelity checks)
 │   └── src/main/resources/openapi/v1/simulation.yml
 ├── simulation-control-api/ ← OpenAPI contract for isolated per-game simulation execution contexts
 │   └── src/main/resources/openapi/v1/simulation-control.yml
