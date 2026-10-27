@@ -29,6 +29,8 @@ class SimulationFidelityTest {
     private static final String REVISION = "0123456789abcdef0123456789abcdef01234567";
     private static final String ID = "6f3f2a52-4f0a-4c69-9a39-2a8f0e2b9d11";
     private static final String KEY = "0b5c2f0e-2f57-4b8e-9a64-3f0d6a8f7e10";
+    private static final String EXPERIMENT_ID = "1d6e4b2a-7c3f-4e1a-8b5d-9f2c0a3e6b47";
+    private static final String RUN_ID = "4a8c1e3f-2b6d-4f9a-8c7e-1d3b5f7a9c20";
 
     private final String url = Objects.requireNonNull(getClass().getClassLoader().getResource(SPECIFICATION))
             .toString();
@@ -105,6 +107,25 @@ class SimulationFidelityTest {
 
         assertEquals(Boolean.TRUE, verdict.getNullable());
         assertEquals(java.util.Arrays.asList("PASSED", "FAILED", null), verdict.getEnum());
+    }
+
+    @Test
+    void aCheckNamesTheExperimentAndTheRunItPlaysOnceItBegins() {
+        var counts = counts();
+        var queued = check("QUEUED", "null", counts);
+        var running = check("RUNNING", "null", counts);
+
+        assertTrue(queued.contains("\"experimentId\": null, \"runId\": null"));
+        assertTrue(running.contains("\"runId\": \"" + RUN_ID + "\""));
+        assertValid(validator.validateResponse("/api/v1/fidelity-checks/" + ID, Request.Method.GET, json(queued)));
+        assertValid(validator.validateResponse("/api/v1/fidelity-checks/" + ID, Request.Method.GET, json(running)));
+        assertFalse(validator
+                .validateResponse(
+                        "/api/v1/fidelity-checks/" + ID,
+                        Request.Method.GET,
+                        json(running.replace("\"runId\": \"" + RUN_ID + "\",", "")))
+                .getMessages()
+                .isEmpty());
     }
 
     @Test
@@ -229,7 +250,7 @@ class SimulationFidelityTest {
     private static String check(String state, String verdict, String counts) {
         return """
                 { "fidelityCheckId": "%s", "seed": "42", "state": "%s", "verdict": %s,
-                  "simulator": %s, "lane": %s,
+                  "simulator": %s, "lane": %s, %s
                   "variants": [
                     { "label": "baseline", "effectiveRulesDigest": "%s", "overrides": {} },
                     { "label": "low", "effectiveRulesDigest": "%s",
@@ -238,7 +259,14 @@ class SimulationFidelityTest {
                       "overrides": { "game.rules.win-score-threshold": 26 } } ],
                   "counts": %s, "failure": null,
                   "createdAt": "2026-10-27T10:00:00Z", "startedAt": "2026-10-27T10:00:05Z", "finishedAt": null }
-                """.formatted(ID, state, verdict, environment(), environment(), DIGEST, DIGEST, DIGEST, counts);
+                """.formatted(ID, state, verdict, environment(), environment(), played(state), DIGEST, DIGEST, DIGEST, counts);
+    }
+
+    /** A check names the experiment and the run it plays from the moment it begins. */
+    private static String played(String state) {
+        return state.equals("QUEUED")
+                ? "\"experimentId\": null, \"runId\": null,"
+                : "\"experimentId\": \"%s\", \"runId\": \"%s\",".formatted(EXPERIMENT_ID, RUN_ID);
     }
 
     private static String problem(int status, String code) {

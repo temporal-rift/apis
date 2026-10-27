@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Temporal Rift Simulation Workbench API
-  version: 4.2.1
+  version: 4.3.0
   description: >-
     Creates immutable experiment manifests and provides durable run control, evidence inspection,
     statistical reporting, paired comparisons, perspective-safe replay, guided setup discovery
@@ -3079,6 +3079,8 @@ components:
         - verdict
         - simulator
         - lane
+        - experimentId
+        - runId
         - variants
         - counts
         - failure
@@ -3103,6 +3105,19 @@ components:
           allOf: [ { $ref: '#/components/schemas/FidelityEnvironment' } ]
           nullable: true
           description: The real lane the cases were reproduced on; null until one is chosen.
+        experimentId:
+          type: string
+          format: uuid
+          nullable: true
+          description: The experiment the check froze to play its cases; null until the check begins.
+        runId:
+          type: string
+          format: uuid
+          nullable: true
+          description: >-
+            The simulator run that plays the check's cases; null until the check begins. `getRun` serves its
+            progress while the check's counts are still 0, and `cancelRun` abandons the check, which then ends
+            `FAILED` with failure code `RUN_CANCELLED`.
         variants:
           type: array
           items: { $ref: '#/components/schemas/FidelityVariant' }
