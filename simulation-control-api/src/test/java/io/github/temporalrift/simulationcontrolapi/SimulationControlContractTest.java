@@ -132,15 +132,49 @@ class SimulationControlContractTest {
     }
 
     @Test
-    void moduleAndSpecificationVersionAreTwoZeroOne() throws IOException {
-        assertTrue(Files.readString(Path.of("pom.xml")).contains("<version>2.0.1</version>"));
+    void moduleAndSpecificationVersionAreTwoOneZero() throws IOException {
+        assertTrue(Files.readString(Path.of("pom.xml")).contains("<version>2.1.0</version>"));
 
         var specification = readSpecification();
-        assertTrue(specification.contains("version: 2.0.1"));
+        assertTrue(specification.contains("version: 2.1.0"));
         assertTrue(specification.contains("operationId: closeSimulationExecution"));
         assertTrue(specification.contains("/internal/simulation/v1/execution"));
         assertTrue(specification.contains("name: caseKey"));
         assertTrue(specification.contains("in: query"));
+    }
+
+    @Test
+    void contractNamesReadServiceAsATimerFreeServer() throws IOException {
+        var specification = readSpecification();
+
+        assertTrue(specification.contains("The game, timeline and read services each expose this contract"));
+        assertTrue(specification.contains("owns no timers"));
+        assertTrue(specification.contains("a caller is not"));
+        assertTrue(specification.contains("required to advance it"));
+    }
+
+    @Test
+    void configureConflictDocumentsBothCodesAndTheirRecovery() throws IOException {
+        var specification = readSpecification();
+
+        assertTrue(specification.contains("configureSimulationExecution"));
+        assertTrue(specification.contains("409 EXECUTION_STATE_NOT_CLEAN"));
+        assertTrue(specification.contains("A different context is already open (`code: EXECUTION_CONTEXT_CONFLICT`)"));
+        assertTrue(specification.contains("(`code: EXECUTION_STATE_NOT_CLEAN`)"));
+        assertTrue(specification.contains("not cleared by repeating the close"));
+        assertTrue(specification.contains("in a lane that means recycling the"));
+        assertFalse(specification.contains("ExecutionStateNotClean:"));
+    }
+
+    @Test
+    void closeDiscardsEveryGameplayStateOfTheContext() throws IOException {
+        var specification = readSpecification();
+
+        assertTrue(specification.contains("Every other gameplay state of the context"));
+        assertTrue(specification.contains("is discarded as well"));
+        assertTrue(specification.contains("the game's projections and idempotency claims"));
+        assertTrue(specification.contains("counters of the context's participants"));
+        assertTrue(specification.contains("exactly as a newly started service"));
     }
 
     @Test
@@ -164,6 +198,7 @@ class SimulationControlContractTest {
                 "SIMULATION_CONTROL_FORBIDDEN",
                 "SIMULATION_CONTROL_UNAVAILABLE",
                 "EXECUTION_CONTEXT_CONFLICT",
+                "EXECUTION_STATE_NOT_CLEAN",
                 "EXECUTION_NOT_CONFIGURED",
                 "IDEMPOTENCY_CONFLICT",
                 "STALE_EXECUTION_REVISION",
