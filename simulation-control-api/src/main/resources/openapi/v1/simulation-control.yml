@@ -35,12 +35,14 @@ paths:
         its revision starts at 0 and its logical time is the context's `logicalTime`. Repeating an
         identical context is a no-op returning the current checkpoint; any other context while one
         is open is rejected. With no context open, when the service still holds gameplay state of an
-        earlier context, it opens nothing and answers `409 EXECUTION_STATE_NOT_CLEAN`. A `caseKey`
-        closed earlier may be opened again: its game is played as a new game with the same identity,
-        and records already in the event source when it was closed never reach it. The service
-        recomputes the canonical digest of `rules.properties` and validates the rules it uses for the
-        context's game. This route is registered only in an isolated simulation deployment and
-        requires `simulation:control`.
+        earlier context, it opens nothing and answers `409 EXECUTION_STATE_NOT_CLEAN`. That state is
+        not cleared by repeating the close of the earlier `caseKey`, which stays a no-op; the service
+        must reach a clean state before it opens a context, and in a lane that means recycling the
+        lane. A `caseKey` closed earlier may be opened again: its game is played as a new game with
+        the same identity, and records already in the event source when it was closed never reach it.
+        The service recomputes the canonical digest of `rules.properties` and validates the rules it
+        uses for the context's game. This route is registered only in an isolated simulation
+        deployment and requires `simulation:control`.
       requestBody:
         required: true
         content:
@@ -206,15 +208,6 @@ components:
         A different context is already open (`code: EXECUTION_CONTEXT_CONFLICT`), or no context is
         open while the service still holds gameplay state of an earlier context
         (`code: EXECUTION_STATE_NOT_CLEAN`). In both cases nothing is opened.
-      content:
-        application/problem+json:
-          schema:
-            $ref: '#/components/schemas/ProblemDetail'
-    ExecutionStateNotClean:
-      description: |
-        No context is open, but the service still holds gameplay state of an earlier context
-        (`code: EXECUTION_STATE_NOT_CLEAN`). Nothing is opened; the caller discards that state by
-        closing the earlier context before retrying.
       content:
         application/problem+json:
           schema:

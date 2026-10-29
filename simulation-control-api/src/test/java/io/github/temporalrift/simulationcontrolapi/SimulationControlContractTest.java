@@ -154,14 +154,16 @@ class SimulationControlContractTest {
     }
 
     @Test
-    void configurationDocumentsBothConflictCodes() throws IOException {
+    void configureConflictDocumentsBothCodesAndTheirRecovery() throws IOException {
         var specification = readSpecification();
 
         assertTrue(specification.contains("configureSimulationExecution"));
         assertTrue(specification.contains("409 EXECUTION_STATE_NOT_CLEAN"));
-        assertTrue(specification.contains("ExecutionStateNotClean:"));
         assertTrue(specification.contains("A different context is already open (`code: EXECUTION_CONTEXT_CONFLICT`)"));
-        assertTrue(specification.contains("still holds gameplay state of an earlier context"));
+        assertTrue(specification.contains("(`code: EXECUTION_STATE_NOT_CLEAN`)"));
+        assertTrue(specification.contains("not cleared by repeating the close"));
+        assertTrue(specification.contains("in a lane that means recycling the"));
+        assertFalse(specification.contains("ExecutionStateNotClean:"));
     }
 
     @Test

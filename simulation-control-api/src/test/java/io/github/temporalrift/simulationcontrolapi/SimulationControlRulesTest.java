@@ -96,6 +96,28 @@ class SimulationControlRulesTest {
     }
 
     @Test
+    void configureConflictDocumentsBothCodesAndTheirRecovery() {
+        var operation = openApi.getPaths().get(EXECUTION_PATH).getPut();
+        var conflict = operation.getResponses().get("409");
+
+        assertEquals("#/components/responses/ExecutionContextConflict", conflict.get$ref());
+        var component = openApi.getComponents().getResponses().get("ExecutionContextConflict");
+        assertTrue(component.getDescription().contains("EXECUTION_CONTEXT_CONFLICT"));
+        assertTrue(component.getDescription().contains("EXECUTION_STATE_NOT_CLEAN"));
+        assertTrue(operation.getDescription().contains("not cleared by repeating the close"));
+        assertTrue(operation.getDescription().contains("in a lane that means recycling the"));
+        assertFalse(operation.getDescription().contains("before retrying"));
+    }
+
+    @Test
+    void everyNamedResponseIsReferenced() {
+        var text = specificationText();
+
+        openApi.getComponents().getResponses().keySet().forEach(name ->
+                assertTrue(text.contains("#/components/responses/" + name), () -> "Unused response " + name));
+    }
+
+    @Test
     void theSpecificationDocumentsEventsOfOtherGamesAndPerGameLifecycle() {
         var description = openApi.getInfo().getDescription();
 
