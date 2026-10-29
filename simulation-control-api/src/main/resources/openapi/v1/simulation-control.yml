@@ -3,16 +3,18 @@ info:
   title: Temporal Rift — Simulation Control API
   description: |
     Operator-only controls for reproducible execution in an isolated simulation deployment.
-    The game and timeline services each expose this contract and own independent execution
-    revisions and checkpoints. The caller coordinates both services and downstream projection
-    barriers; an acknowledgement from one service does not imply global completion.
+    The game, timeline and read services each expose this contract and own independent execution
+    revisions and checkpoints. The caller coordinates the services and downstream projection
+    barriers; an acknowledgement from one service does not imply global completion. read-service
+    owns no timers: advancing its logical clock only moves its logical time, and a caller is not
+    required to advance it.
     A service executes one game per execution context: the operator opens a context carrying
     that game's effective rules, plays it, and closes it before opening the next one. No
     restart is needed between games. While a context is open, an inbound event whose `gameId`
     is not the open context's game is consumed and ignored, and its offset still advances the
     source watermarks; with no context open every inbound event is ignored the same way, so a
     late event of a closed game never reaches the next game.
-  version: 2.0.1
+  version: 2.1.0
 
 servers:
   - url: /
@@ -32,11 +34,13 @@ paths:
         Opens the execution context for one game. With no context open, the context is accepted,
         its revision starts at 0 and its logical time is the context's `logicalTime`. Repeating an
         identical context is a no-op returning the current checkpoint; any other context while one
-        is open is rejected. A `caseKey` closed earlier may be opened again: its game is played as a new
-        game with the same identity, and records already in the event source when it was closed never
-        reach it. The service recomputes the canonical digest of `rules.properties` and
-        validates the rules it uses for the context's game. This route is registered only in an
-        isolated simulation deployment and requires `simulation:control`.
+        is open is rejected. With no context open, when the service still holds gameplay state of an
+        earlier context, it opens nothing and answers `409 EXECUTION_STATE_NOT_CLEAN`. A `caseKey`
+        closed earlier may be opened again: its game is played as a new game with the same identity,
+        and records already in the event source when it was closed never reach it. The service
+        recomputes the canonical digest of `rules.properties` and validates the rules it uses for the
+        context's game. This route is registered only in an isolated simulation deployment and
+        requires `simulation:control`.
       requestBody:
         required: true
         content:
@@ -67,7 +71,10 @@ paths:
         Closes the open execution context for `caseKey` in any state (`READY`, `ACTIVE` or
         `TERMINAL`) so the service can accept the next game without restarting. On close, every
         pending outbox record, continuation and due timer of that context is discarded and never
-        acts, and the context's game never changes again. Repeating the close for the most recently
+        acts, and the context's game never changes again. Every other gameplay state of the context
+        is discarded as well: the game's projections and idempotency claims, and the request rate
+        counters of the context's participants. After a close the service behaves for the next
+        context exactly as a newly started service. Repeating the close for the most recently
         closed `caseKey` is a no-op. This route is registered only in an isolated simulation
         deployment and requires `simulation:control`.
       parameters:
@@ -120,7 +127,9 @@ paths:
       operationId: advanceSimulationClock
       description: |
         Advances only this service's logical clock. Equal-time advances are legal idempotent
-        operations. The caller must advance both services and wait for their resulting barriers.
+        operations. The caller must advance the services it needs and wait for their resulting
+        barriers; read-service has no timers, so advancing it only moves its logical time and a
+        caller is not required to advance it.
       requestBody:
         required: true
         content:
@@ -194,8 +203,18 @@ components:
             $ref: '#/components/schemas/ProblemDetail'
     ExecutionContextConflict:
       description: |
-        A different context is already open, or the close names a `caseKey` that matches neither
-        the open nor the most recently closed context (`code: EXECUTION_CONTEXT_CONFLICT`).
+        A different context is already open (`code: EXECUTION_CONTEXT_CONFLICT`), or no context is
+        open while the service still holds gameplay state of an earlier context
+        (`code: EXECUTION_STATE_NOT_CLEAN`). In both cases nothing is opened.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+    ExecutionStateNotClean:
+      description: |
+        No context is open, but the service still holds gameplay state of an earlier context
+        (`code: EXECUTION_STATE_NOT_CLEAN`). Nothing is opened; the caller discards that state by
+        closing the earlier context before retrying.
       content:
         application/problem+json:
           schema:
