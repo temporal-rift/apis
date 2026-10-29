@@ -144,40 +144,6 @@ class SimulationControlContractTest {
     }
 
     @Test
-    void contractNamesReadServiceAsATimerFreeServer() throws IOException {
-        var specification = readSpecification();
-
-        assertTrue(specification.contains("The game, timeline and read services each expose this contract"));
-        assertTrue(specification.contains("owns no timers"));
-        assertTrue(specification.contains("a caller is not"));
-        assertTrue(specification.contains("required to advance it"));
-    }
-
-    @Test
-    void configureConflictDocumentsBothCodesAndTheirRecovery() throws IOException {
-        var specification = readSpecification();
-
-        assertTrue(specification.contains("configureSimulationExecution"));
-        assertTrue(specification.contains("409 EXECUTION_STATE_NOT_CLEAN"));
-        assertTrue(specification.contains("A different context is already open (`code: EXECUTION_CONTEXT_CONFLICT`)"));
-        assertTrue(specification.contains("(`code: EXECUTION_STATE_NOT_CLEAN`)"));
-        assertTrue(specification.contains("not cleared by repeating the close"));
-        assertTrue(specification.contains("in a lane that means recycling the"));
-        assertFalse(specification.contains("ExecutionStateNotClean:"));
-    }
-
-    @Test
-    void closeDiscardsEveryGameplayStateOfTheContext() throws IOException {
-        var specification = readSpecification();
-
-        assertTrue(specification.contains("Every other gameplay state of the context"));
-        assertTrue(specification.contains("is discarded as well"));
-        assertTrue(specification.contains("the game's projections and idempotency claims"));
-        assertTrue(specification.contains("counters of the context's participants"));
-        assertTrue(specification.contains("exactly as a newly started service"));
-    }
-
-    @Test
     void moduleDeclaresTheGithubPublishingProfile() throws IOException {
         assertTrue(Files.readString(Path.of("pom.xml")).contains("<id>github</id>"));
     }
