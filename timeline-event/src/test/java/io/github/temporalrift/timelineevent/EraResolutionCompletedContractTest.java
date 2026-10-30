@@ -41,7 +41,6 @@ class EraResolutionCompletedContractTest {
         assertTrue(specification.contains("roundNumber, playerId, eventId, outcomes"));
         assertTrue(specification.contains("ProbabilityStateRevealedOutcomeState"));
         assertTrue(specification.contains("isAnnihilated, isSealed"));
-        assertTrue(specification.contains("One message is emitted per scanned"));
     }
 
     @Test

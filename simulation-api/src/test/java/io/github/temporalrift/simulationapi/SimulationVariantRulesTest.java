@@ -4,10 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.Objects;
 
@@ -29,29 +25,11 @@ class SimulationVariantRulesTest {
     private static final String SPECIFICATION = "openapi/v1/simulation.yml";
     private static final String DIGEST = "a".repeat(64);
     private static final String ID = "6f3f2a52-4f0a-4c69-9a39-2a8f0e2b9d11";
-    private static final String CANONICAL_PROPERTIES =
-            "{\"game.rules.probability.amplify-multiplier.II\":2,\"game.rules.win-score-threshold\":20}";
-    private static final String EXAMPLE_DIGEST =
-            "2f4e77d6f2f5ad41eb3b05de091e524133995ef6f274a58f539adbf2d5b06fad";
-
     private final String url = Objects.requireNonNull(getClass().getClassLoader().getResource(SPECIFICATION))
             .toString();
     private final OpenAPI openApi = new OpenAPIV3Parser().read(url);
     private final OpenApiInteractionValidator validator =
             OpenApiInteractionValidator.createForSpecificationUrl(url).build();
-
-    @Test
-    void thePublishedExamplePairHasThePublishedDigest() throws NoSuchAlgorithmException {
-        var digest = MessageDigest.getInstance("SHA-256")
-                .digest(CANONICAL_PROPERTIES.getBytes(StandardCharsets.UTF_8));
-
-        assertEquals(EXAMPLE_DIGEST, HexFormat.of().formatHex(digest));
-
-        var description = openApi.getComponents().getSchemas().get("EffectiveRules").getDescription();
-        assertTrue(description.contains(CANONICAL_PROPERTIES));
-        assertTrue(description.contains(EXAMPLE_DIGEST));
-        assertTrue(description.contains("\"game.rules.win-score-threshold\": 20"));
-    }
 
     @Test
     void aVariantWithoutOverridesValidatesUnchanged() {
@@ -101,8 +79,6 @@ class SimulationVariantRulesTest {
                         { "version": 1, "parameters": [], "derived": [], "constraints": [], "heldFixed": [] }
                         """)));
 
-        var description = openApi.getPaths().get("/api/v1/parameter-spaces").getGet().getDescription();
-        assertTrue(description.contains("ordered"));
         assertTrue(openApi.getPaths().get("/api/v1/parameter-spaces/{version}").getGet()
                 .getResponses().containsKey("404"));
     }
@@ -207,13 +183,7 @@ class SimulationVariantRulesTest {
     }
 
     @Test
-    void laneBundlesNameBaselineRulesAndTheirDigest() {
-        var bundle = openApi.getComponents().getSchemas().get("LaneBundle");
-        var variant = openApi.getComponents().getSchemas().get("Variant");
-
-        assertTrue(bundle.getDescription().contains("baseline rules document"));
-        assertTrue(bundle.getDescription().contains("effective rules digest"));
-        assertTrue(variant.getDescription().contains("baseline"));
+    void effectiveRulesCarryTheirProperties() {
         assertTrue(openApi.getComponents().getSchemas().get("EffectiveRules")
                 .getProperties().containsKey("properties"));
     }

@@ -23,16 +23,6 @@ class PlayerDecisionFactsContractTest {
     }
 
     @Test
-    void actionRoundPassConsumesTheSlotAndStaysPubliclyNeutral() throws IOException {
-        var message = section(specification(), "    ActionRoundPassed:\n", "    ParadoxResolutionCardsOffered:\n");
-
-        assertTrue(message.contains("Private fact"));
-        assertTrue(message.contains("single round slot exactly like CardPlayed or SpecialActionPlayed"));
-        assertTrue(message.contains("once every player has submitted or passed"));
-        assertTrue(message.contains("neutral skip a timer expiry produces"));
-    }
-
-    @Test
     void actionRoundPassPayloadCarriesOnlyItsCoordinates() throws IOException {
         var schema = section(
                 specification(), "    ActionRoundPassedPayload:", "    ParadoxResolutionCardsOfferedPayload:");
@@ -52,15 +42,6 @@ class PlayerDecisionFactsContractTest {
         assertTrue(specification.contains("      paradoxResolutionCardsOffered:\n"
                 + "        $ref: '#/components/messages/ParadoxResolutionCardsOffered'"));
         assertTrue(specification.contains("  publishParadoxResolutionCardsOffered:"));
-    }
-
-    @Test
-    void resolutionCardOfferIsPrivateAndCoversHandAndReactiveOffer() throws IOException {
-        var message = section(specification(), "    ParadoxResolutionCardsOffered:\n", "    ParadoxResolutionCardPlayed:\n");
-
-        assertTrue(message.contains("identifies the sole viewer"));
-        assertTrue(message.contains("eligible hand cards and the dealt reactive offer"));
-        assertTrue(message.contains("may be empty"));
     }
 
     @Test

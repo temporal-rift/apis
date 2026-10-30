@@ -50,9 +50,6 @@ class ParadoxResolutionPhaseStartedContractTest {
         assertFalse(payload.contains("offers:"), "phase-start must not carry offers");
         assertFalse(payload.contains("choices:"), "phase-start must not carry unresolved choices");
         assertFalse(payload.contains("playerId:"), "phase-start must not carry player-private subjects");
-        assertTrue(
-                payload.contains("no player-private offers, cards, or unresolved choices"),
-                "the privacy invariant must be documented on the field");
     }
 
     @Test

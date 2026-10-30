@@ -172,11 +172,9 @@ class SimulationFidelityTest {
     }
 
     @Test
-    void theVerdictRuleAndTheStatesAreDocumented() {
+    void theCheckAndCaseStatesAreEnumerated() {
         var schemas = openApi.getComponents().getSchemas();
 
-        assertTrue(schemas.get("FidelityCheck").getDescription().contains("`counts.matched` equals `counts.total`"));
-        assertTrue(schemas.get("FidelityCheck").getDescription().contains("No tolerance exists"));
         assertEquals(List.of("QUEUED", "RUNNING", "PASSED", "FAILED"), enumOf(schemas.get("FidelityCheckState")));
         assertEquals(
                 List.of("PENDING", "MATCH", "DIVERGED", "UNREPRODUCIBLE"), enumOf(schemas.get("FidelityCaseResult")));

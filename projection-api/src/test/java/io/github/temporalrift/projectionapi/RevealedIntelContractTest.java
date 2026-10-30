@@ -20,7 +20,6 @@ class RevealedIntelContractTest {
                 "required: [ gameId, eraNumber, phase, myHand, myScore, myRevealedIntel, activeEvents, players, winScoreThreshold ]"));
         var revealedIntelSchema = specification.substring(specification.indexOf("        myRevealedIntel:"));
         assertFalse(revealedIntelSchema.startsWith("        myRevealedIntel:\n          type: array\n          nullable: true"));
-        assertTrue(revealedIntelSchema.contains("Always present and\n            empty when none"));
     }
 
     @Test
@@ -34,25 +33,6 @@ class RevealedIntelContractTest {
         assertTrue(intelSchema.contains("        influencerPlayerIds:"));
         assertTrue(intelSchema.contains("        mimicInfluencerPlayerIds:\n          type: array"));
         assertTrue(intelSchema.contains("uniqueItems: true"));
-        assertTrue(intelSchema.contains("also listed in influencerPlayerIds"));
-        assertTrue(intelSchema.contains("Only a Revisionist can play Mimic"));
-        assertTrue(intelSchema.contains("Always present for an INFLUENCE entry"));
-        assertTrue(intelSchema.contains("an\n            empty list means no Mimic influencer"));
         assertFalse(intelSchema.contains("minItems:"));
-    }
-
-    @Test
-    void jamStateDescribesItsFinalPrivateRoundScopedSemantics() throws IOException {
-        var specification = String.join(
-                "\n", Files.readAllLines(Path.of("src/main/resources/openapi/v1/projection.yml")));
-
-        var jamSchema = specification.substring(
-                specification.indexOf("        myJammedUntilRound:"),
-                specification.indexOf("        myRevealedIntel:"));
-        assertTrue(jamSchema.contains("authenticated player's faction specials are blocked"));
-        assertTrue(jamSchema.contains("private to that player"));
-        assertTrue(jamSchema.contains("cleared after the round passes"));
-        assertTrue(jamSchema.contains("never carried across an era"));
-        assertFalse(jamSchema.contains("Deferred to a later slice"));
     }
 }

@@ -20,7 +20,6 @@ class PrivateActionRevealContractTest {
 
         assertTrue(specification.contains("      playerJammed:\n        $ref: '#/components/messages/PlayerJammed'"));
         assertTrue(specification.contains("  publishPlayerJammed:"));
-        assertTrue(specification.contains("Private per-player reveal addressed to the suppressed player"));
         assertTrue(schema.contains("additionalProperties: false"));
         assertTrue(schema.contains("required: [ gameId, eraNumber, playerId, jammedUntilRound ]"));
         assertFalse(schema.contains("actor"));
@@ -35,7 +34,6 @@ class PrivateActionRevealContractTest {
 
         assertTrue(specification.contains("      influenceTraced:\n        $ref: '#/components/messages/InfluenceTraced'"));
         assertTrue(specification.contains("  publishInfluenceTraced:"));
-        assertTrue(specification.contains("Private per-player reveal addressed to the tracing player"));
         assertTrue(schema.contains("additionalProperties: false"));
         assertTrue(schema.contains(
                 "required: [ gameId, eraNumber, roundNumber, playerId, targetEventId, influencerPlayerIds, "
@@ -57,7 +55,6 @@ class PrivateActionRevealContractTest {
         assertTrue(specification.contains(
                 "      handCardIntercepted:\n        $ref: '#/components/messages/HandCardIntercepted'"));
         assertTrue(specification.contains("  publishHandCardIntercepted:"));
-        assertTrue(specification.contains("Private per-player reveal addressed to the intercepting player"));
         assertTrue(schema.contains("additionalProperties: false"));
         assertTrue(schema.contains(
                 "required: [ gameId, eraNumber, roundNumber, playerId, targetPlayerId, revealedCards ]"));

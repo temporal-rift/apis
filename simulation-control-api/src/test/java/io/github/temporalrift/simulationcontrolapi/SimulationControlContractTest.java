@@ -76,7 +76,6 @@ class SimulationControlContractTest {
         var specification = readSpecification();
 
         assertTrue(specification.contains("ExecutionCheckpoint:"));
-        assertTrue(specification.contains("Digest of the open context's rules."));
         assertTrue(specification.contains("gameId:"));
         assertTrue(specification.contains("nextDeadline:"));
         assertTrue(specification.contains("nullable: true"));

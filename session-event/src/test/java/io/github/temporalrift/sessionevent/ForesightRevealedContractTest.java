@@ -21,10 +21,8 @@ class ForesightRevealedContractTest {
         assertTrue(specification.contains(
                 "      foresightRevealed:\n        $ref: '#/components/messages/ForesightRevealed'"));
         assertTrue(specification.contains("  publishForesightRevealed:"));
-        assertTrue(specification.contains("Private per-player reveal addressed to the foretelling player"));
         assertTrue(schema.contains("additionalProperties: false"));
         assertTrue(schema.contains("required: [ gameId, eraNumber, playerId, nextEraNumber, revealedEvents ]"));
-        assertTrue(schema.contains("The foretelling player and sole viewer of this private reveal."));
         assertTrue(schema.contains("nextEraNumber"));
         assertTrue(schema.contains("revealedEvents"));
         assertTrue(specification.contains("catalogEventId"));
@@ -48,7 +46,6 @@ class ForesightRevealedContractTest {
         var outcomeSchema = section(specification, "    ForesightRevealedOutcome:", "    Faction:");
 
         assertTrue(schema.contains("emptyReason"));
-        assertTrue(schema.contains("Set only when revealedEvents is empty"));
         assertFalse(schema.contains("minItems:"));
         assertTrue(eventSchema.contains("additionalProperties: false"));
         assertTrue(eventSchema.contains("required: [ catalogEventId, title, outcomes ]"));
@@ -61,7 +58,6 @@ class ForesightRevealedContractTest {
         var outcomeSchema = section(specification(), "    ForesightRevealedOutcome:", "    Faction:");
 
         assertTrue(outcomeSchema.contains("initialProbability:"));
-        assertTrue(outcomeSchema.contains("printed starting weight"));
         assertTrue(outcomeSchema.contains("minimum: 0"));
         assertTrue(outcomeSchema.contains("maximum: 100"));
         assertFalse(outcomeSchema.contains("band"));

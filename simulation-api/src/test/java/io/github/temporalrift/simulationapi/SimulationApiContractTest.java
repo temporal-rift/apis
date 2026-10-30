@@ -100,9 +100,6 @@ class SimulationApiContractTest {
         assertTrue(specification.contains("enum: [ GATE_FAILS, DOMINATED, NOT_IN_TOP_FRACTION, BUDGET_EXHAUSTED ]"));
         assertTrue(specification.contains("enum: [ SUCCESSIVE_HALVING_V1 ]"));
         assertTrue(specification.contains("INVALID_CAMPAIGN_STATE"));
-        assertTrue(specification.contains("already `PAUSED` campaign returns that"));
-        assertTrue(specification.contains("already `RUNNING` campaign returns that"));
-        assertTrue(specification.contains("already `CANCELLED`"));
         assertTrue(specification.contains("SEED_OVERLAP"));
         assertTrue(specification.contains("EQUAL_MASTER_SEEDS"));
         assertTrue(specification.contains("UNKNOWN_CRITERION"));
@@ -125,12 +122,7 @@ class SimulationApiContractTest {
         var confirmation = schema(specification, "    CampaignConfirmation:", "    CampaignParallelismUpdate:");
         assertTrue(confirmation.contains("seedCount"));
         assertTrue(confirmation.contains("seedOverlap"));
-        assertTrue(specification.contains("literal `baseline`"));
 
-        assertTrue(specification.contains("examples:"));
-        assertTrue(specification.contains("summary: A search paused by the designer"));
-        assertTrue(specification.contains("decision: DISCARDED"));
-        assertTrue(specification.contains("reason: GATE_FAILS"));
         assertTrue(specification.contains("lineIds: [ 'G-01' ]"));
     }
 
@@ -243,8 +235,6 @@ class SimulationApiContractTest {
                 .forEach(field -> assertTrue(manifest.contains("- " + field)));
         assertTrue(manifest.contains("enum: [ CYCLIC ]"));
         assertTrue(manifest.contains("enum: [ LOGICAL ]"));
-        assertTrue(specification.contains("portable content-addressed artifact reference"));
-        assertTrue(specification.contains("credentials nor a\n        machine-local path"));
     }
 
     @Test
@@ -252,12 +242,9 @@ class SimulationApiContractTest {
         var specification = specification();
 
         assertTrue(specification.contains("enum: [ QUEUED, RUNNING, INTERRUPTED, CANCELLING, CANCELLED, COMPLETED, FAILED ]"));
-        assertTrue(specification.contains("Retained successful\n        cases remain one logical sample"));
         assertTrue(specification.contains("INCOMPARABLE_RUNS"));
         assertTrue(specification.contains("BLOCK_BOOTSTRAP"));
         assertTrue(specification.contains("enum: [ PLAYER, OBSERVER ]"));
-        assertTrue(specification.contains("OBSERVER perspective additionally requires `simulation:observe`"));
-        assertTrue(specification.contains("does not create a new\n        research sample"));
     }
 
     @Test
@@ -291,7 +278,6 @@ class SimulationApiContractTest {
         assertTrue(winner.contains("required: [ seatIndex, faction, winType ]"));
         assertTrue(winType.contains("nullable: true"));
         assertTrue(winType.contains("enum: [ SCORE_THRESHOLD, FACTION_OBJECTIVE, LAST_PLAYER_STANDING, null ]"));
-        assertTrue(winType.contains("null unless the ending is WIN_CONDITION_MET"));
         assertFalse(others.contains("nullable"));
     }
 

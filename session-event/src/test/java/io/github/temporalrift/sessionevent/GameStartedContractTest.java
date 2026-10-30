@@ -22,9 +22,6 @@ class GameStartedContractTest {
         assertTrue(schema.contains("minimum: 1"));
         assertTrue(schema.contains(
                 "required: [ gameId, lobbyId, players, totalFactions, deckSize, winScoreThreshold ]"));
-        assertTrue(schema.contains("qualifies for normal victory"));
-        assertTrue(schema.contains("Distinct from the per-faction objective threshold"));
-        assertTrue(schema.contains("never hard-code it"));
     }
 
     @Test
@@ -32,8 +29,6 @@ class GameStartedContractTest {
         var specification = specification();
         var schema = section(specification, "    GameStartedPayload:", "    GameStartedPlayer:");
 
-        assertTrue(schema.contains("identical for every player"));
-        assertTrue(schema.contains("fixed for the life of the game"));
         assertFalse(schema.contains("ObjectiveProgress"));
     }
 

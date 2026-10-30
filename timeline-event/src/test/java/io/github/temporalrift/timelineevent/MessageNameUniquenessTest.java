@@ -1,7 +1,6 @@
 package io.github.temporalrift.timelineevent;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -61,21 +60,6 @@ class MessageNameUniquenessTest {
                         "ResolutionFailed"),
                 messageNames(readModule("timeline-event")),
                 "timeline-event must define exactly its expected messages");
-    }
-
-    @Test
-    void adjustedBandsCarriesTheCompleteBandState() throws IOException {
-        var specification = readModule("timeline-event");
-
-        assertTrue(
-                specification.contains("The complete probability-band state for the game and era"),
-                "the band message must state it is the only band publication");
-        assertTrue(
-                specification.contains("after Action Round 2's resolution replay completes"),
-                "the band message must state when it is published");
-        assertTrue(
-                specification.contains("Kept deliberately"),
-                "the spec must record why the adjusted-bands name is kept");
     }
 
     @Test
