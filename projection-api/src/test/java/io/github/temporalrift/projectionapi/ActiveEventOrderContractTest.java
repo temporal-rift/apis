@@ -15,7 +15,9 @@ class ActiveEventOrderContractTest {
         var specification = String.join(
                 "\n", Files.readAllLines(Path.of("src/main/resources/openapi/v1/projection.yml")));
 
-        var start = specification.indexOf("        activeEvents:");
+        var response = specification.indexOf("    PlayerGameStateResponse:\n");
+        assertTrue(response >= 0, "PlayerGameStateResponse schema is missing");
+        var start = specification.indexOf("        activeEvents:", response);
         var activeEvents = specification.substring(start, specification.indexOf("        players:", start));
         assertTrue(activeEvents.contains("reveal order"));
         assertTrue(activeEvents.contains("the order of the era's EventsDrawn events"));
