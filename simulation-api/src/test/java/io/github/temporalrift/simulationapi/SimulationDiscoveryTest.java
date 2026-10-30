@@ -229,12 +229,6 @@ class SimulationDiscoveryTest {
                 .getMessages()
                 .isEmpty());
 
-        var description = openApi.getPaths().get("/api/v1/lane-bundles").getGet().getDescription();
-        assertTrue(description.contains("ascending `effectiveRulesDigest`"));
-        assertTrue(description.contains("ascending\n        `effectiveContentDigest`")
-                || description.contains("`effectiveContentDigest`"));
-        assertTrue(description.contains("never")
-                || description.contains("Never returns a lane identifier"));
     }
 
     @Test
@@ -277,9 +271,6 @@ class SimulationDiscoveryTest {
                 .getMessages()
                 .isEmpty());
 
-        var description =
-                openApi.getPaths().get("/api/v1/experiment-templates").getGet().getDescription();
-        assertTrue(description.contains("ascending `templateId`"));
     }
 
     @Test

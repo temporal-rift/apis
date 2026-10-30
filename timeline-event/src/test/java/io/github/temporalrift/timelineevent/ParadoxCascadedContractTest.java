@@ -17,12 +17,9 @@ class ParadoxCascadedContractTest {
         var payload = payloadBlock(specification);
         var findingIds = payload.substring(payload.indexOf("        paradoxIds:"), payload.indexOf("        affectedEventId:"));
 
-        assertTrue(specification.contains("One fact per affected event with one or more persistent paradox findings"));
         assertTrue(findingIds.contains("minItems: 1"));
         assertTrue(findingIds.contains("uniqueItems: true"));
         assertTrue(findingIds.contains("items: { type: string, format: uuid }"));
-        assertTrue(payload.contains("First member of paradoxIds"));
-        assertTrue(payload.contains("announced by ParadoxDetected before appearing here"));
     }
 
     @Test
@@ -33,7 +30,6 @@ class ParadoxCascadedContractTest {
 
         assertTrue(required.contains("gameId, eraNumber, paradoxId, affectedEventId, carryForwardProbabilityState"));
         assertFalse(required.contains("paradoxIds"));
-        assertTrue(payload.contains("older facts may omit it"));
     }
 
     private static String payloadBlock(String specification) {

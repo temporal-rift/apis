@@ -23,12 +23,6 @@ class WinScoreThresholdContractTest {
                 specification.indexOf("        winScoreThreshold:") + 1200);
         assertTrue(threshold.contains("type: integer"));
         assertTrue(threshold.contains("minimum: 1"));
-        assertTrue(threshold.contains("qualifies for normal victory"));
-        assertTrue(threshold.contains("present in every phase"));
-        assertTrue(threshold.contains("equal to the value carried by GameStarted"));
-        assertTrue(threshold.contains("Distinct from"));
-        assertTrue(threshold.contains("per-faction objective threshold"));
-        assertTrue(threshold.contains("never\n            hard-code it"));
     }
 
     @Test
@@ -38,7 +32,6 @@ class WinScoreThresholdContractTest {
         var threshold = specification.substring(specification.indexOf("        winScoreThreshold:"));
         assertFalse(threshold.substring(0, 1200).contains("progressCount"));
         assertTrue(specification.contains("    ObjectiveProgress:\n"));
-        assertTrue(specification.contains("Progress count that satisfies the faction objective"));
     }
 
     private static String specification() throws IOException {

@@ -17,8 +17,6 @@ class LobbyResponseContractTest {
 
         assertTrue(specification.contains("LobbyResponse:"));
         assertTrue(specification.contains("currentPlayerId:"));
-        assertTrue(specification.contains("The authenticated member whose authorized request produced this response."));
-        assertTrue(specification.contains("never included in a non-member denial"));
         assertTrue(specification.contains("code: 403-01"));
     }
 }

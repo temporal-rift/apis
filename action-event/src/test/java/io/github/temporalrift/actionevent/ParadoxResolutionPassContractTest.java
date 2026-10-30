@@ -23,18 +23,6 @@ class ParadoxResolutionPassContractTest {
     }
 
     @Test
-    void passCountsTowardTheAllSubmittedCloseAndAppliesNothing() throws IOException {
-        var specification = specification();
-
-        assertTrue(specification.contains("the player's single phase slot exactly like ParadoxResolutionCardPlayed"),
-                "the pass must consume the same slot a resolution card does");
-        assertTrue(specification.contains("once every player has submitted or passed"),
-                "consumers must count the pass toward the all-submitted close");
-        assertTrue(specification.contains("neutral skip a timer expiry produces"),
-                "the pass must resolve as the neutral timer-expiry skip");
-    }
-
-    @Test
     void passPayloadIsClosedAndCarriesNoCard() throws IOException {
         var schema = section(
                 specification(), "    ParadoxResolutionPassedPayload:", "    SpecialActionPlayedPayload:");

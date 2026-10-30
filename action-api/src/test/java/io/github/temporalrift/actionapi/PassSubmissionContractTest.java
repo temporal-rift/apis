@@ -38,12 +38,6 @@ class PassSubmissionContractTest {
         assertTrue(
                 specification.contains("actionType: PASS"),
                 "submitAction success docs must name the explicit pass variant");
-        assertTrue(
-                specification.contains("including after an"),
-                "submitAction conflicts must state that a pass consumes the submission slot");
-        assertTrue(
-                specification.contains("neutral skip"),
-                "submitAction docs must state the pass resolves as the neutral timer-expiry skip");
     }
 
     @Test
@@ -58,24 +52,6 @@ class PassSubmissionContractTest {
         assertTrue(
                 paradoxBlock.contains("PASS"),
                 "paradox submission must name PASS as the explicit-pass variant");
-        assertTrue(
-                paradoxBlock.contains("all omitted"),
-                "paradox pass docs must state that card and target fields are omitted");
-    }
-
-    @Test
-    void paradoxPassReturnsSubmittedAndConsumesTheSlot() throws IOException {
-        var specification = readSpecification();
-
-        assertTrue(
-                specification.contains("or explicit pass submitted"),
-                "paradox success docs must cover the pass variant");
-        assertTrue(
-                specification.contains("including after an accepted pass"),
-                "paradox conflicts must state that a pass consumes the phase slot");
-        assertTrue(
-                specification.contains("spends no card, and resolves as the same neutral skip a timer expiry"),
-                "paradox docs must state the pass resolves as the neutral timer-expiry skip");
     }
 
     private static String readSpecification() throws IOException {

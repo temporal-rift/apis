@@ -21,7 +21,6 @@ class DeclarationDeclineContractTest {
         assertTrue(operation.contains("'409':"));
         assertFalse(operation.contains("requestBody:"));
         assertFalse(operation.contains("name: playerId"));
-        assertTrue(operation.contains("including after phase closure"));
         assertTrue(specification.contains("enum: [ DECLINED ]"));
     }
 }

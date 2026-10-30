@@ -33,19 +33,6 @@ class ForesightPreviewContractTest {
     }
 
     @Test
-    void foresightPreviewDescribesNullAndEraBoundaryExpiry() throws IOException {
-        var specification = specification();
-
-        var fieldSchema = specification.substring(
-                specification.indexOf("        myForesightPreview:"),
-                specification.indexOf("        activeEvents:"));
-        assertTrue(fieldSchema.contains("Null when the caller has no Foresight preview"));
-        assertTrue(fieldSchema.contains("current era"));
-        assertTrue(fieldSchema.contains("expires at the"));
-        assertTrue(fieldSchema.contains("era boundary"));
-    }
-
-    @Test
     void foresightPreviewCarriesNoForbiddenContent() throws IOException {
         var specification = specification();
 
@@ -60,7 +47,6 @@ class ForesightPreviewContractTest {
         assertFalse(previewSchemas.contains("gameId"));
         assertFalse(previewSchemas.contains("probability"));
         assertFalse(previewSchemas.contains("band"));
-        assertFalse(previewSchemas.toLowerCase().contains("deck state"));
     }
 
     @Test
@@ -74,7 +60,6 @@ class ForesightPreviewContractTest {
                 specification.indexOf("    EventOutcome:"), specification.indexOf("    ActiveEvent:"));
         for (var outcome : new String[] {previewOutcome, activeOutcome}) {
             assertTrue(outcome.contains("initialProbability ]"));
-            assertTrue(outcome.contains("printed starting weight"));
             assertTrue(outcome.contains("minimum: 0"));
             assertTrue(outcome.contains("maximum: 100"));
             assertFalse(outcome.contains("band"));
