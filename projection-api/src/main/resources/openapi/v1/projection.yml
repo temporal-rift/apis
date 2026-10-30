@@ -761,6 +761,10 @@ components:
                 null otherwise.
         activeEvents:
           type: array
+          description: >-
+            The current era's unresolved events in reveal order: the order of the era's EventsDrawn events,
+            carried-over events included. Resolving an event removes it without reordering the rest, and the
+            same game always lists its events in the same order.
           items:
             $ref: '#/components/schemas/ActiveEvent'
         players:
