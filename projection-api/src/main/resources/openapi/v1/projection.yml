@@ -325,7 +325,7 @@ components:
           description: Players expected to decide in the window.
         pendingPlayerIds:
           type: array
-          description: Players who have neither submitted nor passed.
+          description: Players who have neither submitted nor passed, in seat order.
           uniqueItems: true
           items:
             type: string
@@ -769,6 +769,7 @@ components:
             $ref: '#/components/schemas/ActiveEvent'
         players:
           type: array
+          description: In seat order, the order of the game's GameStarted roster.
           items:
             $ref: '#/components/schemas/PlayerInGame'
         lastRoundSummary:
