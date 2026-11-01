@@ -606,7 +606,7 @@ components:
         cardInstanceId: { type: string, format: uuid }
         cardType: { $ref: '#/components/schemas/CardType' }
         grade: { $ref: '#/components/schemas/CardGrade' }
-        dealSlot: { type: integer, minimum: 1, maximum: 7 }
+        dealSlot: { type: integer, minimum: 1, maximum: 9 }
       required: [ cardInstanceId, cardType, grade, dealSlot ]
 
     HandDealtPayload:
@@ -618,8 +618,8 @@ components:
         selectionExpiresAt: { type: string, format: date-time }
         cards:
           type: array
-          minItems: 7
-          maxItems: 7
+          minItems: 5
+          maxItems: 9
           items: { $ref: '#/components/schemas/HandDealtCardInstance' }
       required: [ gameId, eraNumber, playerId, selectionExpiresAt, cards ]
 
@@ -636,8 +636,8 @@ components:
         selectionOrigin: { $ref: '#/components/schemas/HandSelectionOrigin' }
         cards:
           type: array
-          minItems: 5
-          maxItems: 5
+          minItems: 4
+          maxItems: 6
           items: { $ref: '#/components/schemas/HandDealtCardInstance' }
       required: [ gameId, eraNumber, playerId, selectionOrigin, cards ]
 
