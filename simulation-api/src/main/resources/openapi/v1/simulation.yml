@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Temporal Rift Simulation Workbench API
-  version: 4.3.0
+  version: 4.4.0
   description: >-
     Creates immutable experiment manifests and provides durable run control, evidence inspection,
     statistical reporting, paired comparisons, perspective-safe replay, guided setup discovery
@@ -1027,6 +1027,7 @@ paths:
                         effectiveRulesDigest: 9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08
                         seeds: [ '42', '43' ]
                         gamesSpent: 2
+                        redraws: 0
                         evaluation:
                           verdict: REJECTED
                           score: null
@@ -2935,6 +2936,7 @@ components:
         - effectiveRulesDigest
         - seeds
         - gamesSpent
+        - redraws
         - evaluation
         - decision
         - reason
@@ -2960,6 +2962,12 @@ components:
         gamesSpent:
           type: integer
           minimum: 0
+        redraws:
+          type: integer
+          minimum: 0
+          description: >-
+            Draws thrown away before this candidate was generated because they were invalid or
+            duplicates; meaningful on the candidate's first entry and repeated on later ones.
         evaluation:
           allOf: [ { $ref: '#/components/schemas/CampaignEvaluation' } ]
           nullable: true
