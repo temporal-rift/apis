@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Temporal Rift Simulation Workbench API
-  version: 4.4.0
+  version: 4.5.0
   description: >-
     Creates immutable experiment manifests and provides durable run control, evidence inspection,
     statistical reporting, paired comparisons, perspective-safe replay, guided setup discovery
@@ -2725,23 +2725,46 @@ components:
           type: integer
           minimum: 1
           description: Candidates confirmed on fresh seeds.
+    SearchAlgorithmRequest:
+      type: object
+      additionalProperties: false
+      description: >-
+        The search algorithm a definition asks for. Every field is optional: an omitted field takes
+        the value of the newest approved search budget record the service ships, and the created
+        `Campaign` carries the resolved `SearchAlgorithm`.
+      properties:
+        version:
+          type: string
+          enum: [ SUCCESSIVE_HALVING_V1 ]
+        initialCandidates:
+          type: integer
+          minimum: 2
+          description: Candidates generated from the baseline and its parameter space.
+        screeningSeeds:
+          type: integer
+          minimum: 2
+          description: Seeds each candidate is screened on before a keep-or-discard decision.
+        eta:
+          type: integer
+          minimum: 2
+          description: Fraction 1/eta of survivors kept after each round.
+        shortListSize:
+          type: integer
+          minimum: 1
+          description: Candidates confirmed on fresh seeds.
     CampaignDefinition:
       type: object
       additionalProperties: false
       required:
         - name
         - baseline
-        - parameterSpaceVersion
-        - criterionVersion
         - policies
         - playerCounts
-        - searchMasterSeed
-        - confirmationMasterSeed
-        - algorithm
       description: >-
-        The frozen inputs of a configuration search. `policies` use the same shape as an
-        `ExperimentManifest` policy. A definition whose `searchMasterSeed` and
-        `confirmationMasterSeed` are equal is refused.
+        The inputs of a configuration search. `policies` use the same shape as an
+        `ExperimentManifest` policy. The service resolves every omitted optional field when it
+        accepts the campaign and freezes the result, which the created `Campaign` returns. A
+        definition whose `searchMasterSeed` and `confirmationMasterSeed` are equal is refused.
       properties:
         name:
           type: string
@@ -2751,9 +2774,11 @@ components:
         parameterSpaceVersion:
           type: integer
           minimum: 1
+          description: Defaults to the newest parameter space version the service knows.
         criterionVersion:
           type: integer
           minimum: 1
+          description: Defaults to the newest balance criterion version the service knows.
         policies:
           type: array
           minItems: 1
@@ -2777,11 +2802,15 @@ components:
           description: Games played at once; may be changed while the campaign runs.
         searchMasterSeed:
           allOf: [ { $ref: '#/components/schemas/DecimalUint64' } ]
-          description: Derives every search seed.
+          description: >-
+            Derives every search seed. Defaults to a random value that differs from
+            `confirmationMasterSeed`.
         confirmationMasterSeed:
           allOf: [ { $ref: '#/components/schemas/DecimalUint64' } ]
-          description: Derives every confirmation seed and must differ from `searchMasterSeed`.
-        algorithm: { $ref: '#/components/schemas/SearchAlgorithm' }
+          description: >-
+            Derives every confirmation seed and must differ from `searchMasterSeed`. Defaults to a
+            random value that differs from it.
+        algorithm: { $ref: '#/components/schemas/SearchAlgorithmRequest' }
     CampaignState:
       type: string
       enum: [ QUEUED, RUNNING, PAUSED, SEARCH_COMPLETED, CONFIRMING, COMPLETED, CANCELLED, FAILED ]
