@@ -68,7 +68,7 @@ class SimulationApiContractTest {
         assertTrue(specification.contains("/api/v1/campaigns/{campaignId}/parallelism"));
         assertTrue(specification.contains("/api/v1/campaigns/{campaignId}/log"));
         assertTrue(specification.contains("/api/v1/campaigns/{campaignId}/confirmation"));
-        assertTrue(specification.contains("version: 4.3.0"));
+        assertTrue(specification.contains("version: 4.4.0"));
     }
 
     @Test
@@ -112,7 +112,7 @@ class SimulationApiContractTest {
 
         var entry = schema(specification, "    CampaignLogEntry:", "    CampaignLogPage:");
         List.of("sequence", "round", "candidateId", "overrides", "effectiveRulesDigest", "seeds",
-                        "gamesSpent", "evaluation", "decision", "reason", "evidence")
+                        "gamesSpent", "redraws", "evaluation", "decision", "reason", "evidence")
                 .forEach(field -> assertTrue(entry.contains(field), field));
 
         var evidence = schema(specification, "    CampaignLogEvidence:", "    CampaignLogEntry:");
