@@ -68,7 +68,7 @@ class SimulationApiContractTest {
         assertTrue(specification.contains("/api/v1/campaigns/{campaignId}/parallelism"));
         assertTrue(specification.contains("/api/v1/campaigns/{campaignId}/log"));
         assertTrue(specification.contains("/api/v1/campaigns/{campaignId}/confirmation"));
-        assertTrue(specification.contains("version: 4.4.0"));
+        assertTrue(specification.contains("version: 4.5.0"));
     }
 
     @Test
@@ -80,6 +80,7 @@ class SimulationApiContractTest {
                         "CampaignBaseline",
                         "CampaignFailure",
                         "SearchAlgorithm",
+                        "SearchAlgorithmRequest",
                         "Campaign",
                         "CampaignState",
                         "CampaignList",
@@ -109,6 +110,15 @@ class SimulationApiContractTest {
         assertTrue(definition.contains("default: 4"));
         assertTrue(definition.contains("budgetSeconds"));
         assertTrue(definition.contains("parallelism"));
+        var required = definition.substring(0, definition.indexOf("properties:"));
+        List.of("name", "baseline", "policies", "playerCounts")
+                .forEach(field -> assertTrue(required.contains("- " + field), field));
+        List.of("parameterSpaceVersion", "criterionVersion", "searchMasterSeed", "confirmationMasterSeed", "algorithm")
+                .forEach(field -> assertFalse(required.contains("- " + field), field));
+        assertTrue(definition.contains("algorithm: { $ref: '#/components/schemas/SearchAlgorithmRequest' }"));
+
+        var request = schema(specification, "    SearchAlgorithmRequest:", "    CampaignDefinition:");
+        assertFalse(request.contains("required:"));
 
         var entry = schema(specification, "    CampaignLogEntry:", "    CampaignLogPage:");
         List.of("sequence", "round", "candidateId", "overrides", "effectiveRulesDigest", "seeds",
@@ -132,17 +142,20 @@ class SimulationApiContractTest {
         var definition = schema(specification, "    CampaignDefinition:", "    CampaignState:");
         var campaign = schema(specification, "    Campaign:", "    CampaignList:");
 
-        List.of(
-                        "name",
-                        "baseline",
-                        "parameterSpaceVersion",
-                        "criterionVersion",
-                        "policies",
-                        "playerCounts",
-                        "searchMasterSeed",
-                        "confirmationMasterSeed",
-                        "algorithm")
+        List.of("name", "baseline", "policies", "playerCounts")
                 .forEach(field -> assertEquals(property(definition, field), property(campaign, field), field));
+        // The definition documents how an omitted value resolves; the campaign holds the resolved value.
+        List.of("parameterSpaceVersion", "criterionVersion", "searchMasterSeed", "confirmationMasterSeed")
+                .forEach(field -> assertEquals(
+                        shape(property(definition, field)), shape(property(campaign, field)), field));
+        assertTrue(property(definition, "algorithm").contains("SearchAlgorithmRequest"));
+        assertTrue(property(campaign, "algorithm").contains("'#/components/schemas/SearchAlgorithm'"));
+    }
+
+    private static String shape(String property) {
+        return property.lines()
+                .takeWhile(line -> !line.trim().startsWith("description:"))
+                .collect(java.util.stream.Collectors.joining(System.lineSeparator()));
     }
 
     @Test
