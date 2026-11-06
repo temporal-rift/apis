@@ -68,7 +68,7 @@ class SimulationApiContractTest {
         assertTrue(specification.contains("/api/v1/campaigns/{campaignId}/parallelism"));
         assertTrue(specification.contains("/api/v1/campaigns/{campaignId}/log"));
         assertTrue(specification.contains("/api/v1/campaigns/{campaignId}/confirmation"));
-        assertTrue(specification.contains("version: 4.5.0"));
+        assertTrue(specification.contains("version: 5.0.0"));
     }
 
     @Test
@@ -111,9 +111,15 @@ class SimulationApiContractTest {
         assertTrue(definition.contains("budgetSeconds"));
         assertTrue(definition.contains("parallelism"));
         var required = definition.substring(0, definition.indexOf("properties:"));
-        List.of("name", "baseline", "policies", "playerCounts")
+        List.of("name", "baseline", "playerCounts")
                 .forEach(field -> assertTrue(required.contains("- " + field), field));
-        List.of("parameterSpaceVersion", "criterionVersion", "searchMasterSeed", "confirmationMasterSeed", "algorithm")
+        List.of(
+                        "policies",
+                        "parameterSpaceVersion",
+                        "criterionVersion",
+                        "searchMasterSeed",
+                        "confirmationMasterSeed",
+                        "algorithm")
                 .forEach(field -> assertFalse(required.contains("- " + field), field));
         assertTrue(definition.contains("algorithm: { $ref: '#/components/schemas/SearchAlgorithmRequest' }"));
 
@@ -142,10 +148,10 @@ class SimulationApiContractTest {
         var definition = schema(specification, "    CampaignDefinition:", "    CampaignState:");
         var campaign = schema(specification, "    Campaign:", "    CampaignList:");
 
-        List.of("name", "baseline", "policies", "playerCounts")
+        List.of("name", "baseline", "playerCounts")
                 .forEach(field -> assertEquals(property(definition, field), property(campaign, field), field));
         // The definition documents how an omitted value resolves; the campaign holds the resolved value.
-        List.of("parameterSpaceVersion", "criterionVersion", "searchMasterSeed", "confirmationMasterSeed")
+        List.of("policies", "parameterSpaceVersion", "criterionVersion", "searchMasterSeed", "confirmationMasterSeed")
                 .forEach(field -> assertEquals(
                         shape(property(definition, field)), shape(property(campaign, field)), field));
         assertTrue(property(definition, "algorithm").contains("SearchAlgorithmRequest"));
@@ -198,6 +204,7 @@ class SimulationApiContractTest {
                         "seatRotationMode",
                         "timingMode",
                         "policies",
+                        "tables",
                         "concurrency",
                         "caseWallTimeoutSeconds",
                         "maxRejectedCandidatesPerWindow")
@@ -238,6 +245,7 @@ class SimulationApiContractTest {
                         "services",
                         "contracts",
                         "policies",
+                        "tables",
                         "seeds",
                         "playerCounts",
                         "factionSets",
@@ -341,10 +349,12 @@ class SimulationApiContractTest {
                 "paradoxType, endReason, quantile, failureCode, unit, value, numerator, denominator,"));
         assertTrue(specification.contains(
                 "paradoxType, endReason, quantile, unit, baselineValue, candidateValue, difference,"));
-        assertTrue(report.contains("enum: [ 2 ]"));
-        assertFalse(report.contains("enum: [ 1 ]"));
-        assertTrue(comparison.contains("enum: [ 1 ]"));
-        assertFalse(comparison.contains("enum: [ 2 ]"));
+        assertTrue(specification.contains("variantLabel, tableId, policyId, policyVersion, playerCount,"));
+        assertTrue(specification.contains("complete, tableId, policyId,"));
+        assertTrue(report.contains("enum: [ 3 ]"));
+        assertFalse(report.contains("enum: [ 2 ]"));
+        assertTrue(comparison.contains("enum: [ 2 ]"));
+        assertFalse(comparison.contains("enum: [ 1 ]"));
     }
 
     @Test

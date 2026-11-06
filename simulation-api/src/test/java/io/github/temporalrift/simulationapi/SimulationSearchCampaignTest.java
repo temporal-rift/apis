@@ -53,13 +53,7 @@ class SimulationSearchCampaignTest {
                     "id": "faction-greedy",
                     "version": "1.0.0",
                     "artifactDigest": "%s",
-                    "parameters": {},
-                    "seatAssignment": [
-                      { "seatIndex": 0, "policyId": "faction-greedy", "policyVersion": "1.0.0" },
-                      { "seatIndex": 1, "policyId": "faction-greedy", "policyVersion": "1.0.0" },
-                      { "seatIndex": 2, "policyId": "faction-greedy", "policyVersion": "1.0.0" },
-                      { "seatIndex": 3, "policyId": "faction-greedy", "policyVersion": "1.0.0" }
-                    ]
+                    "parameters": {}
                   } ],
                   "playerCounts": [ 4 ],
                   "searchMasterSeed": "42",
