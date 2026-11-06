@@ -191,7 +191,7 @@ class SimulationVariantRulesTest {
     private Request createExperiment(String variants) {
         var manifest = """
                 {
-                  "schemaVersion": 1,
+                  "schemaVersion": 2,
                   "name": "variant overrides",
                   "variants": [ %2$s ],
                   "services": {
@@ -201,9 +201,12 @@ class SimulationVariantRulesTest {
                   },
                   "contracts": { "simulation-api": "3.4.0" },
                   "policies": [ {
-                    "id": "random", "version": "v1", "artifactDigest": "%1$s", "parameters": {},
-                    "seatAssignment": [ { "seatIndex": 0, "policyId": "random", "policyVersion": "v1" } ]
+                    "id": "random", "version": "v1", "artifactDigest": "%1$s", "parameters": {}
                   } ],
+                  "tables": [ { "id": "random", "seats": [
+                    { "seatIndex": 0, "policyId": "random", "policyVersion": "v1" },
+                    { "seatIndex": 1, "policyId": "random", "policyVersion": "v1" },
+                    { "seatIndex": 2, "policyId": "random", "policyVersion": "v1" } ] } ],
                   "seeds": ["42"],
                   "playerCounts": [3],
                   "factionSets": [["ERASERS", "ACTIVISTS", "WEAVERS"]],

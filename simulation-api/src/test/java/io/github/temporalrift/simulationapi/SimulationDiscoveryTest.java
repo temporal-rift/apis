@@ -64,7 +64,7 @@ class SimulationDiscoveryTest {
                   "caseCount": 55,
                   "breakdown": [ { "variantLabel": "threshold-20", "playerCount": 3, "caseCount": 30 } ],
                   "cases": [ {
-                    "caseKey": "%s", "variantLabel": "threshold-20", "seed": "42", "playerCount": 3,
+                    "caseKey": "%s", "variantLabel": "threshold-20", "tableId": "random", "seed": "42", "playerCount": 3,
                     "assignments": [
                       { "seatIndex": 0, "faction": "ERASERS", "policyId": "random", "policyVersion": "v1" },
                       { "seatIndex": 1, "faction": "ACTIVISTS", "policyId": "random", "policyVersion": "v1" },
@@ -90,7 +90,7 @@ class SimulationDiscoveryTest {
     void aCaseSummaryAlwaysNamesItsEndReasonEvenWhenThereIsNone() {
         var summary = """
                 { "items": [ {
-                    "caseId": "%s", "caseKey": "%s", "runId": "%s", "variantLabel": "threshold-20",
+                    "caseId": "%s", "caseKey": "%s", "runId": "%s", "variantLabel": "threshold-20", "tableId": "random",
                     "seed": "42", "playerCount": 3, "state": "FAILED", "endReason": null
                   } ], "total": 1 }
                 """.formatted(ID, ID, ID);
@@ -253,9 +253,11 @@ class SimulationDiscoveryTest {
                       "factionSets": [["ERASERS", "ACTIVISTS", "WEAVERS"]],
                       "seatRotationMode": "CYCLIC", "timingMode": "LOGICAL",
                       "policies": [ { "id": "random", "version": "v1", "artifactDigest": "%s",
-                                     "parameters": {},
-                                     "seatAssignment": [
-                                       { "seatIndex": 0, "policyId": "random", "policyVersion": "v1" } ] } ],
+                                     "parameters": {} } ],
+                      "tables": [ { "id": "random", "seats": [
+                        { "seatIndex": 0, "policyId": "random", "policyVersion": "v1" },
+                        { "seatIndex": 1, "policyId": "random", "policyVersion": "v1" },
+                        { "seatIndex": 2, "policyId": "random", "policyVersion": "v1" } ] } ],
                       "concurrency": 1, "caseWallTimeoutSeconds": 60,
                       "maxRejectedCandidatesPerWindow": 10
                     }

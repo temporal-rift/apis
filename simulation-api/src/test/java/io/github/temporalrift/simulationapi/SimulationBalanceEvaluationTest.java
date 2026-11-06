@@ -66,7 +66,7 @@ class SimulationBalanceEvaluationTest {
                         "lines": [ {
                           "lineId": "L-01", "role": "SCORED", "metric": "faction_win_rate",
                           "dimensions": { "faction": "ERASERS" },
-                          "policyId": "faction-greedy-v1", "playerCount": 3, "factionSet": null,
+                          "tableId": "faction-greedy-v1", "policyId": "faction-greedy-v1", "playerCount": 3, "factionSet": null,
                           "band": { "lower": 0.8, "upper": 1.25, "scale": null },
                           "value": 1.40,
                           "interval": { "level": 0.95, "lower": 1.30, "upper": 1.50, "method": "BLOCK_BOOTSTRAP" },
@@ -95,7 +95,7 @@ class SimulationBalanceEvaluationTest {
                         "lines": [ {
                           "lineId": "G-02", "role": "GATE", "metric": "ending_cause_rate",
                           "dimensions": { "endReason": "RESOLUTION_FAILED" },
-                          "policyId": "faction-greedy-v1", "playerCount": 3, "factionSet": null,
+                          "tableId": "faction-greedy-v1", "policyId": "faction-greedy-v1", "playerCount": 3, "factionSet": null,
                           "band": { "lower": null, "upper": 0, "scale": 0.01 },
                           "value": 0,
                           "interval": { "level": 0.95, "lower": 0, "upper": 0, "method": "BLOCK_BOOTSTRAP" },
@@ -122,7 +122,7 @@ class SimulationBalanceEvaluationTest {
                         "lines": [ {
                           "lineId": "L-02", "role": "SCORED", "metric": "eras",
                           "dimensions": { },
-                          "policyId": "faction-greedy-v1", "playerCount": 5, "factionSet": null,
+                          "tableId": "faction-greedy-v1", "policyId": "faction-greedy-v1", "playerCount": 5, "factionSet": null,
                           "band": { "lower": 3.5, "upper": 4.5, "scale": null },
                           "value": 3.9, "interval": null,
                           "status": "INSUFFICIENT_SAMPLE", "deviation": 0, "verdict": "INCONCLUSIVE",
@@ -199,7 +199,7 @@ class SimulationBalanceEvaluationTest {
     void failureShareAppearsPooledWithAndWithoutACode() {
         var report = """
                 {
-                  "formatVersion": 2,
+                  "formatVersion": 3,
                   "runId": "%s",
                   "manifestDigest": "%s",
                   "analysisVersion": "2",
@@ -208,6 +208,7 @@ class SimulationBalanceEvaluationTest {
                   "caseCounts": { "requested": 10, "pending": 0, "running": 0, "succeeded": 8, "failed": 2, "cancelled": 0 },
                   "cohorts": [ {
                     "variantLabel": "threshold-20",
+                    "tableId": "faction-greedy-v1",
                     "policyId": "faction-greedy-v1",
                     "policyVersion": "1.0.0",
                     "playerCount": 3,
@@ -253,7 +254,7 @@ class SimulationBalanceEvaluationTest {
     void aFailureCodeOutsideTheVocabularyIsRejected() {
         var report = """
                 {
-                  "formatVersion": 2,
+                  "formatVersion": 3,
                   "runId": "%s",
                   "manifestDigest": "%s",
                   "analysisVersion": "2",
@@ -262,6 +263,7 @@ class SimulationBalanceEvaluationTest {
                   "caseCounts": { "requested": 10, "pending": 0, "running": 0, "succeeded": 8, "failed": 2, "cancelled": 0 },
                   "cohorts": [ {
                     "variantLabel": "threshold-20",
+                    "tableId": "faction-greedy-v1",
                     "policyId": "faction-greedy-v1",
                     "policyVersion": "1.0.0",
                     "playerCount": 3,

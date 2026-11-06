@@ -1,14 +1,15 @@
 openapi: 3.0.3
 info:
   title: Temporal Rift Simulation Workbench API
-  version: 4.5.0
+  version: 5.0.0
   description: >-
-    Creates immutable experiment manifests and provides durable run control, evidence inspection,
+    Creates immutable experiment manifests whose seat tables assign one policy bundle to each seat,
+    and provides durable run control, evidence inspection,
     statistical reporting, paired comparisons, perspective-safe replay, guided setup discovery
     (lane bundles and experiment templates), balance criteria and run evaluation, variant rules
     expressed as a baseline document plus validated parameter overrides (parameter spaces and
     variant-rules previews), and durable configuration search campaigns that generate candidates,
-    screen them, and confirm a short list on fresh seeds, and simulator fidelity checks against a real
+    screen them, and confirm a short list on fresh seeds on the simulator, and simulator fidelity checks against a real
     lane, for the separate simulation workbench. The workbench orchestrates real game services; it never replaces their authoritative gameplay
     rules.
 
@@ -58,7 +59,10 @@ paths:
       description: >-
         Requires `simulation:write`. The resolved rules and content bytes represented by the
         manifest are retained by the product. A later rules or content change requires a new
-        experiment; this operation never rewrites an existing manifest.
+        experiment; this operation never rewrites an existing manifest. A request manifest has
+        `schemaVersion` 2 and plays its `tables`: the case matrix crosses variants, tables, seeds,
+        player counts, faction sets and rotations. A request with `schemaVersion` 1 is refused with
+        `INVALID_EXPERIMENT` and `field` `schemaVersion`.
       x-required-scopes: [ simulation:write ]
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -274,8 +278,10 @@ paths:
       operationId: getRunReport
       summary: Get the stratified statistical report for a run
       description: >-
-        Requires `simulation:read`. For every variant, policy and player count the report holds a
+        Requires `simulation:read`. For every variant, seat table and player count the report holds a
         pooled cohort, one cohort per seat, one per faction set, and one per faction set and seat.
+        A cohort of a mixed table that pools seats of several policies has null `policyId` and
+        `policyVersion`.
         Only succeeded cases are games: pending, running, failed and cancelled cases appear in case
         counts and never in a game metric's denominator, and the report stays explicitly incomplete while
         any requested case has not succeeded. `Accept: text/csv` returns the same report as RFC 4180
@@ -295,13 +301,14 @@ paths:
                 description: >-
                   RFC 4180 CSV. A header row, then one row per cohort metric in report order, with the
                   columns formatVersion, runId, manifestDigest, analysisVersion, analysisSeed, complete,
-                  variantLabel, policyId, policyVersion, playerCount, factionSet (factions joined by `|`),
+                  variantLabel, tableId, policyId, policyVersion, playerCount, factionSet (factions joined by `|`),
                   seatIndex, eligibleGames, independentBlocks, requested, pending, running, succeeded,
                   failed, cancelled, metric, statistic, faction, cardType, cardGrade, specialAction,
                   paradoxType, endReason, quantile, failureCode, unit, value, numerator, denominator,
                   status, intervalLower, intervalUpper, unknownCount. `failureCode` is empty for a metric
                   not split by failure code, including the all-codes `failure_share` metric, and holds the
-                  `AttemptFailureCode` of a per-code `failure_share` metric. An empty field is a null value.
+                  `AttemptFailureCode` of a per-code `failure_share` metric. An empty field is a null value,
+                  such as `policyId` and `policyVersion` on a cohort pooling several policies.
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/InsufficientScope' }
         '404': { $ref: '#/components/responses/NotFound' }
@@ -335,11 +342,13 @@ paths:
       description: >-
         Requires `simulation:write`. Each side names a run and one of its variants; both sides may
         name the same run. The two frozen manifests must be equal in services, contracts, policies
-        with their parameters, seeds, player counts, faction sets, seat rotation mode, timing mode,
-        and maximum rejected candidates per window; they may differ in the compared variants' rules
-        and content and in execution-only bounds. A baseline and a candidate case pair when they
-        share seed, player count, policy, and seat-to-faction assignment; a seed is one block, and
-        only blocks whose every pair succeeded on both sides enter the paired estimates.
+        with their parameters, seat tables, seeds, player counts, faction sets, seat rotation mode,
+        timing mode, and maximum rejected candidates per window; they may differ in the compared
+        variants' rules and content and in execution-only bounds. A run whose frozen tables differ
+        is refused with `422 INCOMPARABLE_RUNS`, naming `tables` among the differences. A baseline
+        and a candidate case pair when they share seed, player count, table, and seat-to-faction
+        assignment; a seed is one block, and only blocks whose every pair succeeded on both sides
+        enter the paired estimates.
       x-required-scopes: [ simulation:write ]
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -386,8 +395,8 @@ paths:
                 description: >-
                   RFC 4180 CSV. A header row, then one row per cohort metric difference, with the columns
                   formatVersion, comparisonId, baselineRunId, baselineVariantLabel, candidateRunId,
-                  candidateVariantLabel, analysisVersion, analysisSeed, complete, policyId, policyVersion,
-                  playerCount, factionSet (factions joined by `|`), seatIndex, matchedBlocks,
+                  candidateVariantLabel, analysisVersion, analysisSeed, complete, tableId, policyId,
+                  policyVersion, playerCount, factionSet (factions joined by `|`), seatIndex, matchedBlocks,
                   excludedBlocks, metric, statistic, faction, cardType, cardGrade, specialAction,
                   paradoxType, endReason, quantile, unit, baselineValue, candidateValue, difference,
                   status, intervalLower, intervalUpper. An empty field is a null value.
@@ -531,8 +540,8 @@ paths:
       operationId: listPolicies
       summary: List the bot policy bundles a manifest may reference
       description: >-
-        Requires `simulation:read`. A manifest policy built from an entry's `id`, `version` and
-        `artifactDigest` passes policy verification.
+        Requires `simulation:read`. A manifest policy bundle reference built from an entry's `id`,
+        `version` and `artifactDigest` passes policy verification.
       x-required-scopes: [ simulation:read ]
       responses:
         '200':
@@ -579,8 +588,10 @@ paths:
         Requires `simulation:read`. Returns named starting points, each with complete defaults
         for every manifest field that does not identify a bundle, so a client can pre-fill a
         draft that it then assembles with the chosen bundles and the designer's edits into an
-        `ExperimentManifest` for `createExperiment` or `previewExperiment`. Items are ordered
-        ascending `templateId`.
+        `ExperimentManifest` for `createExperiment` or `previewExperiment`. The defaults are those
+        of a `schemaVersion` 2 manifest: `baseline-policy-comparison` plays the uniform tables
+        `faction-greedy` and `random`, and `rules-variant-comparison` plays the uniform table
+        `random`. Items are ordered ascending `templateId`.
       x-required-scopes: [ simulation:read ]
       parameters:
         - $ref: '#/components/parameters/Limit'
@@ -847,11 +858,10 @@ paths:
                         version: 1.0.0
                         artifactDigest: 5a1c1e2d3f405162738495a6b7c8d9e0f1a2b3c4d5e6f708192a3b4c5d6e7f80
                         parameters: {}
-                        seatAssignment:
-                          - { seatIndex: 0, policyId: faction-greedy, policyVersion: 1.0.0 }
-                          - { seatIndex: 1, policyId: faction-greedy, policyVersion: 1.0.0 }
-                          - { seatIndex: 2, policyId: faction-greedy, policyVersion: 1.0.0 }
-                          - { seatIndex: 3, policyId: faction-greedy, policyVersion: 1.0.0 }
+                      - id: random
+                        version: 1.0.0
+                        artifactDigest: 7b2d2f3e4a516273849506b7c8d9e0f1a2b3c4d5e6f708192a3b4c5d6e7f8010
+                        parameters: {}
                     playerCounts: [ 4 ]
                     budgetSeconds: 14400
                     parallelism: 2
@@ -1047,9 +1057,11 @@ paths:
       summary: Confirm a campaign's short list on fresh seeds
       description: >-
         Requires `simulation:write`. Allowed only from `SEARCH_COMPLETED`; moves the campaign to
-        `CONFIRMING` and starts one confirmation run per short-listed candidate and one for the
-        baseline. Confirmation seeds derive from `confirmationMasterSeed` only; if any of them
-        already appears in the campaign log's `seeds`, nothing starts.
+        `CONFIRMING` and starts one confirmation run per short-listed candidate. Each run plays the
+        criterion's `CONFIRMATION` tables on the simulator, so the simulator must be enabled and
+        hold a passing fidelity record for the source revisions it embeds. Confirmation seeds
+        derive from `confirmationMasterSeed` only; if any of them already appears in the campaign
+        log's `seeds`, nothing starts. A refused request creates nothing.
       x-required-scopes: [ simulation:write ]
       parameters:
         - $ref: '#/components/parameters/CampaignId'
@@ -1065,8 +1077,11 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409':
           description: >-
-            Idempotency conflict, invalid campaign state, or overlapping confirmation seeds
-            (code IDEMPOTENCY_CONFLICT, INVALID_CAMPAIGN_STATE, or SEED_OVERLAP)
+            Idempotency conflict, invalid campaign state, overlapping confirmation seeds, the
+            simulator not enabled, no passing fidelity record for the simulator's source revisions,
+            or no bundle serving a policy that a `CONFIRMATION` table names (code
+            IDEMPOTENCY_CONFLICT, INVALID_CAMPAIGN_STATE, SEED_OVERLAP, SIMULATOR_NOT_AVAILABLE,
+            FIDELITY_NOT_ESTABLISHED, or POLICY_NOT_AVAILABLE)
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/ProblemDetail' }
@@ -1078,8 +1093,8 @@ paths:
       summary: Start a simulator fidelity check
       description: >-
         Requires `simulation:write`. For the seed, plays on the simulator the full case matrix (player
-        counts 3, 4 and 5, every faction set and seat rotation, policies `faction-greedy-v1` and
-        `random-v1`) for the variants `baseline`, `low` and `high`, then reproduces every case on one
+        counts 3, 4 and 5, every faction set and seat rotation, the uniform tables `faction-greedy-v1`
+        and `random-v1`) for the variants `baseline`, `low` and `high`, then reproduces every case on one
         real lane. Repeating the same idempotency key with the same request returns the original check.
         Refused with `FIDELITY_CHECK_ACTIVE` while another check is `QUEUED` or `RUNNING`, and with
         `SIMULATOR_NOT_AVAILABLE` when the simulator is not enabled or no real lane fits its source
@@ -1288,8 +1303,13 @@ components:
           schema: { $ref: '#/components/schemas/ProblemDetail' }
     InvalidExperiment:
       description: >-
-        The manifest is invalid (code INVALID_EXPERIMENT). A refused variant's overrides also carry a
-        `reason` and name the offending value in `field`.
+        The manifest is invalid (code INVALID_EXPERIMENT). `field` names the offending value. A refused
+        variant's overrides also carry a `reason`. The refusals on seat tables are: `schemaVersion`
+        for a request that is not `schemaVersion` 2; `tables[i].id` for an id that does not match
+        `^[a-z0-9][a-z0-9-]{0,62}$` or repeats; `tables[i].seats[j]` for a seat entry whose index is
+        not one of `0` to `max(playerCounts) - 1` or repeats, or for a missing seat entry;
+        `tables[i].seats[j].policyId` for a seat naming no `policies` entry; and `policies[i]` for an
+        entry that no seat uses.
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/ProblemDetail' }
@@ -1312,8 +1332,8 @@ components:
           schema: { $ref: '#/components/schemas/ProblemDetail' }
     IncomparableRuns:
       description: >-
-        The two sides' manifests differ in a gameplay-affecting definition; the detail names every
-        differing definition (code INCOMPARABLE_RUNS)
+        The two sides' manifests differ in a gameplay-affecting definition, such as `tables`; the
+        detail names every differing definition (code INCOMPARABLE_RUNS)
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/ProblemDetail' }
@@ -1328,7 +1348,9 @@ components:
     InvalidCampaign:
       description: >-
         The campaign definition or parallelism update is invalid (code INVALID_CAMPAIGN). `field`
-        names the offending value and `reason` names why it was refused.
+        names the offending value and `reason` names why it was refused. A supplied `policies` that
+        lacks a policy the criterion's tables name is refused with `field` `policies` and `reason`
+        `INVALID_VALUE`.
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/ProblemDetail' }
@@ -1439,10 +1461,29 @@ components:
         policyVersion:
           type: string
           minLength: 1
+    PolicyBundleReference:
+      type: object
+      additionalProperties: false
+      required: [ id, version, artifactDigest, parameters ]
+      description: A policy bundle by id, version and digest, with the parameters it is played with.
+      properties:
+        id:
+          type: string
+          minLength: 1
+        version:
+          type: string
+          minLength: 1
+        artifactDigest: { $ref: '#/components/schemas/Sha256Digest' }
+        parameters:
+          type: object
+          additionalProperties: true
     Policy:
       type: object
       additionalProperties: false
       required: [ id, version, artifactDigest, parameters, seatAssignment ]
+      description: >-
+        A policy entry of a `schemaVersion` 1 manifest, which `getExperiment` and `listExperiments`
+        still return as frozen. Never accepted in a request.
       properties:
         id:
           type: string
@@ -1459,6 +1500,29 @@ components:
           minItems: 1
           uniqueItems: true
           items: { $ref: '#/components/schemas/SeatPolicyAssignment' }
+    SeatTable:
+      type: object
+      additionalProperties: false
+      required: [ id, seats ]
+      description: >-
+        A named assignment of one policy bundle to each seat index. A case at `p` players uses seats
+        `0` to `p - 1` of its table. With `CYCLIC` rotation every faction of a set occupies each seat
+        once, so a policy on seat 0 plays every faction of the set once per rotation cycle. A table
+        whose seats all name one policy is uniform; otherwise it is mixed.
+      properties:
+        id:
+          type: string
+          pattern: '^[a-z0-9][a-z0-9-]{0,62}$'
+          description: Unique among the manifest's tables.
+        seats:
+          type: array
+          minItems: 3
+          maxItems: 5
+          uniqueItems: true
+          description: >-
+            Exactly one entry for each seat index from `0` to `max(playerCounts) - 1`, each naming a
+            `policies` entry by `policyId` and `policyVersion`.
+          items: { $ref: '#/components/schemas/SeatPolicyAssignment' }
     FactionSet:
       type: array
       minItems: 3
@@ -1469,6 +1533,11 @@ components:
     ExperimentManifest:
       type: object
       additionalProperties: false
+      description: >-
+        The manifest a request carries, always `schemaVersion` 2. `policies` lists bundles only,
+        unique by `id` and `version`; every entry is used by at least one seat of `tables`. The case
+        matrix crosses variants, tables, seeds, player counts, faction sets and rotations, and each
+        case's seat `i` plays the policy of its table's seat `i`.
       required:
         - schemaVersion
         - name
@@ -1476,6 +1545,7 @@ components:
         - services
         - contracts
         - policies
+        - tables
         - seeds
         - playerCounts
         - factionSets
@@ -1487,7 +1557,7 @@ components:
       properties:
         schemaVersion:
           type: integer
-          enum: [ 1 ]
+          enum: [ 2 ]
         name:
           type: string
           minLength: 1
@@ -1502,7 +1572,11 @@ components:
         policies:
           type: array
           minItems: 1
-          items: { $ref: '#/components/schemas/Policy' }
+          items: { $ref: '#/components/schemas/PolicyBundleReference' }
+        tables:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/SeatTable' }
         seeds:
           type: array
           minItems: 1
@@ -1543,9 +1617,87 @@ components:
       required: [ experimentId, manifest, manifestDigest, createdAt ]
       properties:
         experimentId: { type: string, format: uuid }
-        manifest: { $ref: '#/components/schemas/ExperimentManifest' }
+        manifest: { $ref: '#/components/schemas/StoredExperimentManifest' }
         manifestDigest: { $ref: '#/components/schemas/Sha256Digest' }
         createdAt: { type: string, format: date-time }
+    StoredExperimentManifest:
+      description: >-
+        A manifest exactly as frozen: `schemaVersion` 2 for every experiment created from version
+        5.0.0 on, `schemaVersion` 1 for one created before. The cases of a version 1 manifest report one
+        uniform table per policy entry, with `tableId` equal to that policy's `id`.
+      oneOf:
+        - $ref: '#/components/schemas/ExperimentManifest'
+        - $ref: '#/components/schemas/ExperimentManifestV1'
+    ExperimentManifestV1:
+      type: object
+      additionalProperties: false
+      description: >-
+        A manifest frozen before seat tables existed. Returned as frozen and never accepted in a request.
+      required:
+        - schemaVersion
+        - name
+        - variants
+        - services
+        - contracts
+        - policies
+        - seeds
+        - playerCounts
+        - factionSets
+        - seatRotationMode
+        - timingMode
+        - concurrency
+        - caseWallTimeoutSeconds
+        - maxRejectedCandidatesPerWindow
+      properties:
+        schemaVersion:
+          type: integer
+          enum: [ 1 ]
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        variants:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/Variant' }
+        services: { $ref: '#/components/schemas/ServiceProvenanceMap' }
+        contracts: { $ref: '#/components/schemas/ContractVersions' }
+        policies:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/Policy' }
+        seeds:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/DecimalUint64' }
+        playerCounts:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            type: integer
+            enum: [ 3, 4, 5 ]
+        factionSets:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/FactionSet' }
+        seatRotationMode:
+          type: string
+          enum: [ CYCLIC ]
+        timingMode:
+          type: string
+          enum: [ LOGICAL ]
+        concurrency:
+          type: integer
+          minimum: 1
+        caseWallTimeoutSeconds:
+          type: integer
+          minimum: 1
+        maxRejectedCandidatesPerWindow:
+          type: integer
+          minimum: 1
     StartRunRequest:
       type: object
       additionalProperties: false
@@ -1601,6 +1753,7 @@ components:
       type: object
       additionalProperties: false
       required: [ seatIndex, faction, policyId, policyVersion ]
+      description: The faction and the policy the case plays on one seat; the policy is that of the case's table seat.
       properties:
         seatIndex: { type: integer, minimum: 0 }
         faction: { $ref: '#/components/schemas/Faction' }
@@ -1642,12 +1795,13 @@ components:
     Case:
       type: object
       additionalProperties: false
-      required: [ caseId, caseKey, runId, variantLabel, seed, playerCount, assignments, state, attempts, result ]
+      required: [ caseId, caseKey, runId, variantLabel, tableId, seed, playerCount, assignments, state, attempts, result ]
       properties:
         caseId: { type: string, format: uuid }
         caseKey: { type: string, format: uuid }
         runId: { type: string, format: uuid }
         variantLabel: { type: string, minLength: 1 }
+        tableId: { type: string, minLength: 1 }
         seed: { $ref: '#/components/schemas/DecimalUint64' }
         playerCount: { type: integer, enum: [ 3, 4, 5 ] }
         assignments:
@@ -1778,6 +1932,7 @@ components:
       additionalProperties: false
       required:
         - variantLabel
+        - tableId
         - policyId
         - policyVersion
         - playerCount
@@ -1789,8 +1944,19 @@ components:
         - metrics
       properties:
         variantLabel: { type: string, minLength: 1 }
-        policyId: { type: string, minLength: 1 }
-        policyVersion: { type: string, minLength: 1 }
+        tableId: { type: string, minLength: 1 }
+        policyId:
+          type: string
+          minLength: 1
+          nullable: true
+          description: >-
+            The policy of every seat the cohort pools; null when the cohort pools seats of more than
+            one policy, such as the pooled and per-faction-set cohorts of a mixed table.
+        policyVersion:
+          type: string
+          minLength: 1
+          nullable: true
+          description: The version of `policyId`; null exactly when `policyId` is null.
         playerCount: { type: integer, enum: [ 3, 4, 5 ] }
         factionSet:
           allOf: [ { $ref: '#/components/schemas/FactionSet' } ]
@@ -1820,7 +1986,7 @@ components:
       properties:
         formatVersion:
           type: integer
-          enum: [ 2 ]
+          enum: [ 3 ]
           description: Version of the report's JSON and CSV layout; the first CSV column.
         runId: { type: string, format: uuid }
         manifestDigest: { $ref: '#/components/schemas/Sha256Digest' }
@@ -1869,6 +2035,7 @@ components:
       required:
         - seed
         - playerCount
+        - tableId
         - policyId
         - policyVersion
         - seats
@@ -1880,8 +2047,17 @@ components:
       properties:
         seed: { $ref: '#/components/schemas/DecimalUint64' }
         playerCount: { type: integer, enum: [ 3, 4, 5 ] }
-        policyId: { type: string, minLength: 1 }
-        policyVersion: { type: string, minLength: 1 }
+        tableId: { type: string, minLength: 1 }
+        policyId:
+          type: string
+          minLength: 1
+          nullable: true
+          description: The policy of every seat of the pair; null when the pair's table is mixed.
+        policyVersion:
+          type: string
+          minLength: 1
+          nullable: true
+          description: The version of `policyId`; null exactly when `policyId` is null.
         seats:
           type: array
           minItems: 3
@@ -1920,6 +2096,7 @@ components:
       type: object
       additionalProperties: false
       required:
+        - tableId
         - policyId
         - policyVersion
         - playerCount
@@ -1929,8 +2106,19 @@ components:
         - excludedBlocks
         - metricDifferences
       properties:
-        policyId: { type: string, minLength: 1 }
-        policyVersion: { type: string, minLength: 1 }
+        tableId: { type: string, minLength: 1 }
+        policyId:
+          type: string
+          minLength: 1
+          nullable: true
+          description: >-
+            The policy of every seat the cohort pools; null when the cohort pools seats of more than
+            one policy.
+        policyVersion:
+          type: string
+          minLength: 1
+          nullable: true
+          description: The version of `policyId`; null exactly when `policyId` is null.
         playerCount: { type: integer, enum: [ 3, 4, 5 ] }
         factionSet:
           allOf: [ { $ref: '#/components/schemas/FactionSet' } ]
@@ -1964,7 +2152,7 @@ components:
       properties:
         formatVersion:
           type: integer
-          enum: [ 1 ]
+          enum: [ 2 ]
           description: Version of the comparison's JSON and CSV layout; the first CSV column.
         comparisonId: { type: string, format: uuid }
         baseline: { $ref: '#/components/schemas/ComparisonSide' }
@@ -2095,12 +2283,13 @@ components:
     CaseSummary:
       type: object
       additionalProperties: false
-      required: [ caseId, caseKey, runId, variantLabel, seed, playerCount, state, endReason ]
+      required: [ caseId, caseKey, runId, variantLabel, tableId, seed, playerCount, state, endReason ]
       properties:
         caseId: { type: string, format: uuid }
         caseKey: { type: string, format: uuid }
         runId: { type: string, format: uuid }
         variantLabel: { type: string, minLength: 1 }
+        tableId: { type: string, minLength: 1 }
         seed: { $ref: '#/components/schemas/DecimalUint64' }
         playerCount: { type: integer, enum: [ 3, 4, 5 ] }
         state: { $ref: '#/components/schemas/CaseState' }
@@ -2151,10 +2340,11 @@ components:
     PreviewCase:
       type: object
       additionalProperties: false
-      required: [ caseKey, variantLabel, seed, playerCount, assignments ]
+      required: [ caseKey, variantLabel, tableId, seed, playerCount, assignments ]
       properties:
         caseKey: { type: string, format: uuid }
         variantLabel: { type: string, minLength: 1 }
+        tableId: { type: string, minLength: 1 }
         seed: { $ref: '#/components/schemas/DecimalUint64' }
         playerCount: { type: integer, enum: [ 3, 4, 5 ] }
         assignments:
@@ -2244,6 +2434,7 @@ components:
         - seatRotationMode
         - timingMode
         - policies
+        - tables
         - concurrency
         - caseWallTimeoutSeconds
         - maxRejectedCandidatesPerWindow
@@ -2280,7 +2471,11 @@ components:
         policies:
           type: array
           minItems: 1
-          items: { $ref: '#/components/schemas/Policy' }
+          items: { $ref: '#/components/schemas/PolicyBundleReference' }
+        tables:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/SeatTable' }
         concurrency:
           type: integer
           minimum: 1
@@ -2380,10 +2575,55 @@ components:
           nullable: true
           description: Used by `SUM_OF_FAILURE_CODES` derivations.
           items: { $ref: '#/components/schemas/AttemptFailureCode' }
+    CriterionTable:
+      type: object
+      additionalProperties: false
+      required: [ id, seats, phases ]
+      description: >-
+        A named assignment of one criterion policy reference to each of the five seats, and the
+        phases that play it. A case at `p` players uses seats `0` to `p - 1`. The campaign search
+        plays the `SCREENING` tables and its confirmation plays the `CONFIRMATION` tables.
+      properties:
+        id:
+          type: string
+          minLength: 1
+        seats:
+          type: array
+          minItems: 5
+          maxItems: 5
+          items:
+            type: object
+            additionalProperties: false
+            required: [ seatIndex, policy ]
+            properties:
+              seatIndex: { type: integer, minimum: 0, maximum: 4 }
+              policy:
+                type: string
+                minLength: 1
+                description: A criterion policy reference such as `faction-greedy-v1`.
+        phases:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/EvaluationMode' }
+    CriterionPopulation:
+      type: object
+      additionalProperties: false
+      required: [ table, policy ]
+      description: The seats of one table played by one policy.
+      properties:
+        table:
+          type: string
+          minLength: 1
+          description: The `id` of one of the criterion's tables.
+        policy:
+          type: string
+          minLength: 1
+          description: A policy reference some seat of that table names.
     CriterionLine:
       type: object
       additionalProperties: false
-      required: [ id, metric, derivation, dimension, policies, playerCounts, pooling, band, role, weight, rationale ]
+      required: [ id, metric, derivation, dimension, populations, playerCounts, pooling, band, role, weight, rationale ]
       properties:
         id:
           type: string
@@ -2393,10 +2633,11 @@ components:
           minLength: 1
         derivation: { $ref: '#/components/schemas/CriterionDerivation' }
         dimension: { $ref: '#/components/schemas/CriterionDimension' }
-        policies:
+        populations:
           type: array
           minItems: 1
-          items: { type: string, minLength: 1 }
+          description: Each population expands into its own evaluated lines.
+          items: { $ref: '#/components/schemas/CriterionPopulation' }
         playerCounts:
           type: array
           minItems: 1
@@ -2432,9 +2673,10 @@ components:
     BalanceCriterion:
       type: object
       additionalProperties: false
-      required: [ version, digest, title, analysisVersion, lines, aggregation, evidence ]
+      required: [ version, digest, title, analysisVersion, tables, lines, aggregation, evidence ]
       description: >-
-        One read-only balance criterion version served from the workbench's configuration.
+        One read-only balance criterion version served from the workbench's configuration. Version 1
+        has the two uniform tables `faction-greedy-v1` and `random-v1`, both in both phases.
       properties:
         version:
           type: integer
@@ -2446,6 +2688,10 @@ components:
         analysisVersion:
           type: string
           minLength: 1
+        tables:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/CriterionTable' }
         lines:
           type: array
           items: { $ref: '#/components/schemas/CriterionLine' }
@@ -2498,8 +2744,8 @@ components:
       additionalProperties: false
       required: [ requiredSeeds, seeds, fullMatrix, satisfied ]
       description: >-
-        The confirmation sample: at least the criterion's minimum seeds and the full case
-        matrix with every policy the criterion names.
+        The confirmation sample: at least the criterion's minimum seeds, and `fullMatrix` when
+        every table of the criterion's `CONFIRMATION` phase played the full case matrix on every seed.
       properties:
         requiredSeeds:
           type: integer
@@ -2535,9 +2781,9 @@ components:
     EvaluatedLine:
       type: object
       additionalProperties: false
-      required: [ lineId, role, metric, dimensions, policyId, playerCount, factionSet, band, value, interval, status, deviation, verdict, weight ]
+      required: [ lineId, role, metric, dimensions, tableId, policyId, playerCount, factionSet, band, value, interval, status, deviation, verdict, weight ]
       description: >-
-        One criterion line expanded for one cohort and dimension value. Deviation `d` is 0
+        One criterion line expanded for one population, cohort and dimension value. Deviation `d` is 0
         inside the band; outside it `(lower - value) / w` or `(value - upper) / w`, where
         `w` is the band width for a two-sided band and `scale` for a one-sided limit. A
         `NO_DATA` line has `d = 0`.
@@ -2550,9 +2796,13 @@ components:
           type: string
           minLength: 1
         dimensions: { $ref: '#/components/schemas/EvaluatedLineDimensions' }
+        tableId:
+          type: string
+          minLength: 1
         policyId:
           type: string
           minLength: 1
+          description: The policy of the line's population.
         playerCount:
           type: integer
           enum: [ 3, 4, 5 ]
@@ -2758,11 +3008,11 @@ components:
       required:
         - name
         - baseline
-        - policies
         - playerCounts
       description: >-
-        The inputs of a configuration search. `policies` use the same shape as an
-        `ExperimentManifest` policy. The service resolves every omitted optional field when it
+        The inputs of a configuration search. The campaign plays the criterion's tables: the search
+        plays the `SCREENING` tables and the confirmation plays the `CONFIRMATION` tables. The
+        service resolves every omitted optional field when it
         accepts the campaign and freezes the result, which the created `Campaign` returns. A
         definition whose `searchMasterSeed` and `confirmationMasterSeed` are equal is refused.
       properties:
@@ -2782,7 +3032,11 @@ components:
         policies:
           type: array
           minItems: 1
-          items: { $ref: '#/components/schemas/Policy' }
+          items: { $ref: '#/components/schemas/PolicyBundleReference' }
+          description: >-
+            Defaults to one bundle per policy the criterion's tables name, the newest of that major
+            version. A supplied list that lacks a policy the criterion's tables name is refused with
+            `INVALID_CAMPAIGN`, `field` `policies` and `reason` `INVALID_VALUE`.
         playerCounts:
           type: array
           minItems: 1
@@ -2866,7 +3120,10 @@ components:
         policies:
           type: array
           minItems: 1
-          items: { $ref: '#/components/schemas/Policy' }
+          items: { $ref: '#/components/schemas/PolicyBundleReference' }
+          description: >-
+            The bundles the campaign plays: the supplied ones, or the ones the service resolved for
+            every policy the criterion's tables name.
         playerCounts:
           type: array
           minItems: 1
@@ -3024,7 +3281,9 @@ components:
         candidateId:
           type: string
           minLength: 1
-          description: The short-listed candidate id, or the literal `baseline` for the baseline run.
+          description: >-
+            The short-listed candidate id. The literal `baseline` appears only on a confirmation
+            recorded before version 5.0.0, which is returned as recorded.
         experimentId: { type: string, format: uuid }
         runId: { type: string, format: uuid }
         evaluation:
@@ -3036,8 +3295,9 @@ components:
       additionalProperties: false
       required: [ seedCount, runs, seedOverlap ]
       description: >-
-        One confirmation run per short-listed candidate and one for the baseline. Confirmation
-        seeds derive from `confirmationMasterSeed` only.
+        One confirmation run per short-listed candidate, played on the simulator. Confirmation
+        seeds derive from `confirmationMasterSeed` only. A confirmation recorded before version 5.0.0
+        may also list a run for the literal candidate `baseline`.
       properties:
         seedCount:
           type: integer
@@ -3248,7 +3508,7 @@ components:
           minLength: 1
           description: >-
             Path of the offending manifest, campaign definition or request value, such as `seeds`,
-            `policies[0].seatAssignment`, `variants[1].overrides.game.rules.win-score-threshold`, or
+            `tables[1].seats[3].policyId`, `variants[1].overrides.game.rules.win-score-threshold`, or
             `confirmationMasterSeed`. Present on `INVALID_EXPERIMENT`, `INVALID_CAMPAIGN`, `INVALID_REQUEST` and
             `MANIFEST_MISMATCH` when the refusal is attributable to one value; absent otherwise.
         reason:
@@ -3288,6 +3548,8 @@ components:
             - INVALID_REQUEST
             - FIDELITY_CHECK_ACTIVE
             - SIMULATOR_NOT_AVAILABLE
+            - FIDELITY_NOT_ESTABLISHED
+            - POLICY_NOT_AVAILABLE
             - INVALID_CAMPAIGN
             - INVALID_CAMPAIGN_STATE
             - SEED_OVERLAP
