@@ -62,7 +62,7 @@ class SimulationDiscoveryTest {
                 {
                   "manifestDigest": "%s",
                   "caseCount": 55,
-                  "breakdown": [ { "variantLabel": "threshold-20", "playerCount": 3, "caseCount": 30 } ],
+                  "breakdown": [ { "variantLabel": "threshold-20", "tableId": "random", "playerCount": 3, "caseCount": 30 } ],
                   "cases": [ {
                     "caseKey": "%s", "variantLabel": "threshold-20", "tableId": "random", "seed": "42", "playerCount": 3,
                     "assignments": [

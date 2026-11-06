@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Temporal Rift Simulation Workbench API
-  version: 5.0.0
+  version: 5.1.0
   description: >-
     Creates immutable experiment manifests whose seat tables assign one policy bundle to each seat,
     and provides durable run control, evidence inspection,
@@ -94,7 +94,7 @@ paths:
         record or run results. The manifest is validated exactly as `createExperiment` validates it,
         and the digest, case keys and order equal those of the experiment frozen from the same
         manifest and of any run started from it. Cases are paged; `breakdown` and `caseCount` cover
-        the whole matrix.
+        the whole matrix, and `breakdown` has one row for each variant, table and player count.
       x-required-scopes: [ simulation:write ]
       parameters:
         - name: limit
@@ -2332,9 +2332,10 @@ components:
     PreviewBreakdown:
       type: object
       additionalProperties: false
-      required: [ variantLabel, playerCount, caseCount ]
+      required: [ variantLabel, tableId, playerCount, caseCount ]
       properties:
         variantLabel: { type: string, minLength: 1 }
+        tableId: { type: string, minLength: 1 }
         playerCount: { type: integer, enum: [ 3, 4, 5 ] }
         caseCount: { type: integer, minimum: 0 }
     PreviewCase:

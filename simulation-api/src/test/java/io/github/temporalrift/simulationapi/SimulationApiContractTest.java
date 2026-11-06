@@ -68,7 +68,7 @@ class SimulationApiContractTest {
         assertTrue(specification.contains("/api/v1/campaigns/{campaignId}/parallelism"));
         assertTrue(specification.contains("/api/v1/campaigns/{campaignId}/log"));
         assertTrue(specification.contains("/api/v1/campaigns/{campaignId}/confirmation"));
-        assertTrue(specification.contains("version: 5.0.0"));
+        assertTrue(specification.contains("version: 5.1.0"));
     }
 
     @Test
