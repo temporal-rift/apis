@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Temporal Rift Simulation Workbench API
-  version: 5.2.0
+  version: 5.2.1
   description: >-
     Creates immutable experiment manifests whose seat tables assign one policy bundle to each seat,
     and provides durable run control, evidence inspection,
@@ -663,9 +663,9 @@ paths:
         `BLOCK_BOOTSTRAP_UNION_CLOPPER_PEARSON` widens that interval to its union with the 95%
         two-sided Clopper–Pearson interval on the cohort's pooled numerator and denominator. A
         `POOLED` line whose population has no cohort in the variant still expands, one evaluated
-        line per dimension value (per faction of the roster for an each-faction line), with
-        `status` `NO_DATA`, null `value` and `interval`, `deviation` 0 and `verdict`
-        `INCONCLUSIVE`, naming the population's table and policy; it never rejects.
+        line per dimension value (per faction the variant played at that player count for an
+        each-faction line), with `status` `NO_DATA`, null `value` and `interval`, `deviation` 0
+        and `verdict` `INCONCLUSIVE`, naming the population's table and policy; it never rejects.
         `SCREENING` mode never returns `CONFIRMED`.
       x-required-scopes: [ simulation:read ]
       parameters:
