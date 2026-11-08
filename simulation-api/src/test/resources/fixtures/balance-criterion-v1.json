@@ -22,6 +22,7 @@
       "playerCounts": [ 3, 4, 5 ],
       "pooling": "POOLED",
       "band": { "lower": null, "upper": 0.02, "scale": 0.02 },
+      "interval": "BLOCK_BOOTSTRAP",
       "role": "GATE",
       "weight": null,
       "rationale": "Games that never end are a defect; 2% keeps survivorship bias well below the narrowest band."
@@ -40,6 +41,7 @@
       "playerCounts": [ 3, 4, 5 ],
       "pooling": "POOLED",
       "band": { "lower": null, "upper": 0, "scale": 0.01 },
+      "interval": "BLOCK_BOOTSTRAP",
       "role": "GATE",
       "weight": null,
       "rationale": "Every designed ending has a winner; an unresolvable game is a defect."
@@ -58,6 +60,7 @@
       "playerCounts": [ 3, 4, 5 ],
       "pooling": "POOLED",
       "band": { "lower": null, "upper": 0, "scale": 0.01 },
+      "interval": "BLOCK_BOOTSTRAP",
       "role": "GATE",
       "weight": null,
       "rationale": "The era count must fit the event deck; exhaustion is a configuration defect."
@@ -71,6 +74,7 @@
       "playerCounts": [ 3, 4, 5 ],
       "pooling": "POOLED",
       "band": { "lower": 3, "upper": null, "scale": 1 },
+      "interval": "BLOCK_BOOTSTRAP",
       "role": "GATE",
       "weight": null,
       "rationale": "Endings by era 2 shut out the slower faction objectives."
@@ -84,6 +88,7 @@
       "playerCounts": [ 3, 4, 5 ],
       "pooling": "POOLED",
       "band": { "lower": 0.5, "upper": 2.0, "scale": null },
+      "interval": "BLOCK_BOOTSTRAP",
       "role": "GATE",
       "weight": null,
       "rationale": "Twice or half as likely to win as an average seat is a broken faction."
@@ -97,6 +102,7 @@
       "playerCounts": [ 3, 4 ],
       "pooling": "PER_FACTION_SET",
       "band": { "lower": 0.5, "upper": 2.0, "scale": null },
+      "interval": "BLOCK_BOOTSTRAP",
       "role": "GATE",
       "weight": null,
       "rationale": "The same defect in a particular matchup."
@@ -110,6 +116,7 @@
       "playerCounts": [ 3, 4, 5 ],
       "pooling": "POOLED",
       "band": { "lower": null, "upper": 2.0, "scale": 1 },
+      "interval": "BLOCK_BOOTSTRAP",
       "role": "GATE",
       "weight": null,
       "rationale": "A faction that wins twice its share while choosing at random wins without decisions."
@@ -123,6 +130,7 @@
       "playerCounts": [ 3, 4, 5 ],
       "pooling": "POOLED",
       "band": { "lower": null, "upper": 0.5, "scale": 0.5 },
+      "interval": "BLOCK_BOOTSTRAP",
       "role": "GATE",
       "weight": null,
       "rationale": "If most games are shared, victory stops distinguishing players."
@@ -136,6 +144,7 @@
       "playerCounts": [ 3, 4, 5 ],
       "pooling": "POOLED",
       "band": { "lower": 0.8, "upper": 1.25, "scale": null },
+      "interval": "BLOCK_BOOTSTRAP",
       "role": "SCORED",
       "weight": 0.26666666666666666,
       "rationale": "Within the same factor (1.25) of an average seat either way."
@@ -149,6 +158,7 @@
       "playerCounts": [ 3, 4, 5 ],
       "pooling": "POOLED",
       "band": { "lower": 3.5, "upper": 4.5, "scale": null },
+      "interval": "BLOCK_BOOTSTRAP",
       "role": "SCORED",
       "weight": 0.6666666666666666,
       "rationale": "Typical game uses most of the five-era arc."
@@ -167,6 +177,7 @@
       "playerCounts": [ 3, 4, 5 ],
       "pooling": "POOLED",
       "band": { "lower": null, "upper": 0.2, "scale": 0.2 },
+      "interval": "BLOCK_BOOTSTRAP",
       "role": "SCORED",
       "weight": 0.3333333333333333,
       "rationale": "Running out the arc without a normal winner is a designed fallback, not the usual ending."
@@ -185,6 +196,7 @@
       "playerCounts": [ 3, 4, 5 ],
       "pooling": "POOLED",
       "band": { "lower": null, "upper": 0.1, "scale": 0.1 },
+      "interval": "BLOCK_BOOTSTRAP",
       "role": "SCORED",
       "weight": 0.3333333333333333,
       "rationale": "Collapse is the paradox system's threat; it must stay possible and rare."
@@ -198,6 +210,7 @@
       "playerCounts": [ 3, 4, 5 ],
       "pooling": "POOLED",
       "band": { "lower": null, "upper": 0.2, "scale": 0.2 },
+      "interval": "BLOCK_BOOTSTRAP",
       "role": "SCORED",
       "weight": 0.3333333333333333,
       "rationale": "Shared victory is legitimate at a scoring boundary but should be the minority of wins."
@@ -211,6 +224,7 @@
       "playerCounts": [ 3, 4, 5 ],
       "pooling": "POOLED",
       "band": { "lower": 1, "upper": 3, "scale": null },
+      "interval": "BLOCK_BOOTSTRAP",
       "role": "SCORED",
       "weight": 0.3333333333333333,
       "rationale": "The core mechanic occurs in a typical game without becoming routine."
@@ -224,6 +238,7 @@
       "playerCounts": [ 3, 4, 5 ],
       "pooling": "POOLED",
       "band": { "lower": 0.25, "upper": 0.75, "scale": null },
+      "interval": "BLOCK_BOOTSTRAP",
       "role": "SCORED",
       "weight": 0.3333333333333333,
       "rationale": "Resolution is a contest whose outcome is not foregone."

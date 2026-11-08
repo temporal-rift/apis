@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Temporal Rift Simulation Workbench API
-  version: 5.1.0
+  version: 5.2.0
   description: >-
     Creates immutable experiment manifests whose seat tables assign one policy bundle to each seat,
     and provides durable run control, evidence inspection,
@@ -659,7 +659,14 @@ paths:
         expanded into one evaluated line per cohort and dimension value it covers. The faction
         ratio and the sum of several `failure_share` codes are each recomputed in every
         bootstrap resample; their interval is the interval of the derived value, never a
-        combination of separate intervals. `SCREENING` mode never returns `CONFIRMED`.
+        combination of separate intervals. A line whose `interval` is
+        `BLOCK_BOOTSTRAP_UNION_CLOPPER_PEARSON` widens that interval to its union with the 95%
+        two-sided Clopper–Pearson interval on the cohort's pooled numerator and denominator. A
+        `POOLED` line whose population has no cohort in the variant still expands, one evaluated
+        line per dimension value (per faction of the roster for an each-faction line), with
+        `status` `NO_DATA`, null `value` and `interval`, `deviation` 0 and `verdict`
+        `INCONCLUSIVE`, naming the population's table and policy; it never rejects.
+        `SCREENING` mode never returns `CONFIRMED`.
       x-required-scopes: [ simulation:read ]
       parameters:
         - $ref: '#/components/parameters/RunId'
@@ -2548,6 +2555,18 @@ components:
     CriterionPooling:
       type: string
       enum: [ POOLED, PER_FACTION_SET ]
+    CriterionInterval:
+      type: string
+      enum: [ BLOCK_BOOTSTRAP, BLOCK_BOOTSTRAP_UNION_CLOPPER_PEARSON ]
+      description: >-
+        How the line's 95% interval is computed. `BLOCK_BOOTSTRAP` is the percentile block
+        bootstrap over the cohort's seeds. `BLOCK_BOOTSTRAP_UNION_CLOPPER_PEARSON`, used only for a
+        line whose value is a share of games or cases, is the union (lowest lower bound, highest
+        upper bound) of that interval and the 95% two-sided Clopper–Pearson interval on the
+        cohort's pooled numerator and denominator, so a share with no events is not shown to be
+        below a limit on a handful of games: 0 events in 10 games give `[0, 0.3085]`, 0 in 520
+        give `[0, 0.0071]`. A cohort with fewer than two seeds stays `INSUFFICIENT_SAMPLE` with no
+        interval under either rule.
     CriterionRole:
       type: string
       enum: [ GATE, SCORED ]
@@ -2611,7 +2630,14 @@ components:
       type: object
       additionalProperties: false
       required: [ table, policy ]
-      description: The seats of one table played by one policy.
+      description: >-
+        The seats of one table played by one policy: at `p` players, the seats `0` to `p - 1` of
+        the table whose policy is `policy`. A seat metric such as `faction_win_rate` counts only
+        those seats; a game metric such as `ending_cause_rate`, and `failure_share`, count every
+        game or case of the table, since every game has those seats. The win reference `R` of a
+        `RATIO_TO_WIN_REFERENCE` line is winner seat-games over seat-games of every seat of the
+        table's cohort. A run's cohort belongs to the table only when each of its seats plays the
+        policy the table names for that seat.
       properties:
         table:
           type: string
@@ -2645,6 +2671,12 @@ components:
           items: { type: integer, enum: [ 3, 4, 5 ] }
         pooling: { $ref: '#/components/schemas/CriterionPooling' }
         band: { $ref: '#/components/schemas/Band' }
+        interval:
+          allOf: [ { $ref: '#/components/schemas/CriterionInterval' } ]
+          default: BLOCK_BOOTSTRAP
+          description: >-
+            The line's interval rule. The workbench always sends it; a reader of a document
+            without it uses `BLOCK_BOOTSTRAP`.
         weight:
           type: number
           nullable: true
@@ -2677,7 +2709,9 @@ components:
       required: [ version, digest, title, analysisVersion, tables, lines, aggregation, evidence ]
       description: >-
         One read-only balance criterion version served from the workbench's configuration. Version 1
-        has the two uniform tables `faction-greedy-v1` and `random-v1`, both in both phases.
+        has the two uniform tables `faction-greedy-v1` and `random-v1`, both in both phases, and
+        `BLOCK_BOOTSTRAP` on every line. Version 2 adds the `CONFIRMATION` table
+        `random-seat-vs-faction-greedy-v1` (seat 0 `random-v1`, seats 1 to 4 `faction-greedy-v1`).
       properties:
         version:
           type: integer

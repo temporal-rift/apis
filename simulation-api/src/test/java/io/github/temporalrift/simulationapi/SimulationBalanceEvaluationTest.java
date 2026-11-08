@@ -57,6 +57,33 @@ class SimulationBalanceEvaluationTest {
     }
 
     @Test
+    void everyLineNamesItsIntervalRule() throws IOException {
+        var criterion = fixture("balance-criterion-v1.json");
+        var union = criterion.replaceFirst(
+                "\"interval\": \"BLOCK_BOOTSTRAP\"", "\"interval\": \"BLOCK_BOOTSTRAP_UNION_CLOPPER_PEARSON\"");
+        var missing = criterion.replaceFirst("\"interval\": \"BLOCK_BOOTSTRAP\",", "");
+        var unknown = criterion.replaceFirst("\"interval\": \"BLOCK_BOOTSTRAP\"", "\"interval\": \"WILSON\"");
+
+        assertValid(validator.validateResponse("/api/v1/balance-criteria/1", Request.Method.GET, json(union)));
+        assertValid(validator.validateResponse("/api/v1/balance-criteria/1", Request.Method.GET, json(missing)));
+        assertFalse(validator
+                .validateResponse("/api/v1/balance-criteria/1", Request.Method.GET, json(unknown))
+                .getMessages()
+                .isEmpty());
+        assertEquals(
+                List.of("BLOCK_BOOTSTRAP", "BLOCK_BOOTSTRAP_UNION_CLOPPER_PEARSON"),
+                openApi.getComponents().getSchemas().get("CriterionInterval").getEnum());
+        assertEquals(
+                "BLOCK_BOOTSTRAP",
+                ((io.swagger.v3.oas.models.media.Schema<?>) openApi.getComponents()
+                                .getSchemas()
+                                .get("CriterionLine")
+                                .getProperties()
+                                .get("interval"))
+                        .getDefault());
+    }
+
+    @Test
     void aScoredLineOutsideItsBandFailsAndContributesWeightTimesDeviationSquared() {
         var evaluation = evaluation(
                 """
