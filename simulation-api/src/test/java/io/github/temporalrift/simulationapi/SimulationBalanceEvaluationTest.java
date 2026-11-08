@@ -65,10 +65,7 @@ class SimulationBalanceEvaluationTest {
         var unknown = criterion.replaceFirst("\"interval\": \"BLOCK_BOOTSTRAP\"", "\"interval\": \"WILSON\"");
 
         assertValid(validator.validateResponse("/api/v1/balance-criteria/1", Request.Method.GET, json(union)));
-        assertFalse(validator
-                .validateResponse("/api/v1/balance-criteria/1", Request.Method.GET, json(missing))
-                .getMessages()
-                .isEmpty());
+        assertValid(validator.validateResponse("/api/v1/balance-criteria/1", Request.Method.GET, json(missing)));
         assertFalse(validator
                 .validateResponse("/api/v1/balance-criteria/1", Request.Method.GET, json(unknown))
                 .getMessages()
@@ -76,6 +73,14 @@ class SimulationBalanceEvaluationTest {
         assertEquals(
                 List.of("BLOCK_BOOTSTRAP", "BLOCK_BOOTSTRAP_UNION_CLOPPER_PEARSON"),
                 openApi.getComponents().getSchemas().get("CriterionInterval").getEnum());
+        assertEquals(
+                "BLOCK_BOOTSTRAP",
+                ((io.swagger.v3.oas.models.media.Schema<?>) openApi.getComponents()
+                                .getSchemas()
+                                .get("CriterionLine")
+                                .getProperties()
+                                .get("interval"))
+                        .getDefault());
     }
 
     @Test

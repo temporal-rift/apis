@@ -2650,7 +2650,7 @@ components:
     CriterionLine:
       type: object
       additionalProperties: false
-      required: [ id, metric, derivation, dimension, populations, playerCounts, pooling, band, interval, role, weight, rationale ]
+      required: [ id, metric, derivation, dimension, populations, playerCounts, pooling, band, role, weight, rationale ]
       properties:
         id:
           type: string
@@ -2671,7 +2671,12 @@ components:
           items: { type: integer, enum: [ 3, 4, 5 ] }
         pooling: { $ref: '#/components/schemas/CriterionPooling' }
         band: { $ref: '#/components/schemas/Band' }
-        interval: { $ref: '#/components/schemas/CriterionInterval' }
+        interval:
+          allOf: [ { $ref: '#/components/schemas/CriterionInterval' } ]
+          default: BLOCK_BOOTSTRAP
+          description: >-
+            The line's interval rule. The workbench always sends it; a reader of a document
+            without it uses `BLOCK_BOOTSTRAP`.
         weight:
           type: number
           nullable: true
