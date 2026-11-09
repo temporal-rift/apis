@@ -227,7 +227,7 @@ class SimulationSeatTablesTest {
     }
 
     @Test
-    void startConfirmationRefusesWithTheSimulatorFidelityAndPolicyCodes() {
+    void startConfirmationRefusesWithTheSimulatorAndPolicyCodesButNeverOverFidelity() {
         var path = "/api/v1/campaigns/3c1c4a7e-8b2d-4f46-9a71-5d0e2b6c8f91/confirmation";
 
         List.of(
@@ -235,10 +235,11 @@ class SimulationSeatTablesTest {
                         "INVALID_CAMPAIGN_STATE",
                         "SEED_OVERLAP",
                         "SIMULATOR_NOT_AVAILABLE",
-                        "FIDELITY_NOT_ESTABLISHED",
                         "POLICY_NOT_AVAILABLE")
                 .forEach(code -> assertValid(validator.validateResponse(
                         path, Request.Method.POST, problemJson(409, conflict(code)))));
+        assertInvalid(validator.validateResponse(
+                path, Request.Method.POST, problemJson(409, conflict("FIDELITY_NOT_ESTABLISHED"))));
         assertInvalid(validator.validateResponse(path, Request.Method.POST, problemJson(409, conflict("BOGUS"))));
     }
 

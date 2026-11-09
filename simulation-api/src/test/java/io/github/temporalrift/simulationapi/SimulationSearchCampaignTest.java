@@ -80,6 +80,25 @@ class SimulationSearchCampaignTest {
     }
 
     @Test
+    void theCampaignStatesWhetherAFidelityRecordCoveredItsRevisions() {
+        var body = toJson(example("/api/v1/campaigns/{campaignId}", "get", "200", "paused"));
+
+        assertTrue(body.contains("\"fidelity\":{\"search\":{\"sourceRevisions\""));
+        assertTrue(body.contains("\"established\":false"));
+        assertTrue(body.contains("\"confirmation\":null"));
+    }
+
+    @Test
+    void aCampaignWithoutFidelityEvidenceIsStillAValidResponseBody() {
+        var body = toJson(example("/api/v1/campaigns/{campaignId}", "get", "200", "paused"))
+                .replaceFirst("\"fidelity\":\\{.*?\\},\"failure\"", "\"fidelity\":null,\"failure\"");
+
+        assertTrue(body.contains("\"fidelity\":null"));
+        assertValid(validator.validateResponse(
+                "/api/v1/campaigns/" + CAMPAIGN_ID, Request.Method.GET, json(200, body)));
+    }
+
+    @Test
     void thePublishedDiscardedLogEntryExampleValidates() {
         var example = example("/api/v1/campaigns/{campaignId}/log", "get", "200", "gate-failure");
         var body = toJson(example);

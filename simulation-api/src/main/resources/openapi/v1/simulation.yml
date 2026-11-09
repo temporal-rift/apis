@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Temporal Rift Simulation Workbench API
-  version: 5.2.1
+  version: 6.0.0
   description: >-
     Creates immutable experiment manifests whose seat tables assign one policy bundle to each seat,
     and provides durable run control, evidence inspection,
@@ -885,6 +885,14 @@ paths:
                     round: 2
                     shortList: []
                     confirmation: null
+                    fidelity:
+                      search:
+                        sourceRevisions:
+                          gameService: e1962719e30dee3abed2f9727f70fdf8a01dfa16
+                          timelineService: 010718fda43e729d9f9e6d4b3a23457d6294ea47
+                          readService: af474c56f5eeb5b75466b198d53686ac190eba07
+                        established: false
+                      confirmation: null
                     failure: null
                     createdAt: '2026-10-17T10:00:00Z'
                     startedAt: '2026-10-17T10:00:01Z'
@@ -1085,10 +1093,10 @@ paths:
         '409':
           description: >-
             Idempotency conflict, invalid campaign state, overlapping confirmation seeds, the
-            simulator not enabled, no passing fidelity record for the simulator's source revisions,
-            or no bundle serving a policy that a `CONFIRMATION` table names (code
-            IDEMPOTENCY_CONFLICT, INVALID_CAMPAIGN_STATE, SEED_OVERLAP, SIMULATOR_NOT_AVAILABLE,
-            FIDELITY_NOT_ESTABLISHED, or POLICY_NOT_AVAILABLE)
+            simulator not enabled, or no bundle serving a policy that a `CONFIRMATION` table names
+            (code IDEMPOTENCY_CONFLICT, INVALID_CAMPAIGN_STATE, SEED_OVERLAP,
+            SIMULATOR_NOT_AVAILABLE, or POLICY_NOT_AVAILABLE). Confirmation is never refused over
+            fidelity; the campaign records it in `fidelity` instead.
           content:
             application/problem+json:
               schema: { $ref: '#/components/schemas/ProblemDetail' }
@@ -3130,6 +3138,7 @@ components:
         - round
         - shortList
         - confirmation
+        - fidelity
         - failure
         - createdAt
         - startedAt
@@ -3138,7 +3147,8 @@ components:
         One configuration search campaign: its frozen definition plus its current state.
         `spentSeconds` is active compute time; `parallelism` is the current value and may change
         while the campaign runs; `shortList` stays empty until `SEARCH_COMPLETED`; `confirmation`
-        is null until started.
+        is null until started; `fidelity` is null until the search starts, and for a campaign
+        created before it was recorded.
       properties:
         campaignId: { type: string, format: uuid }
         name:
@@ -3196,12 +3206,51 @@ components:
         confirmation:
           allOf: [ { $ref: '#/components/schemas/CampaignConfirmation' } ]
           nullable: true
+        fidelity:
+          allOf: [ { $ref: '#/components/schemas/CampaignFidelity' } ]
+          nullable: true
         failure:
           allOf: [ { $ref: '#/components/schemas/CampaignFailure' } ]
           nullable: true
         createdAt: { type: string, format: date-time }
         startedAt: { type: string, format: date-time, nullable: true }
         finishedAt: { type: string, format: date-time, nullable: true }
+    CampaignFidelity:
+      type: object
+      additionalProperties: false
+      required: [ search, confirmation ]
+      description: >-
+        What the simulator was when each phase of the campaign started. A campaign is never
+        waited on or refused over fidelity; this states whether the results are covered by a
+        fidelity check. Each part is written once and never changes.
+      properties:
+        search:
+          allOf: [ { $ref: '#/components/schemas/FidelityEvidence' } ]
+          nullable: true
+          description: Recorded when the search starts.
+        confirmation:
+          allOf: [ { $ref: '#/components/schemas/FidelityEvidence' } ]
+          nullable: true
+          description: Recorded when confirmation starts; null until then.
+    FidelityEvidence:
+      type: object
+      additionalProperties: false
+      required: [ sourceRevisions, established ]
+      properties:
+        sourceRevisions: { $ref: '#/components/schemas/SimulatorSourceRevisions' }
+        established:
+          type: boolean
+          description: >-
+            A `PASSED` fidelity record existed for exactly these three source revisions when the
+            phase started. When false, the results were not validated against a real lane.
+    SimulatorSourceRevisions:
+      type: object
+      additionalProperties: false
+      required: [ gameService, timelineService, readService ]
+      properties:
+        gameService: { type: string, pattern: '^[a-f0-9]{7,64}$' }
+        timelineService: { type: string, pattern: '^[a-f0-9]{7,64}$' }
+        readService: { type: string, pattern: '^[a-f0-9]{7,64}$' }
     CampaignFailure:
       type: object
       additionalProperties: false
@@ -3513,14 +3562,7 @@ components:
       additionalProperties: false
       required: [ sourceRevisions, established, record ]
       properties:
-        sourceRevisions:
-          type: object
-          additionalProperties: false
-          required: [ gameService, timelineService, readService ]
-          properties:
-            gameService: { type: string, pattern: '^[a-f0-9]{7,64}$' }
-            timelineService: { type: string, pattern: '^[a-f0-9]{7,64}$' }
-            readService: { type: string, pattern: '^[a-f0-9]{7,64}$' }
+        sourceRevisions: { $ref: '#/components/schemas/SimulatorSourceRevisions' }
         established:
           type: boolean
           description: A `PASSED` record exists for exactly these three source revisions.
@@ -3583,7 +3625,6 @@ components:
             - INVALID_REQUEST
             - FIDELITY_CHECK_ACTIVE
             - SIMULATOR_NOT_AVAILABLE
-            - FIDELITY_NOT_ESTABLISHED
             - POLICY_NOT_AVAILABLE
             - INVALID_CAMPAIGN
             - INVALID_CAMPAIGN_STATE
