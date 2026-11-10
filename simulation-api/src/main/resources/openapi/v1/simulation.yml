@@ -1043,7 +1043,7 @@ paths:
                           game.rules.win-score-threshold: 18
                         effectiveRulesDigest: 9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08
                         seeds: [ '42', '43' ]
-                        gamesSpent: 2
+                        gamesSpent: 220
                         redraws: 0
                         evaluation:
                           verdict: REJECTED
@@ -3339,6 +3339,11 @@ components:
         gamesSpent:
           type: integer
           minimum: 0
+          description: >-
+            Games played for this candidate so far: its seeds played times the games one seed plays
+            for one candidate on the campaign's screening tables (110 at criterion version 2 for 3, 4
+            and 5 players). It follows from the definition and the seeds, never from retried attempts.
+            0 on a GENERATED entry.
         redraws:
           type: integer
           minimum: 0
