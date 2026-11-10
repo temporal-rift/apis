@@ -98,18 +98,19 @@ class SimulationApiContractTest {
         assertTrue(specification.contains(
                 "enum: [ QUEUED, RUNNING, PAUSED, SEARCH_COMPLETED, CONFIRMING, COMPLETED, CANCELLED, FAILED ]"));
         assertTrue(specification.contains("enum: [ GENERATED, KEPT, DISCARDED, SHORT_LISTED ]"));
-        assertTrue(specification.contains("enum: [ GATE_FAILS, DOMINATED, NOT_IN_TOP_FRACTION, BUDGET_EXHAUSTED ]"));
-        assertTrue(specification.contains("enum: [ SUCCESSIVE_HALVING_V1 ]"));
+        assertTrue(specification.contains(
+                "enum: [ GATE_FAILS, DOMINATED, NOT_IN_TOP_FRACTION, GATES_NOT_MET, BUDGET_EXHAUSTED ]"));
+        assertTrue(specification.contains("enum: [ SUCCESSIVE_HALVING_V1, SUCCESSIVE_HALVING_V2 ]"));
         assertTrue(specification.contains("INVALID_CAMPAIGN_STATE"));
         assertTrue(specification.contains("SEED_OVERLAP"));
         assertTrue(specification.contains("EQUAL_MASTER_SEEDS"));
         assertTrue(specification.contains("UNKNOWN_CRITERION"));
 
         var definition = schema(specification, "    CampaignDefinition:", "    CampaignState:");
-        assertTrue(definition.contains("default: 14400"));
         assertTrue(definition.contains("default: 4"));
-        assertTrue(definition.contains("budgetSeconds"));
+        assertFalse(definition.contains("budgetSeconds"));
         assertTrue(definition.contains("parallelism"));
+        assertFalse(schema(specification, "    Campaign:", "    CampaignList:").contains("budgetSeconds"));
         var required = definition.substring(0, definition.indexOf("properties:"));
         List.of("name", "baseline", "playerCounts")
                 .forEach(field -> assertTrue(required.contains("- " + field), field));

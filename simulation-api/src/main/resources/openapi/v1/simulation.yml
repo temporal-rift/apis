@@ -807,10 +807,11 @@ paths:
       description: >-
         Requires `simulation:write`. Validates the definition against the served parameter space,
         criterion and baseline artifacts, and freezes it with separate search and confirmation
-        master seeds. `budgetSeconds` defaults to 14400 (four active hours) and `parallelism` to 4.
-        The campaign is created in `QUEUED` and starts without further client action. A definition
-        whose master seeds are equal is refused. Repeating the same idempotency key and body
-        returns the original campaign.
+        master seeds. `parallelism` defaults to 4. A campaign has no time budget: its search ends
+        when the plan of its algorithm ends, and `spentSeconds` reports how long it played. The
+        campaign is created in `QUEUED` and starts without further client action. A definition
+        whose master seeds are equal, or that names `SUCCESSIVE_HALVING_V1`, is refused. Repeating
+        the same idempotency key and body returns the original campaign.
       x-required-scopes: [ simulation:write ]
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
@@ -870,12 +871,11 @@ paths:
                         artifactDigest: 7b2d2f3e4a516273849506b7c8d9e0f1a2b3c4d5e6f708192a3b4c5d6e7f8010
                         parameters: {}
                     playerCounts: [ 4 ]
-                    budgetSeconds: 14400
                     parallelism: 2
                     searchMasterSeed: '42'
                     confirmationMasterSeed: '43'
                     algorithm:
-                      version: SUCCESSIVE_HALVING_V1
+                      version: SUCCESSIVE_HALVING_V2
                       initialCandidates: 8
                       screeningSeeds: 2
                       eta: 2
@@ -1048,6 +1048,7 @@ paths:
                         evaluation:
                           verdict: REJECTED
                           score: null
+                          gateMiss: 0.42
                         decision: DISCARDED
                         reason: GATE_FAILS
                         evidence:
@@ -1413,7 +1414,7 @@ components:
             non-empty, and absent or ignored when it is empty.
         overrides:
           type: object
-          additionalProperties: { type: number }
+          additionalProperties: { $ref: '#/components/schemas/OverrideValue' }
           default: {}
           description: >-
             Values replacing the baseline's, keyed by parameter key. An override equal to the baseline
@@ -2919,10 +2920,26 @@ components:
           type: array
           items: { $ref: '#/components/schemas/HeldFixedParameter' }
     ParameterDefinition:
+      description: >-
+        One mutable rule property of a parameter space: a `NUMBER` on a grid from `min` to `max` in
+        steps of `step`, or a `BOOLEAN` that is `true` or `false`.
+      oneOf:
+        - $ref: '#/components/schemas/NumberParameterDefinition'
+        - $ref: '#/components/schemas/BooleanParameterDefinition'
+      discriminator:
+        propertyName: type
+        mapping:
+          NUMBER: '#/components/schemas/NumberParameterDefinition'
+          BOOLEAN: '#/components/schemas/BooleanParameterDefinition'
+    ParameterType:
+      type: string
+      enum: [ NUMBER, BOOLEAN ]
+    NumberParameterDefinition:
       type: object
       additionalProperties: false
-      required: [ key, services, baseline, min, max, step ]
+      required: [ type, key, services, baseline, min, max, step ]
       properties:
+        type: { $ref: '#/components/schemas/ParameterType' }
         key: { type: string, minLength: 1 }
         services:
           type: array
@@ -2932,6 +2949,25 @@ components:
         min: { type: number }
         max: { type: number }
         step: { type: number }
+    BooleanParameterDefinition:
+      type: object
+      additionalProperties: false
+      required: [ type, key, services, baseline ]
+      properties:
+        type: { $ref: '#/components/schemas/ParameterType' }
+        key: { type: string, minLength: 1 }
+        services:
+          type: array
+          minItems: 1
+          items: { type: string, minLength: 1 }
+        baseline: { type: boolean }
+    OverrideValue:
+      description: >-
+        The value a variant sets for a parameter: a number for a `NUMBER` parameter, a boolean for
+        a `BOOLEAN` one. A value of the other type is refused with `reason` `WRONG_TYPE`.
+      oneOf:
+        - type: number
+        - type: boolean
     DerivedParameter:
       type: object
       additionalProperties: false
@@ -2965,7 +3001,7 @@ components:
         parameterSpaceVersion: { type: integer, minimum: 1 }
         overrides:
           type: object
-          additionalProperties: { type: number }
+          additionalProperties: { $ref: '#/components/schemas/OverrideValue' }
     VariantRulesPreview:
       type: object
       additionalProperties: false
@@ -2975,7 +3011,7 @@ components:
         effectiveRulesDigest: { $ref: '#/components/schemas/Sha256Digest' }
         overrides:
           type: object
-          additionalProperties: { type: number }
+          additionalProperties: { $ref: '#/components/schemas/OverrideValue' }
           description: The normalised overrides, with baseline-equal values removed, as freezing would store them.
 
     CampaignBaseline:
@@ -2993,7 +3029,14 @@ components:
       properties:
         version:
           type: string
-          enum: [ SUCCESSIVE_HALVING_V1 ]
+          enum: [ SUCCESSIVE_HALVING_V1, SUCCESSIVE_HALVING_V2 ]
+          description: >-
+            `SUCCESSIVE_HALVING_V2` screens the baseline and a space-filling sample, keeps the best
+            `1/eta` of each round (candidates that pass every gate first, then those that fail one by
+            their gate miss) on `eta` times as many seeds, adds no candidates after round 0, and ends
+            after the first round that keeps at most `shortListSize`, so its game count follows from
+            these fields alone. `SUCCESSIVE_HALVING_V1` appears only on campaigns stored before
+            version 2; it ended on a time budget.
         initialCandidates:
           type: integer
           minimum: 2
@@ -3020,7 +3063,10 @@ components:
       properties:
         version:
           type: string
-          enum: [ SUCCESSIVE_HALVING_V1 ]
+          enum: [ SUCCESSIVE_HALVING_V1, SUCCESSIVE_HALVING_V2 ]
+          description: >-
+            Defaults to `SUCCESSIVE_HALVING_V2`. `SUCCESSIVE_HALVING_V1` is refused with
+            `INVALID_CAMPAIGN`, `field` `algorithm.version` and `reason` `INVALID_VALUE`.
         initialCandidates:
           type: integer
           minimum: 2
@@ -3079,11 +3125,6 @@ components:
           items:
             type: integer
             enum: [ 3, 4, 5 ]
-        budgetSeconds:
-          type: integer
-          minimum: 60
-          default: 14400
-          description: Active compute time the search may spend; four hours by default.
         parallelism:
           type: integer
           minimum: 1
@@ -3104,8 +3145,9 @@ components:
       type: string
       enum: [ QUEUED, RUNNING, PAUSED, SEARCH_COMPLETED, CONFIRMING, COMPLETED, CANCELLED, FAILED ]
       description: >-
-        `QUEUED` accepted and not yet started; `RUNNING` spending budget; `PAUSED` stopped by the
-        designer and resumable; `SEARCH_COMPLETED` budget spent or short list stable, with the short
+        `QUEUED` accepted and not yet started; `RUNNING` searching; `PAUSED` stopped by the
+        designer and resumable; `SEARCH_COMPLETED` the algorithm's plan ended (for
+        `SUCCESSIVE_HALVING_V1`, its budget was spent or its short list was stable), with the short
         list available; `CONFIRMING` confirmation runs in progress; `COMPLETED` confirmation
         evaluated; `CANCELLED` cancelled by the designer; `FAILED` stopped by an error, which
         `failure` holds.
@@ -3120,7 +3162,6 @@ components:
         - criterionVersion
         - policies
         - playerCounts
-        - budgetSeconds
         - parallelism
         - searchMasterSeed
         - confirmationMasterSeed
@@ -3166,10 +3207,6 @@ components:
           items:
             type: integer
             enum: [ 3, 4, 5 ]
-        budgetSeconds:
-          type: integer
-          minimum: 60
-          description: Active compute time the search may spend.
         parallelism:
           type: integer
           minimum: 1
@@ -3185,7 +3222,9 @@ components:
         spentSeconds:
           type: integer
           minimum: 0
-          description: Active compute time spent so far.
+          description: >-
+            Active compute time the campaign has played so far: a measurement, never a limit. Time
+            spent `QUEUED`, `PAUSED` or while the service is down does not count.
         round:
           type: integer
           minimum: 0
@@ -3222,22 +3261,39 @@ components:
     CampaignEvaluation:
       type: object
       additionalProperties: false
-      required: [ verdict, score ]
+      required: [ verdict, score, gateMiss ]
       description: The compact evaluation of one candidate that drove a log decision.
       properties:
         verdict: { $ref: '#/components/schemas/EvaluationVerdict' }
         score: { type: number, nullable: true }
+        gateMiss:
+          type: number
+          minimum: 0
+          nullable: true
+          description: >-
+            How far the candidate misses the criterion's gates: for each gate line id, the mean
+            deviation of that id's lines that have a value (0 inside the band), summed over the gate
+            line ids, so each gate counts equally whatever its number of lines. 0 when no gate line
+            fails. Null when the evaluation is `INVALID` and on entries of `SUCCESSIVE_HALVING_V1`
+            campaigns.
     CampaignLogDecision:
       type: string
       enum: [ GENERATED, KEPT, DISCARDED, SHORT_LISTED ]
     CampaignLogReason:
       type: string
-      enum: [ GATE_FAILS, DOMINATED, NOT_IN_TOP_FRACTION, BUDGET_EXHAUSTED ]
+      enum: [ GATE_FAILS, DOMINATED, NOT_IN_TOP_FRACTION, GATES_NOT_MET, BUDGET_EXHAUSTED ]
+      description: >-
+        `GATE_FAILS` a candidate not kept while a gate line fails; `DOMINATED` another candidate
+        dominates it; `NOT_IN_TOP_FRACTION` it ranked outside the kept fraction; `GATES_NOT_MET` the
+        search's plan ended and this kept candidate still fails a gate line, so it is not
+        short-listed; `BUDGET_EXHAUSTED` only on `SUCCESSIVE_HALVING_V1` campaigns, whose search ended
+        on a time budget.
     CampaignLogEvidence:
       type: object
       additionalProperties: false
       description: >-
-        Why a decision was taken. `lineIds` lists the failing criterion lines for `GATE_FAILS`;
+        Why a decision was taken. `lineIds` lists the failing criterion lines for `GATE_FAILS` and
+        `GATES_NOT_MET`;
         `dominatedBy` names the dominating candidate for `DOMINATED`.
       properties:
         lineIds:
@@ -3273,7 +3329,7 @@ components:
         candidateId: { type: string, minLength: 1 }
         overrides:
           type: object
-          additionalProperties: { type: number }
+          additionalProperties: { $ref: '#/components/schemas/OverrideValue' }
         effectiveRulesDigest: { $ref: '#/components/schemas/Sha256Digest' }
         seeds:
           type: array
@@ -3389,7 +3445,7 @@ components:
         effectiveRulesDigest: { $ref: '#/components/schemas/Sha256Digest' }
         overrides:
           type: object
-          additionalProperties: { type: number }
+          additionalProperties: { $ref: '#/components/schemas/OverrideValue' }
           description: The normalised overrides on the baseline; empty for `baseline`.
     FidelityCounts:
       type: object
@@ -3552,6 +3608,7 @@ components:
             - UNKNOWN_PARAMETER_SPACE
             - UNKNOWN_BASELINE
             - UNKNOWN_PARAMETER
+            - WRONG_TYPE
             - OUT_OF_RANGE
             - OFF_STEP
             - CONSTRAINT_VIOLATED
@@ -3561,8 +3618,9 @@ components:
           description: >-
             Why a variant's overrides or a campaign definition were refused. Present on variant-rule
             and campaign refusals; absent otherwise. `UNKNOWN_PARAMETER_SPACE` and `UNKNOWN_BASELINE`
-            apply to both; `UNKNOWN_PARAMETER`, `OUT_OF_RANGE`, `OFF_STEP` and `CONSTRAINT_VIOLATED`
-            apply to variant overrides; `UNKNOWN_CRITERION`, `EQUAL_MASTER_SEEDS` and `INVALID_VALUE`
+            apply to both; `UNKNOWN_PARAMETER`, `WRONG_TYPE` (a boolean for a `NUMBER` parameter or a
+            number for a `BOOLEAN` one), `OUT_OF_RANGE`, `OFF_STEP` and `CONSTRAINT_VIOLATED` apply to
+            variant overrides; `UNKNOWN_CRITERION`, `EQUAL_MASTER_SEEDS` and `INVALID_VALUE`
             apply to campaign definitions.
         constraintId:
           type: string
