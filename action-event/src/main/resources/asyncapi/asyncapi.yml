@@ -19,6 +19,8 @@ channels:
         $ref: '#/components/messages/DeclarationOptionsOffered'
       actionRoundStarted:
         $ref: '#/components/messages/ActionRoundStarted'
+      specialActionAvailabilityReported:
+        $ref: '#/components/messages/SpecialActionAvailabilityReported'
       cardPlayed:
         $ref: '#/components/messages/CardPlayed'
       actionRoundPassed:
@@ -65,6 +67,10 @@ operations:
     action: send
     channel: { $ref: '#/channels/gameEvents' }
     messages: [ { $ref: '#/channels/gameEvents/messages/actionRoundStarted' } ]
+  publishSpecialActionAvailabilityReported:
+    action: send
+    channel: { $ref: '#/channels/gameEvents' }
+    messages: [ { $ref: '#/channels/gameEvents/messages/specialActionAvailabilityReported' } ]
   publishCardPlayed:
     action: send
     channel: { $ref: '#/channels/gameEvents' }
@@ -153,6 +159,16 @@ components:
       title: Action round started
       headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
       payload: { $ref: '#/components/schemas/ActionRoundStartedPayload' }
+    SpecialActionAvailabilityReported:
+      name: SpecialActionAvailabilityReported
+      title: Special action availability reported
+      description: >-
+        Private per-player report of which faction specials the player in playerId can use in the action round that
+        just opened. playerId identifies the player the report belongs to and the sole viewer, and the message is
+        published once per player per action round. Availability is advisory: submitAction remains authoritative,
+        and target-dependent or timeline-service prerequisite checks are not represented.
+      headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
+      payload: { $ref: '#/components/schemas/SpecialActionAvailabilityReportedPayload' }
     CardPlayed:
       name: CardPlayed
       title: Card played
@@ -306,6 +322,46 @@ components:
           type: array
           items: { type: string, format: uuid }
       required: [ gameId, eraNumber, roundNumber, timerSeconds, pendingPlayerIds ]
+
+    SpecialActionAvailabilityReportedPayload:
+      type: object
+      additionalProperties: false
+      properties:
+        gameId: { type: string, format: uuid }
+        eraNumber: { type: integer, minimum: 1 }
+        roundNumber: { type: integer, minimum: 1, maximum: 3 }
+        playerId:
+          type: string
+          format: uuid
+          description: The player this availability report belongs to and sole viewer of this private fact.
+        specials:
+          type: array
+          description: Exactly the player's three faction special actions, each with its availability for the round.
+          minItems: 3
+          maxItems: 3
+          items: { $ref: '#/components/schemas/ReportedSpecialAvailability' }
+      required: [ gameId, eraNumber, roundNumber, playerId, specials ]
+
+    ReportedSpecialAvailability:
+      type: object
+      additionalProperties: false
+      properties:
+        specialAction: { $ref: '#/components/schemas/SpecialAction' }
+        available: { type: boolean }
+        unavailableReason:
+          $ref: '#/components/schemas/SpecialActionUnavailableReason'
+          description: Reason the special is unavailable; present only when available is false.
+      required: [ specialAction, available ]
+      oneOf:
+        - properties:
+            available:
+              enum: [ false ]
+          required: [ unavailableReason ]
+        - properties:
+            available:
+              enum: [ true ]
+          not:
+            required: [ unavailableReason ]
 
     CardPlayedPayload:
       type: object
@@ -655,3 +711,6 @@ components:
 
     SpecialAction:
       $ref: './shared/enums.yaml#/SpecialAction'
+
+    SpecialActionUnavailableReason:
+      $ref: './shared/enums.yaml#/SpecialActionUnavailableReason'

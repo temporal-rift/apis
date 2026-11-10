@@ -1,0 +1,67 @@
+package io.github.temporalrift.projectionapi;
+
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+import org.junit.jupiter.api.Test;
+
+class SpecialActionAvailabilityContractTest {
+
+    private static final Path SPECIFICATION = Path.of("src/main/resources/openapi/v1/projection.yml");
+
+    @Test
+    void stateCarriesTheCallersOwnAvailabilityForTheActionRound() throws IOException {
+        var specification = specification();
+        var availability = section(specification,
+                "        mySpecialAvailability:\n", "        myJammedUntilRound:\n");
+
+        assertTrue(availability.contains("minItems: 3"));
+        assertTrue(availability.contains("maxItems: 3"));
+        assertTrue(availability.contains("items:\n            $ref: '#/components/schemas/SpecialActionAvailability'"));
+        assertFalse(section(specification, "    PlayerGameStateResponse:\n", "      properties:\n")
+                .contains("mySpecialAvailability"));
+    }
+
+    @Test
+    void staticSpecialListPointsToTheAvailabilityField() throws IOException {
+        var actions = section(specification(), "        mySpecialActions:\n", "        mySpecialAvailability:\n");
+
+        assertTrue(actions.contains("items:\n            $ref: '#/components/schemas/SpecialAction'"));
+        assertTrue(actions.contains("mySpecialAvailability"));
+    }
+
+    @Test
+    void availabilityEntryCarriesItsRoundScopedFlagAndReason() throws IOException {
+        var entry = section(specification(), "    SpecialActionAvailability:\n", "    ObjectiveProgress:\n");
+
+        assertTrue(entry.contains("required: [ specialAction, isAvailableThisRound ]"));
+        assertTrue(entry.contains("specialAction:\n          $ref: '#/components/schemas/SpecialAction'"));
+        assertTrue(entry.contains("isAvailableThisRound:\n          type: boolean"));
+        assertTrue(entry.contains("$ref: '#/components/schemas/SpecialActionUnavailableReason'"));
+        assertTrue(entry.contains("nullable: true"));
+    }
+
+    @Test
+    void availabilityReasonsComeFromTheSharedEnum() throws IOException {
+        var specification = specification();
+
+        assertTrue(specification.contains(
+                "    SpecialActionUnavailableReason:\n"
+                        + "      $ref: '../shared/enums.yaml#/SpecialActionUnavailableReason'"));
+        assertFalse(specification.contains("enum: [ JAMMED"));
+    }
+
+    private static String specification() throws IOException {
+        return String.join("\n", Files.readAllLines(SPECIFICATION));
+    }
+
+    private static String section(String specification, String start, String end) {
+        var startIndex = specification.indexOf(start);
+        var endIndex = specification.indexOf(end, startIndex + start.length());
+        return specification.substring(startIndex, endIndex);
+    }
+}
