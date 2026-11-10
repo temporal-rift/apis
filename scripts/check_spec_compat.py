@@ -421,10 +421,40 @@ def added_not_only_constrains_new_properties(base, head, not_schema):
     return bool(mentioned) and mentioned <= (head_properties - base_properties)
 
 
+def flatten_single_all_of(node, other):
+    """Collapse a single-branch allOf into its parent schema.
+
+    ``allOf: [X]`` with sibling keywords means the same as ``X`` plus those
+    siblings. Comparing the wrapper as a new constraint makes a compatible
+    OpenAPI 3.0 nullable-``$ref`` fix look breaking. A combiner on the other
+    side keeps the existing branch-by-branch comparison intact.
+    """
+    if not isinstance(node, dict) or not isinstance(other, dict):
+        return node
+    if "allOf" in other:
+        return node
+    branches = node.get("allOf")
+    if not isinstance(branches, list) or len(branches) != 1:
+        return node
+    branch = branches[0]
+    if not isinstance(branch, dict) or "$ref" in branch:
+        return node
+    merged = dict(branch)
+    for key, value in node.items():
+        if key == "allOf":
+            continue
+        if key in merged and merged[key] != value:
+            return node
+        merged[key] = value
+    return merged
+
+
 def compare_schemas(base, head, where, severity, findings):
     """Recursively compare two (ref-resolved) schema nodes."""
-    base = base if isinstance(base, dict) else {}
-    head = head if isinstance(head, dict) else {}
+    base = flatten_single_all_of(base if isinstance(base, dict) else {},
+                                 head if isinstance(head, dict) else {})
+    head = flatten_single_all_of(head if isinstance(head, dict) else {},
+                                 base if isinstance(base, dict) else {})
     if not base and not head:
         return severity
     if bool(base) != bool(head):
