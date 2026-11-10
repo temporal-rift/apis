@@ -546,6 +546,24 @@ components:
           type: integer
           minimum: 0
 
+    SpecialActionAvailability:
+      type: object
+      description: The caller's own availability of one faction special for the current action round.
+      required: [ specialAction, isAvailableThisRound ]
+      properties:
+        specialAction:
+          $ref: '#/components/schemas/SpecialAction'
+        isAvailableThisRound:
+          type: boolean
+          description: >-
+            Whether the special can be used in the current action round. Advisory only; submitAction remains
+            authoritative.
+        unavailableReason:
+          $ref: '#/components/schemas/SpecialActionUnavailableReason'
+          nullable: true
+          description: >-
+            The reason the special is unavailable this round; non-null only when isAvailableThisRound is false.
+
     ObjectiveProgress:
       type: object
       required: [ faction, progressCount, threshold, objectiveMet ]
@@ -717,9 +735,21 @@ components:
           type: array
           description: >-
             The authenticated player's static set of three faction special actions. Empty until a faction is
-            assigned; availability is governed by game-service rules and is not represented here.
+            assigned. Per-round availability is reported separately by mySpecialAvailability.
           items:
             $ref: '#/components/schemas/SpecialAction'
+        mySpecialAvailability:
+          type: array
+          description: >-
+            The caller's own special-action availability for the current action round. Present only while the phase
+            is ACTION_ROUND_1, ACTION_ROUND_2, or ACTION_ROUND_3 and the caller has an assigned faction; contains
+            exactly that faction's three specials. Advisory only: submitAction remains authoritative, and
+            target-dependent or timeline-service prerequisite checks are not represented. Never carries another
+            participant's availability.
+          minItems: 3
+          maxItems: 3
+          items:
+            $ref: '#/components/schemas/SpecialActionAvailability'
         myJammedUntilRound:
           type: integer
           nullable: true
@@ -975,6 +1005,9 @@ components:
 
     SpecialAction:
       $ref: '../shared/enums.yaml#/SpecialAction'
+
+    SpecialActionUnavailableReason:
+      $ref: '../shared/enums.yaml#/SpecialActionUnavailableReason'
 
     CardCategory:
       $ref: '../shared/enums.yaml#/CardCategory'

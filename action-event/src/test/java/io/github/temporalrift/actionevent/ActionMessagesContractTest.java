@@ -28,6 +28,7 @@ class ActionMessagesContractTest {
                         "DeclarationWindowOpened",
                         "DeclarationOptionsOffered",
                         "ActionRoundStarted",
+                        "SpecialActionAvailabilityReported",
                         "CardPlayed",
                         "ActionRoundPassed",
                         "ParadoxResolutionCardsOffered",

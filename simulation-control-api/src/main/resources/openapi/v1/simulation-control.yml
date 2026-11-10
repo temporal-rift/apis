@@ -14,7 +14,7 @@ info:
     is not the open context's game is consumed and ignored, and its offset still advances the
     source watermarks; with no context open every inbound event is ignored the same way, so a
     late event of a closed game never reaches the next game.
-  version: 2.1.0
+  version: 2.2.0
 
 servers:
   - url: /
