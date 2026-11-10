@@ -559,7 +559,8 @@ components:
             Whether the special can be used in the current action round. Advisory only; submitAction remains
             authoritative.
         unavailableReason:
-          $ref: '#/components/schemas/SpecialActionUnavailableReason'
+          allOf:
+            - $ref: '#/components/schemas/SpecialActionUnavailableReason'
           nullable: true
           description: >-
             The reason the special is unavailable this round; non-null only when isAvailableThisRound is false.

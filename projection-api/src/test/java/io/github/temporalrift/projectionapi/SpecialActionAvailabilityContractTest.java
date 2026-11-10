@@ -41,8 +41,11 @@ class SpecialActionAvailabilityContractTest {
         assertTrue(entry.contains("required: [ specialAction, isAvailableThisRound ]"));
         assertTrue(entry.contains("specialAction:\n          $ref: '#/components/schemas/SpecialAction'"));
         assertTrue(entry.contains("isAvailableThisRound:\n          type: boolean"));
-        assertTrue(entry.contains("$ref: '#/components/schemas/SpecialActionUnavailableReason'"));
-        assertTrue(entry.contains("nullable: true"));
+        assertTrue(entry.contains(
+                "        unavailableReason:\n"
+                        + "          allOf:\n"
+                        + "            - $ref: '#/components/schemas/SpecialActionUnavailableReason'\n"
+                        + "          nullable: true"));
     }
 
     @Test
