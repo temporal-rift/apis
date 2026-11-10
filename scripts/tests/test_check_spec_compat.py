@@ -139,6 +139,24 @@ class SchemaDiffTests(unittest.TestCase):
         head = {"allOf": [schema({"a": prop("string")}, ["a"])]}
         self.assertEqual(self.compare(base, head), gate.PATCH)
 
+    def test_single_branch_allof_wrapper_is_equivalent(self):
+        wrapped = {"type": "string", "enum": ["A", "B"]}
+        self.assertEqual(self.compare(wrapped, {"allOf": [wrapped]}), gate.NONE)
+
+    def test_single_branch_allof_wrapper_records_sibling_nullable(self):
+        wrapped = {"type": "string", "enum": ["A", "B"]}
+        self.assertEqual(
+            self.compare(wrapped, {"allOf": [wrapped], "nullable": True}),
+            gate.MINOR,
+        )
+
+    def test_single_branch_allof_with_conflicting_sibling_is_not_flattened(self):
+        wrapped = {"type": "string", "enum": ["A", "B"]}
+        self.assertEqual(
+            self.compare(wrapped, {"allOf": [wrapped], "type": "integer"}),
+            gate.MAJOR,
+        )
+
     def test_added_not_that_only_constrains_new_properties_is_addition(self):
         base = schema({"a": prop("string")}, ["a"], additionalProperties=False)
         head = schema(
