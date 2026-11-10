@@ -55,7 +55,7 @@ class SimulationVariantRulesTest {
                   "items": [
                     { "version": 1,
                       "parameters": [
-                        { "key": "game.rules.win-score-threshold", "services": ["game-service"],
+                        { "type": "NUMBER", "key": "game.rules.win-score-threshold", "services": ["game-service"],
                           "baseline": 20, "min": 10, "max": 30, "step": 1 }
                       ],
                       "derived": [
@@ -81,6 +81,66 @@ class SimulationVariantRulesTest {
 
         assertTrue(openApi.getPaths().get("/api/v1/parameter-spaces/{version}").getGet()
                 .getResponses().containsKey("404"));
+    }
+
+    @Test
+    void aBooleanParameterHasABooleanBaselineAndNoGrid() {
+        var space = """
+                { "version": 2,
+                  "parameters": [
+                    { "type": "BOOLEAN", "key": "game.rules.scoring.written-outcome-shields-annihilation",
+                      "services": ["game-service"], "baseline": true },
+                    { "type": "NUMBER", "key": "game.rules.win-score-threshold", "services": ["game-service"],
+                      "baseline": 20, "min": 10, "max": 30, "step": 1 }
+                  ],
+                  "derived": [], "constraints": [], "heldFixed": [] }
+                """;
+
+        assertValid(validator.validateResponse("/api/v1/parameter-spaces/2", Request.Method.GET, json(space)));
+        assertFalse(validator
+                .validateResponse(
+                        "/api/v1/parameter-spaces/2",
+                        Request.Method.GET,
+                        json(space.replace("\"baseline\": true }", "\"baseline\": true, \"min\": 0 }")))
+                .getMessages()
+                .isEmpty());
+        assertFalse(validator
+                .validateResponse(
+                        "/api/v1/parameter-spaces/2",
+                        Request.Method.GET,
+                        json(space.replace("{ \"type\": \"NUMBER\", ", "{ ")))
+                .getMessages()
+                .isEmpty());
+    }
+
+    @Test
+    void anOverrideMayBeABoolean() {
+        var request = """
+                {
+                  "rulesArtifact": { "digest": "%s" },
+                  "parameterSpaceVersion": 2,
+                  "overrides": { "game.rules.scoring.written-outcome-shields-annihilation": false }
+                }
+                """.formatted(DIGEST);
+
+        assertValid(validator.validateRequest(preview(request)));
+        assertFalse(validator
+                .validateRequest(preview(request.replace("false", "\"no\"")))
+                .getMessages()
+                .isEmpty());
+    }
+
+    @Test
+    void aValueOfTheWrongTypeIsRefusedWithItsReason() {
+        var refusal = """
+                { "type": "about:blank", "title": "Bad Request", "status": 400,
+                  "detail": "a boolean cannot override a number", "code": "INVALID_REQUEST",
+                  "reason": "WRONG_TYPE",
+                  "field": "variants[0].overrides.game.rules.win-score-threshold" }
+                """;
+
+        assertValid(validator.validateResponse(
+                "/api/v1/variant-rules-previews", Request.Method.POST, problemJson(400, refusal)));
     }
 
     @Test
@@ -173,6 +233,7 @@ class SimulationVariantRulesTest {
                         "UNKNOWN_PARAMETER_SPACE",
                         "UNKNOWN_BASELINE",
                         "UNKNOWN_PARAMETER",
+                        "WRONG_TYPE",
                         "OUT_OF_RANGE",
                         "OFF_STEP",
                         "CONSTRAINT_VIOLATED",

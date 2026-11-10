@@ -1,5 +1,6 @@
 package io.github.temporalrift.simulationapi;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -39,7 +40,7 @@ class SimulationSearchCampaignTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
-    void aDefinitionWithoutBudgetOrParallelismIsAccepted() {
+    void aDefinitionWithoutParallelismIsAccepted() {
         assertValid(validator.validateRequest(createCampaign("""
                 {
                   "name": "threshold-halving-01",
@@ -59,7 +60,7 @@ class SimulationSearchCampaignTest {
                   "searchMasterSeed": "42",
                   "confirmationMasterSeed": "43",
                   "algorithm": {
-                    "version": "SUCCESSIVE_HALVING_V1",
+                    "version": "SUCCESSIVE_HALVING_V2",
                     "initialCandidates": 8,
                     "screeningSeeds": 2,
                     "eta": 2,
@@ -67,6 +68,75 @@ class SimulationSearchCampaignTest {
                   }
                 }
                 """.formatted(RULES_DIGEST, CONTENT_DIGEST, POLICY_DIGEST))));
+    }
+
+    @Test
+    void aDefinitionWithATimeBudgetIsRefused() {
+        var report = validator.validateRequest(createCampaign("""
+                {
+                  "name": "threshold-halving-01",
+                  "baseline": {
+                    "rulesArtifact": { "digest": "%s" },
+                    "contentArtifact": { "digest": "%s" }
+                  },
+                  "playerCounts": [ 4 ],
+                  "budgetSeconds": 14400
+                }
+                """.formatted(RULES_DIGEST, CONTENT_DIGEST)));
+
+        assertFalse(report.getMessages().isEmpty(), "budgetSeconds is no longer part of a definition");
+    }
+
+    @Test
+    void theCampaignExampleCarriesNoTimeBudget() {
+        var body = toJson(example("/api/v1/campaigns/{campaignId}", "get", "200", "paused"));
+
+        assertFalse(body.contains("budgetSeconds"));
+        assertTrue(body.contains("\"version\":\"SUCCESSIVE_HALVING_V2\""));
+        assertFalse(validator
+                .validateResponse(
+                        "/api/v1/campaigns/" + CAMPAIGN_ID,
+                        Request.Method.GET,
+                        json(200, body.replace("\"parallelism\":2", "\"parallelism\":2,\"budgetSeconds\":14400")))
+                .getMessages()
+                .isEmpty());
+    }
+
+    @Test
+    void aCandidateThatStillFailsAGateWhenThePlanEndsIsLoggedWithItsGateMiss() {
+        var page = """
+                {
+                  "items": [ {
+                    "sequence": 7,
+                    "round": 4,
+                    "candidateId": "c-0012",
+                    "overrides": { "game.rules.win-score-threshold": 18 },
+                    "effectiveRulesDigest": "%s",
+                    "seeds": [ "42", "43" ],
+                    "gamesSpent": 220,
+                    "redraws": 0,
+                    "evaluation": { "verdict": "REJECTED", "score": 27.5, "gateMiss": 1.83 },
+                    "decision": "DISCARDED",
+                    "reason": "GATES_NOT_MET",
+                    "evidence": { "lineIds": [ "G-05" ] }
+                  } ],
+                  "total": 1
+                }
+                """.formatted(RULES_DIGEST);
+
+        assertValid(validator.validateResponse(
+                "/api/v1/campaigns/" + CAMPAIGN_ID + "/log", Request.Method.GET, json(200, page)));
+        assertValid(validator.validateResponse(
+                "/api/v1/campaigns/" + CAMPAIGN_ID + "/log",
+                Request.Method.GET,
+                json(200, page.replace("\"gateMiss\": 1.83", "\"gateMiss\": null"))));
+        assertFalse(validator
+                .validateResponse(
+                        "/api/v1/campaigns/" + CAMPAIGN_ID + "/log",
+                        Request.Method.GET,
+                        json(200, page.replace(", \"gateMiss\": 1.83", "")))
+                .getMessages()
+                .isEmpty());
     }
 
     @Test
