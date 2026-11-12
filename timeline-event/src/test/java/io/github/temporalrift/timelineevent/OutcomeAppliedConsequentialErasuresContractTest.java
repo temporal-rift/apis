@@ -34,7 +34,20 @@ class OutcomeAppliedConsequentialErasuresContractTest {
         assertTrue(field.contains("type: array"));
         assertTrue(field.contains("uniqueItems: true"));
         assertTrue(field.contains("items: { type: string, format: uuid }"));
-        assertTrue(field.contains("default: [ ]"));
+        assertFalse(field.contains("default: [ ]"),
+                "an absent field means an older producer, not an empty list, so the schema must not default it");
+        assertTrue(field.contains("from a direct"));
+        assertTrue(field.contains("carried-forward Cascade"));
+        assertTrue(field.contains("targetEventId and targetOutcomeId"));
+    }
+
+    @Test
+    void messageDescriptionDistinguishesAnEmptyListFromAnAbsentField() throws IOException {
+        var message = messageBlock();
+
+        assertTrue(message.contains("empty list means no erasure changed the winner"));
+        assertTrue(message.contains("absent field"));
+        assertTrue(message.contains("keeps its previous behaviour"));
     }
 
     @Test
@@ -54,7 +67,7 @@ class OutcomeAppliedConsequentialErasuresContractTest {
     }
 
     @Test
-    void emptyAndAbsentListsMeanNoConsequentialErasure() {
+    void anEmptyListAndAnAbsentFieldAreBothValidButMeanDifferentThings() {
         assertTrue(isValidConsequentialErasures(List.of()));
         assertTrue(isValidConsequentialErasures(null));
     }
@@ -85,6 +98,13 @@ class OutcomeAppliedConsequentialErasuresContractTest {
         }
         return erasedOutcomeIds.stream().allMatch(id -> UUID_FORMAT.matcher(id).matches())
                 && erasedOutcomeIds.stream().distinct().count() == erasedOutcomeIds.size();
+    }
+
+    private static String messageBlock() throws IOException {
+        var specification = Files.readString(Path.of("src/main/resources/asyncapi/asyncapi.yml"));
+        var start = specification.indexOf("    OutcomeApplied:");
+        var end = specification.indexOf("    EraResolutionCompleted:", start);
+        return specification.substring(start, end);
     }
 
     private static String payloadBlock() throws IOException {
