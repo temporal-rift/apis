@@ -218,6 +218,12 @@ components:
     OutcomeApplied:
       name: OutcomeApplied
       title: Outcome applied
+      description: >-
+        Reports the winning outcome and final probabilities of one event. `consequentialErasures` names the
+        outcome ids of this event whose erasure changed the winner. A producer at contract version 7.4.0 or
+        later always sends the list, and an empty list means no erasure changed the winner. An absent field
+        means the producer predates the field, so a consumer keeps its previous behaviour instead of assuming
+        there was no consequential erasure.
       headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
       payload: { $ref: '#/components/schemas/OutcomeAppliedPayload' }
     EraResolutionCompleted:
@@ -581,6 +587,19 @@ components:
         finalProbabilities:
           type: array
           items: { $ref: '#/components/schemas/OutcomeAppliedProbabilityState' }
+        consequentialErasures:
+          description: >-
+            Outcome ids of this event whose erasure changed the winner, whether the erasure came from a direct
+            Annihilate or from a carried-forward Cascade. Match an entry to its annihilation fact by
+            targetEventId and targetOutcomeId. An erasure that would leave a lone survivor above the 90% ceiling
+            is rejected, so an event holds at most one erased outcome and this list has at most one entry in
+            practice; the schema does not limit it. Each id appears at most once. Producers at 7.4.0 or later
+            always send the field, using an empty list when no erasure changed the winner; an absent field means
+            the producer predates it, and a consumer then keeps its previous behaviour. Because the list is part
+            of the outcome message, a redelivery carries the identical list.
+          type: array
+          uniqueItems: true
+          items: { type: string, format: uuid }
       required: [ gameId, eraNumber, eventId, winningOutcomeId, finalProbabilities ]
 
     EraResolutionTerminalState:
