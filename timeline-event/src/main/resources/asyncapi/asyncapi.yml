@@ -581,6 +581,18 @@ components:
         finalProbabilities:
           type: array
           items: { $ref: '#/components/schemas/OutcomeAppliedProbabilityState' }
+        consequentialErasures:
+          description: >-
+            The event's outcomes whose accepted direct erasure changed the winner: the winning outcome differs
+            from the one the same draw roll would have selected under the event's final weights with that
+            erasure's redistribution undone. Each id appears at most once; an outcome is newly erased at most
+            once, so the event and outcome id name the erasure uniquely. Empty when no erasure changed the
+            winner. Older producers omit the field, which consumers must treat as empty. Published with the
+            outcome so redelivery carries the identical list.
+          type: array
+          uniqueItems: true
+          items: { type: string, format: uuid }
+          default: [ ]
       required: [ gameId, eraNumber, eventId, winningOutcomeId, finalProbabilities ]
 
     EraResolutionTerminalState:
