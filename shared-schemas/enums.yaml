@@ -28,7 +28,7 @@ SpecialActionUnavailableReason:
 
 ParadoxType:
   type: string
-  enum: [ DEAD_HEAT, IMPOSSIBLE_ERASURE, CHAIN_CONFLICT ]
+  enum: [ DEAD_HEAT, IMPOSSIBLE_ERASURE, CHAIN_CONFLICT, FATE_CONTRADICTION ]
 
 ProbabilityBand:
   type: string
