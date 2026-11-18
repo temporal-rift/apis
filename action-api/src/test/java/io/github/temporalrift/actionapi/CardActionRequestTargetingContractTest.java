@@ -23,7 +23,7 @@ class CardActionRequestTargetingContractTest {
         assertTrue(specification.contains("required: [ targetPlayerId ]"));
         assertTrue(specification.contains("required: [ targetPlayerIds ]"));
         assertTrue(specification.contains("minItems: 1"));
-        assertTrue(specification.contains("maxItems: 3"));
+        assertTrue(specification.contains("maxItems: 5"));
         assertTrue(specification.contains("maxItems: 2"));
     }
 
@@ -98,6 +98,14 @@ class CardActionRequestTargetingContractTest {
                 UUID.randomUUID(), null, UUID.randomUUID(), UUID.randomUUID(), null, null)));
         assertTrue(isValid(new CardActionRequest(
                 null, List.of(UUID.randomUUID(), UUID.randomUUID()), null, null, null, null)));
+        assertTrue(isValid(new CardActionRequest(
+                null,
+                List.of(
+                        UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID()),
+                null,
+                null,
+                null,
+                null)));
         assertTrue(isValid(new CardActionRequest(null, null, null, null, UUID.randomUUID(), null)));
         assertTrue(isValid(new CardActionRequest(null, null, null, null, null, List.of(UUID.randomUUID()))));
         assertTrue(isValid(new CardActionRequest(
@@ -136,7 +144,13 @@ class CardActionRequestTargetingContractTest {
         assertFalse(isValid(new CardActionRequest(null, List.of(), null, null, null, null)));
         assertFalse(isValid(new CardActionRequest(null, List.of(duplicateId, duplicateId), null, null, null, null)));
         assertFalse(isValid(new CardActionRequest(
-                null, List.of(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID()), null, null,
+                null, List.of(
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        UUID.randomUUID()), null, null,
                 null, null)));
         assertFalse(isValid(new CardActionRequest(
                 UUID.randomUUID(), List.of(UUID.randomUUID()), null, null, null, null)));
@@ -178,7 +192,7 @@ class CardActionRequestTargetingContractTest {
         if (hasList) {
             var ids = request.targetEventIds();
             return ids.size() >= 1
-                    && ids.size() <= 3
+                    && ids.size() <= 5
                     && ids.stream().distinct().count() == ids.size()
                     && !hasEvent
                     && !hasPlayer

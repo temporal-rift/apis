@@ -401,12 +401,12 @@ components:
               type: array
               nullable: true
               minItems: 1
-              maxItems: 3
+              maxItems: 5
               items:
                 type: string
                 format: uuid
               description: >-
-                A one-to-three item event selection, distinct by convention though not schema-enforced (see below).
+                A one-to-five item event selection (an era holds up to five events), distinct by convention though not schema-enforced (see below).
                 It must be the sole target mode and cannot be combined with scalar event, player, or outcome
                 targets. game-service validates distinctness and card-specific list semantics after resolving
                 cardInstanceId.

@@ -22,7 +22,7 @@ class CardPlayedTargetingContractTest {
         assertTrue(specification.contains("required: [ targetPlayerId ]"));
         assertTrue(specification.contains("required: [ targetPlayerIds ]"));
         assertTrue(specification.contains("minItems: 1"));
-        assertTrue(specification.contains("maxItems: 3"));
+        assertTrue(specification.contains("maxItems: 5"));
         assertTrue(specification.contains("maxItems: 2"));
         assertTrue(specification.contains("uniqueItems: true"));
     }
@@ -34,6 +34,14 @@ class CardPlayedTargetingContractTest {
                 UUID.randomUUID(), null, null, null, UUID.randomUUID(), UUID.randomUUID())));
         assertTrue(
                 isValid(new CardPlayed(null, List.of(UUID.randomUUID(), UUID.randomUUID()), null, null, null, null)));
+        assertTrue(isValid(new CardPlayed(
+                null,
+                List.of(
+                        UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID()),
+                null,
+                null,
+                null,
+                null)));
         assertTrue(isValid(new CardPlayed(null, null, UUID.randomUUID(), null, null, null)));
         assertTrue(isValid(new CardPlayed(null, null, null, List.of(UUID.randomUUID()), null, null)));
         assertTrue(isValid(
@@ -60,7 +68,13 @@ class CardPlayedTargetingContractTest {
         assertFalse(isValid(new CardPlayed(null, List.of(), null, null, null, null)));
         assertFalse(isValid(new CardPlayed(null, List.of(duplicateId, duplicateId), null, null, null, null)));
         assertFalse(isValid(new CardPlayed(
-                null, List.of(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID()), null, null,
+                null, List.of(
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        UUID.randomUUID(),
+                        UUID.randomUUID()), null, null,
                 null, null)));
         assertFalse(isValid(new CardPlayed(
                 UUID.randomUUID(), List.of(UUID.randomUUID()), null, null, null, null)));
@@ -100,7 +114,7 @@ class CardPlayedTargetingContractTest {
         if (hasList) {
             var ids = cardPlayed.targetEventIds();
             return ids.size() >= 1
-                    && ids.size() <= 3
+                    && ids.size() <= 5
                     && ids.stream().distinct().count() == ids.size()
                     && !hasEvent
                     && !hasPlayer
