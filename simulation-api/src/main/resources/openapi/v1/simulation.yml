@@ -1906,8 +1906,9 @@ components:
       type: string
       enum: [ FACTION_OBJECTIVE, SCORE_THRESHOLD, LAST_PLAYER_STANDING, TIMELINE_STABILIZED, TIMELINE_COLLAPSED ]
       description: >-
-        How a winner won: the participant contract's win types of a normal victory, or the special ending that
-        decided the winners by highest score.
+        How a winner won: the participant contract's win types of a normal victory, or the special ending
+        (`TIMELINE_STABILIZED` or `TIMELINE_COLLAPSED`) that decided the winners, whether by highest score or by
+        stabilization claims.
     ConfidenceInterval:
       type: object
       additionalProperties: false
