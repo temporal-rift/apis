@@ -311,6 +311,8 @@ class SimulationApiContractTest {
         assertTrue(specification.contains(
                 "enum: [ RUNNER_TIMEOUT, EXECUTION_FAILED, CONTRACT_MISMATCH, CONFIGURATION_DRIFT, POLICY_EXHAUSTED ]"));
         assertTrue(specification.contains("failureCode"));
+        assertTrue(specification.contains("scoreReason"));
+        assertTrue(specification.contains("winPath"));
         assertTrue(specification.contains("failure_share"));
         assertTrue(specification.contains("BalanceCriterion"));
         assertTrue(specification.contains("CriterionLine"));
@@ -347,15 +349,15 @@ class SimulationApiContractTest {
         var comparison = schema(specification, "    Comparison:", "    ProblemDetail:");
 
         assertTrue(specification.contains(
-                "paradoxType, endReason, quantile, failureCode, unit, value, numerator, denominator,"));
+                "paradoxType, endReason, quantile, failureCode, scoreReason, winPath, unit, value, numerator,"));
         assertTrue(specification.contains(
-                "paradoxType, endReason, quantile, unit, baselineValue, candidateValue, difference,"));
+                "paradoxType, endReason, quantile, scoreReason, winPath, unit, baselineValue, candidateValue,"));
         assertTrue(specification.contains("variantLabel, tableId, policyId, policyVersion, playerCount,"));
         assertTrue(specification.contains("complete, tableId, policyId,"));
-        assertTrue(report.contains("enum: [ 3 ]"));
-        assertFalse(report.contains("enum: [ 2 ]"));
-        assertTrue(comparison.contains("enum: [ 2 ]"));
-        assertFalse(comparison.contains("enum: [ 1 ]"));
+        assertTrue(report.contains("enum: [ 4 ]"));
+        assertFalse(report.contains("enum: [ 3 ]"));
+        assertTrue(comparison.contains("enum: [ 3 ]"));
+        assertFalse(comparison.contains("enum: [ 2 ]"));
     }
 
     @Test

@@ -304,10 +304,12 @@ paths:
                   variantLabel, tableId, policyId, policyVersion, playerCount, factionSet (factions joined by `|`),
                   seatIndex, eligibleGames, independentBlocks, requested, pending, running, succeeded,
                   failed, cancelled, metric, statistic, faction, cardType, cardGrade, specialAction,
-                  paradoxType, endReason, quantile, failureCode, unit, value, numerator, denominator,
-                  status, intervalLower, intervalUpper, unknownCount. `failureCode` is empty for a metric
-                  not split by failure code, including the all-codes `failure_share` metric, and holds the
-                  `AttemptFailureCode` of a per-code `failure_share` metric. An empty field is a null value,
+                  paradoxType, endReason, quantile, failureCode, scoreReason, winPath, unit, value, numerator,
+                  denominator, status, intervalLower, intervalUpper, unknownCount. `failureCode` is empty for a
+                  metric not split by failure code, including the all-codes `failure_share` metric, and holds the
+                  `AttemptFailureCode` of a per-code `failure_share` metric. `scoreReason` holds the score reason
+                  of a `score_by_reason` metric and `winPath` the path of a `win_path_rate` metric; both are empty
+                  for every other metric. An empty field is a null value,
                   such as `policyId` and `policyVersion` on a cohort pooling several policies.
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/InsufficientScope' }
@@ -398,8 +400,8 @@ paths:
                   candidateVariantLabel, analysisVersion, analysisSeed, complete, tableId, policyId,
                   policyVersion, playerCount, factionSet (factions joined by `|`), seatIndex, matchedBlocks,
                   excludedBlocks, metric, statistic, faction, cardType, cardGrade, specialAction,
-                  paradoxType, endReason, quantile, unit, baselineValue, candidateValue, difference,
-                  status, intervalLower, intervalUpper. An empty field is a null value.
+                  paradoxType, endReason, quantile, scoreReason, winPath, unit, baselineValue, candidateValue,
+                  difference, status, intervalLower, intervalUpper. An empty field is a null value.
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/InsufficientScope' }
         '404': { $ref: '#/components/responses/NotFound' }
@@ -1892,6 +1894,21 @@ components:
           exclusiveMinimum: true
           exclusiveMaximum: true
         failureCode: { $ref: '#/components/schemas/AttemptFailureCode' }
+        scoreReason:
+          type: string
+          minLength: 1
+          description: >-
+            The score reason of a `score_by_reason` metric, as the scoring contract names it (for example
+            `ANNIHILATED_OUTCOME` or `PARADOX_CASCADE_PENALTY`). A string, not an enumeration: the reasons are the
+            scoring contract's vocabulary and grow with it.
+        winPath: { $ref: '#/components/schemas/WinPath' }
+    WinPath:
+      type: string
+      enum: [ FACTION_OBJECTIVE, SCORE_THRESHOLD, LAST_PLAYER_STANDING, TIMELINE_STABILIZED, TIMELINE_COLLAPSED ]
+      description: >-
+        How a winner won: the participant contract's win types of a normal victory, or the special ending
+        (`TIMELINE_STABILIZED` or `TIMELINE_COLLAPSED`) that decided the winners, whether by highest score or by
+        stabilization claims.
     ConfidenceInterval:
       type: object
       additionalProperties: false
@@ -1994,7 +2011,7 @@ components:
       properties:
         formatVersion:
           type: integer
-          enum: [ 3 ]
+          enum: [ 4 ]
           description: Version of the report's JSON and CSV layout; the first CSV column.
         runId: { type: string, format: uuid }
         manifestDigest: { $ref: '#/components/schemas/Sha256Digest' }
@@ -2160,7 +2177,7 @@ components:
       properties:
         formatVersion:
           type: integer
-          enum: [ 2 ]
+          enum: [ 3 ]
           description: Version of the comparison's JSON and CSV layout; the first CSV column.
         comparisonId: { type: string, format: uuid }
         baseline: { $ref: '#/components/schemas/ComparisonSide' }

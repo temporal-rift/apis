@@ -174,7 +174,7 @@ class SimulationSeatTablesTest {
         assertInvalid(validator.validateResponse(
                 "/api/v1/runs/" + ID + "/report",
                 Request.Method.GET,
-                json(report.replace("\"formatVersion\": 3", "\"formatVersion\": 2"))));
+                json(report.replace("\"formatVersion\": 4", "\"formatVersion\": 3"))));
     }
 
     @Test
