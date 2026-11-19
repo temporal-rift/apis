@@ -285,9 +285,10 @@ components:
         Public chain-progress fact: the chain's pending link (created by ChainLinkThreaded) did not confirm — its
         event resolved to a different outcome than predicted, its CHAIN_CONFLICT cascaded after Tapestry protection
         was consumed against it, armed Tapestry absorbed an Annihilate against it (absorbing rule configured),
-        its event Stalled or cascaded, or the game ended with it unconfirmed. The pending link clears without
-        penalty and chain length is unchanged. A new Thread is possible only while the chain and game remain
-        active.
+        its event Stalled or cascaded, or the game ended with it unconfirmed. The payload's cause names which one
+        happened. The pending link clears without a chain penalty and chain length is unchanged; a consumer may
+        score a miss for the RESOLVED_DIFFERENTLY cause. A new Thread is possible only while the chain and game
+        remain active.
       headers: { $ref: '#/components/schemas/EventEnvelopeHeaders' }
       payload: { $ref: '#/components/schemas/ChainLinkInvalidatedPayload' }
     ThreadRejected:
@@ -743,8 +744,23 @@ components:
         invalidatedEventId: { type: string, format: uuid }
         invalidatedOutcomeId: { type: string, format: uuid }
         chainLength: { type: integer }
+        cause:
+          type: string
+          enum:
+            - RESOLVED_DIFFERENTLY
+            - NO_WINNER
+            - CHAIN_CONFLICT_CLEARED
+            - ANNIHILATE_ABSORBED
+            - GAME_ENDED
+          description: >-
+            Why the pending link cleared. RESOLVED_DIFFERENTLY: its event resolved with a winning outcome other than
+            the linked one. NO_WINNER: its event stalled or cascaded, or the link expired because its era ended
+            without the event resolving. CHAIN_CONFLICT_CLEARED: a Chain Conflict on the link cascaded or was cleared
+            after Tapestry protection was consumed against it. ANNIHILATE_ABSORBED: armed Tapestry absorbed an
+            Annihilate against the link (absorbing rule configured). GAME_ENDED: the game ended with the link
+            pending.
       required:
-        [ gameId, eraNumber, chainId, playerId, invalidatedEventId, invalidatedOutcomeId, chainLength ]
+        [ gameId, eraNumber, chainId, playerId, invalidatedEventId, invalidatedOutcomeId, chainLength, cause ]
 
     ThreadRejectedPayload:
       type: object
