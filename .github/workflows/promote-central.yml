@@ -110,4 +110,7 @@ jobs:
         if: env.VERSION_CHANGED == 'true'
         env:
           MODULE: ${{ matrix.module }}
-        run: mvn --batch-mode -pl "$MODULE" deploy -Pcentral
+        # The Central plugin stages Maven 4's consumer POM as an extra
+        # "-consumer.pom" next to the build POM, and Central rejects bundles
+        # whose two POMs differ. Publish the single, self-contained build POM.
+        run: mvn --batch-mode -pl "$MODULE" deploy -Pcentral -Dmaven.consumer.pom=false
