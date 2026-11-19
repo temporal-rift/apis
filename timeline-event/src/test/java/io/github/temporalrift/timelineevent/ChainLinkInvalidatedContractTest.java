@@ -1,5 +1,6 @@
 package io.github.temporalrift.timelineevent;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -11,7 +12,7 @@ import org.junit.jupiter.api.Test;
 class ChainLinkInvalidatedContractTest {
 
     @Test
-    void everyInvalidationNamesOneOfTheFiveCauses() throws IOException {
+    void theCauseIsAnOptionalEnumOfFiveValues() throws IOException {
         var specification = Files.readString(Path.of("src/main/resources/asyncapi/asyncapi.yml"));
         var start = specification.indexOf("    ChainLinkInvalidatedPayload:");
         var payload = specification.substring(start, specification.indexOf("    ThreadRejectedPayload:", start));
@@ -22,6 +23,6 @@ class ChainLinkInvalidatedContractTest {
         }) {
             assertTrue(payload.contains("- " + cause), cause);
         }
-        assertTrue(payload.substring(payload.indexOf("      required:")).contains("chainLength, cause ]"));
+        assertFalse(payload.substring(payload.indexOf("      required:")).contains("cause"));
     }
 }

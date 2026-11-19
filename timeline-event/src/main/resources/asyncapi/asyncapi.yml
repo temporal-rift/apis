@@ -758,9 +758,10 @@ components:
             without the event resolving. CHAIN_CONFLICT_CLEARED: a Chain Conflict on the link cascaded or was cleared
             after Tapestry protection was consumed against it. ANNIHILATE_ABSORBED: armed Tapestry absorbed an
             Annihilate against the link (absorbing rule configured). GAME_ENDED: the game ended with the link
-            pending.
+            pending. Optional so earlier producers and consumers stay compatible: a producer at this version always
+            sets it, and a consumer treats an absent cause as no miss.
       required:
-        [ gameId, eraNumber, chainId, playerId, invalidatedEventId, invalidatedOutcomeId, chainLength, cause ]
+        [ gameId, eraNumber, chainId, playerId, invalidatedEventId, invalidatedOutcomeId, chainLength ]
 
     ThreadRejectedPayload:
       type: object
