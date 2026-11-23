@@ -225,6 +225,19 @@ components:
           type: integer
           minimum: 0
           description: Current number of links in the chain.
+        pendingLink:
+          $ref: '#/components/schemas/PendingChainLink'
+
+    PendingChainLink:
+      type: object
+      description: >-
+        The outcome the Weaver's latest accepted Thread names, which the chain has not yet confirmed. It is a public
+        fact, as the Thread that created it is broadcast. Absent while the chain has no pending link, and cleared when
+        the link confirms, is invalidated, or the chain breaks or completes.
+      required: [ eventId, outcomeId ]
+      properties:
+        eventId: { type: string, format: uuid }
+        outcomeId: { type: string, format: uuid }
 
     Deadlines:
       type: object
