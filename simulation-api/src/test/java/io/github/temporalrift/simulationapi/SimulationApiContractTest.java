@@ -297,10 +297,25 @@ class SimulationApiContractTest {
         var winType = winner.substring(winner.indexOf("        winType:"));
         var others = winner.replace(winType, "");
 
-        assertTrue(winner.contains("required: [ seatIndex, faction, winType ]"));
+        assertTrue(winner.contains("required: [ seatIndex, faction, winType, winConditions ]"));
         assertTrue(winType.contains("nullable: true"));
         assertTrue(winType.contains("enum: [ SCORE_THRESHOLD, FACTION_OBJECTIVE, LAST_PLAYER_STANDING, null ]"));
         assertFalse(others.contains("nullable"));
+    }
+
+    @Test
+    void winnerCarriesEveryMetConditionInRequiredWinConditions() throws IOException {
+        var specification = specification();
+        var winner = schema(specification, "    Winner:", "    FinalScore:");
+        var winConditions = winner.substring(winner.indexOf("        winConditions:"));
+
+        assertTrue(winConditions.contains("items: { $ref: '#/components/schemas/WinCondition' }"));
+        assertTrue(winConditions.contains("uniqueItems: true"));
+        assertFalse(winConditions.contains("minItems"), "winConditions may be empty");
+        assertTrue(
+                winConditions.contains("Always present; empty unless the ending is WIN_CONDITION_MET"),
+                "winConditions must document when it is populated");
+        assertTrue(winner.contains("additionalProperties: false"));
     }
 
     @Test

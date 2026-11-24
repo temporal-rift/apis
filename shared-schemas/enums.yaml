@@ -33,3 +33,7 @@ ParadoxType:
 ProbabilityBand:
   type: string
   enum: [ LOW, MEDIUM, HIGH ]
+
+WinCondition:
+  type: string
+  enum: [ SCORE_THRESHOLD, FACTION_OBJECTIVE ]

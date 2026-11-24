@@ -543,7 +543,20 @@ components:
         winnerId: { type: string, format: uuid }
         faction: { $ref: '#/components/schemas/Faction' }
         finalScore: { type: integer }
-        winType: { type: string }
+        winType:
+          type: string
+          description: >-
+            The single condition reported for this winner: SCORE_THRESHOLD when the winner met
+            both conditions, otherwise the one condition met. See winConditions for every
+            condition the winner met.
+        winConditions:
+          type: array
+          items: { $ref: '#/components/schemas/WinCondition' }
+          minItems: 1
+          uniqueItems: true
+          description: >-
+            Every normal-victory condition this winner met, ordered SCORE_THRESHOLD before
+            FACTION_OBJECTIVE. The producer sends it on every event.
       required: [ gameId, winnerId, faction, finalScore, winType ]
 
     FactionRevealedPlayerFactionResult:
@@ -703,3 +716,6 @@ components:
 
     CardGrade:
       $ref: './shared/enums.yaml#/CardGrade'
+
+    WinCondition:
+      $ref: './shared/enums.yaml#/WinCondition'
