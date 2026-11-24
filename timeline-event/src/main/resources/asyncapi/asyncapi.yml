@@ -241,8 +241,9 @@ components:
       title: Chain link threaded
       description: >-
         Public chain-progress fact: an accepted THREAD created a pending link naming a not-yet-resolved
-        current-era outcome as the chain's newest link. The favorable probability push already applies at this
-        point; the link itself is not yet confirmed and does not count toward chain length until its named
+        current-era outcome as the chain's newest link. The configured Thread shift
+        (`game.rules.probability.thread-shift`, which may be 0) applies at this point; with 0 the Thread moves
+        no probability; the link itself is not yet confirmed and does not count toward chain length until its named
         outcome is drawn as its event's winner (ChainLinkAdded). It clears without penalty (ChainLinkInvalidated)
         if its event resolves to a different outcome (including after a cleared CHAIN_CONFLICT, since an
         annihilated outcome cannot win), if its event Stalls or cascades, or, where the absorbing Tapestry rule

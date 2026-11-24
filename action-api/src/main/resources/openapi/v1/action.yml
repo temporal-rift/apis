@@ -232,8 +232,11 @@ paths:
             - Card type is not eligible during an action round (`code: 422-10`)
             - Card or special action cannot be played in this era or round, including Trace in Era 1 Round 1,
               Stall or Cascade in the final era, which has no next era, Annihilate before the configured
-              earliest Annihilate round (Round 2 by default), Rewrite after the configured latest Rewrite round
-              (Round 2 by default), and Obscure in Round 3 (`code: 422-12`)
+              earliest Annihilate round (Round 2 by default), Thread, Reweave, Rewrite or Fulfillment after the
+              configured latest faction-bet round (`game.rules.faction-bet-latest-round`, Round 2 by default),
+              and Obscure in Round 3 (`code: 422-12`). A rejected bet spends nothing and leaves the round's
+              submission slot open. A Foresight submitted after the faction-bet window is accepted and still
+              previews the next era, but writes no outcome and does not use the era's writing allowance.
           content:
             application/problem+json:
               schema:
