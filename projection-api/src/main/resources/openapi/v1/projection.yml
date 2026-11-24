@@ -227,6 +227,15 @@ components:
           description: Current number of links in the chain.
         pendingLink:
           $ref: '#/components/schemas/PendingChainLink'
+        confirmedEventIds:
+          type: array
+          description: >-
+            The event of every confirmed link of the chain, in link order, without repeats.
+            Empty when the chain has no confirmed link.
+          uniqueItems: true
+          items:
+            type: string
+            format: uuid
 
     PendingChainLink:
       type: object
@@ -884,6 +893,15 @@ components:
             The current Weaver chain's status and link count, identical for every participant. Null when no chain
             has been created yet, or after the game has ended. Never includes any player-identifying field, before
             or after FactionRevealed.
+        cascadedEventIds:
+          type: array
+          description: >-
+            Every distinct event that has cascaded in the game so far, in the order each first cascaded.
+            Empty when no event has cascaded.
+          uniqueItems: true
+          items:
+            type: string
+            format: uuid
 
     DealtHandCard:
       type: object
