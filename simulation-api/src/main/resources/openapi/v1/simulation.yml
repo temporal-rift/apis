@@ -2248,6 +2248,8 @@ components:
       $ref: '../shared/enums.yaml#/SpecialAction'
     ParadoxType:
       $ref: '../shared/enums.yaml#/ParadoxType'
+    WinCondition:
+      $ref: '../shared/enums.yaml#/WinCondition'
     EffectiveRules:
       $ref: '../shared/effective-rules.yaml#/EffectiveRules'
     TerminalEndReason:
@@ -2258,7 +2260,7 @@ components:
     Winner:
       type: object
       additionalProperties: false
-      required: [ seatIndex, faction, winType ]
+      required: [ seatIndex, faction, winType, winConditions ]
       properties:
         seatIndex: { type: integer, minimum: 0 }
         faction: { $ref: '#/components/schemas/Faction' }
@@ -2270,6 +2272,14 @@ components:
             Always present, and null unless the ending is WIN_CONDITION_MET: the participant contract assigns a
             win type only to a normal victory, while the special endings (TIMELINE_COLLAPSED and
             TIMELINE_STABILIZED) decide their winners by highest score or by stabilization claims.
+        winConditions:
+          type: array
+          items: { $ref: '#/components/schemas/WinCondition' }
+          uniqueItems: true
+          description: >-
+            Every condition this winner met, ordered SCORE_THRESHOLD before FACTION_OBJECTIVE.
+            Always present; empty unless the ending is WIN_CONDITION_MET and the winner won by
+            score or objective.
     FinalScore:
       type: object
       additionalProperties: false

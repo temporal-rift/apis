@@ -625,6 +625,15 @@ components:
           description: >-
             How this winner met the win condition. Present for every winner of a WIN_CONDITION_MET ending and
             absent for every other ending.
+        winConditions:
+          type: array
+          items: { $ref: '#/components/schemas/WinCondition' }
+          minItems: 1
+          uniqueItems: true
+          description: >-
+            Every condition this winner met, ordered SCORE_THRESHOLD before FACTION_OBJECTIVE.
+            Present exactly when winType is SCORE_THRESHOLD or FACTION_OBJECTIVE; absent for
+            LAST_PLAYER_STANDING and every special ending.
 
     FinalScore:
       type: object
@@ -1031,6 +1040,9 @@ components:
 
     ParadoxType:
       $ref: '../shared/enums.yaml#/ParadoxType'
+
+    WinCondition:
+      $ref: '../shared/enums.yaml#/WinCondition'
 
     ResolvedOutcome:
       type: object
