@@ -32,6 +32,7 @@ tags:
   - name: Evaluations
   - name: Fidelity
   - name: Campaigns
+  - name: ScoringModels
 
 paths:
   /api/v1/experiments:
@@ -784,6 +785,108 @@ paths:
         '403': { $ref: '#/components/responses/InsufficientScope' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /api/v1/scoring-models/evaluations:
+    post:
+      tags: [ ScoringModels ]
+      operationId: evaluateScoringModel
+      summary: Play a scoring engine alone from per-era bet rates and sweep its values, without persisting anything
+      description: >-
+        Requires `simulation:read`. Synchronous and stateless: nothing is stored, and the same request
+        returns an identical response.
+
+        For each requested player count it plays `gamesPerPlayerCount` games of the scoring layer alone.
+        At three and four players each game draws its faction set uniformly from the combinations of
+        `engine.factions`; at five players the set is all five factions, so the engine must name all of
+        them. A player count above the number of engine factions is refused with `field` `playerCounts`.
+        In each era every
+        seat draws one bet outcome from its `BetRates` item, scores it under its faction's engine entry
+        and adds the item's `extraPointsPerEra`. The race ends at the first era end that has a
+        qualifier, or after `engine.maxEras`; when both apply in the same era the end counts as a
+        threshold ending. A shared win counts `1/k` to each of its `k` winners.
+
+        Each cell's `ratio` is the faction's wins divided by the games in which it was present, times
+        the player count, so 1 is an even share. `lower` and `upper` are its 95% normal-approximation
+        interval.
+
+        Every `sweep` parameter is then re-evaluated twice with the same seed, with its value moved by
+        `+step` and by `-step`, and each cell's `ratioChange` is the moved ratio minus the unmoved one.
+        A sweep value that the schema would refuse once moved (outside its range, a `winRate` that
+        breaks `winRate + missRate <= 1`, a `winPoints` index past the last entry, or a faction or
+        player count the request does not contain) is refused.
+
+        A refused request returns `400 INVALID_REQUEST` whose `field` names the offending value, such
+        as `engine.factions[1].winPoints`, `rates[3]` for a `BetRates` item whose `winRate + missRate`
+        exceeds 1, `sweep[2].parameter` or `sweep[2].step`. A missing `BetRates` item for a requested
+        player count and faction of the engine is refused with `field` `rates`, as is a surplus or
+        repeated one; a repeated `faction` in `engine.factions` is refused with `field`
+        `engine.factions[i].faction`; an `objectiveWins` without an `objectiveBonus` is refused with
+        `field` `engine.factions[i].objectiveBonus`.
+      x-required-scopes: [ simulation:read ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScoringModelRequest'
+      responses:
+        '200':
+          description: The ratios, endings and sensitivity of the scoring model
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ScoringModelEvaluation' }
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/InsufficientScope' }
+
+  /api/v1/runs/{runId}/rescorings:
+    post:
+      tags: [ ScoringModels ]
+      operationId: rescoreRun
+      summary: Re-score a run's recorded bet outcomes under a scoring engine, without persisting anything
+      description: >-
+        Requires `simulation:read`. Synchronous and stateless: nothing is stored, and the same request
+        returns an identical response while the run's recorded cases are unchanged. A run that is still
+        playing can return more judged cases on a later request.
+
+        The cases used are the run's succeeded cases of the variant `variantLabel` and the table
+        `tableId`. Each seat-era's recorded bet outcome is scored under the engine; every recorded score
+        that does not settle the faction's bet (faction extras, cascade penalties) is added at its
+        recorded value. The re-scored race ends where the engine ends it.
+
+        A case is `TRUNCATED` when the re-scored race would continue past the era where the recorded
+        game ended for a reason other than its final era or a timeline collapse. A truncated case enters
+        no ratio and is counted in `truncatedCases`. A run with unfinished cases is re-scored over its
+        succeeded cases and returns `complete` false.
+
+        A player count and faction with no judged case has no cell, and a player count with no judged
+        case reports `judgedCases` 0 and a null `meanEras`; so a run whose cases are all truncated
+        returns an empty `cells`.
+
+        A refused engine returns `400 INVALID_REQUEST` whose `field` names the offending value, such as
+        `engine.factions[1].winPoints`. An engine that lacks a faction seated in any succeeded case of
+        the variant and table is refused with `field` `engine.factions`, because that seat has no scoring
+        rule. An unknown run, or a `variantLabel` or `tableId` that the run
+        does not contain, returns `404 RESOURCE_NOT_FOUND`.
+      x-required-scopes: [ simulation:read ]
+      parameters:
+        - $ref: '#/components/parameters/RunId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RescoreRequest'
+      responses:
+        '200':
+          description: The ratios of the run's judged cases under the engine
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Rescoring' }
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/InsufficientScope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /api/v1/campaigns:
     get:
       tags: [ Campaigns ]
@@ -1350,8 +1453,9 @@ components:
     InvalidRequest:
       description: >-
         The request is invalid, such as paging outside 1 to 500, a missing or invalid evaluation query
-        parameter, or a refused variant-rules preview (code INVALID_REQUEST). A refused variant's
-        overrides carry a `reason` and name the offending value in `field`.
+        parameter, a refused variant-rules preview, or a refused scoring engine, `BetRates` item or
+        sweep (code INVALID_REQUEST). A refused variant's overrides carry a `reason`; a refusal
+        attributable to one value names it in `field`.
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/ProblemDetail' }
@@ -3040,6 +3144,239 @@ components:
           type: object
           additionalProperties: { $ref: '#/components/schemas/OverrideValue' }
           description: The normalised overrides, with baseline-equal values removed, as freezing would store them.
+
+    BetOutcome:
+      type: string
+      enum: [ WON, MISSED, VOIDED, NOT_PLACED ]
+      description: >-
+        What happened to a faction's signature bet in one era, using the same win and miss reasons as
+        the `bets_placed`, `bets_scored` and `bet_win_rate_per_era` metrics. `WON`: the bet was placed
+        and recorded its win reason. `MISSED`: the bet was placed and recorded its miss reason.
+        `VOIDED`: the bet was placed and recorded neither, because it was annihilated, stalled,
+        cascaded or shielded. `NOT_PLACED`: no bet was placed. The win run of a seat is the number of
+        `WON` outcomes it has counted since the start of the game or since its last reset.
+    ScoringEngine:
+      type: object
+      additionalProperties: false
+      required: [ winThreshold, maxEras, factions ]
+      description: The rules that turn bet outcomes into points and decide the race.
+      properties:
+        winThreshold:
+          type: integer
+          minimum: 1
+          maximum: 500
+          description: >-
+            At an era end, every seat at or above it qualifies; the qualifiers with the highest total
+            win and share ties.
+        maxEras:
+          type: integer
+          minimum: 1
+          maximum: 10
+          description: After this era, the highest total wins and ties share.
+        factions:
+          type: array
+          minItems: 1
+          maxItems: 5
+          description: One entry per faction; `faction` is unique within the array.
+          items: { $ref: '#/components/schemas/FactionScoringEngine' }
+    FactionScoringEngine:
+      type: object
+      additionalProperties: false
+      required: [ faction, winPoints, missPoints, resetOn ]
+      properties:
+        faction: { $ref: '#/components/schemas/Faction' }
+        winPoints:
+          type: array
+          minItems: 1
+          maxItems: 10
+          description: >-
+            The n-th win of the current win run scores `winPoints[n-1]`; past the last entry, the last
+            value repeats.
+          items: { type: integer, minimum: -50, maximum: 50 }
+        missPoints:
+          type: integer
+          minimum: -50
+          maximum: 0
+          description: Added on `MISSED`.
+        resetOn:
+          type: array
+          uniqueItems: true
+          description: >-
+            The `BetOutcome` values that reset the win run to 0; banked points never change. May be
+            empty. `WON` is not accepted.
+          items:
+            type: string
+            enum: [ MISSED, VOIDED, NOT_PLACED ]
+        objectiveWins:
+          type: integer
+          minimum: 1
+          maximum: 10
+          description: Total `WON` outcomes that earn `objectiveBonus` once.
+        objectiveBonus:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Required with `objectiveWins`.
+    BetRates:
+      type: object
+      additionalProperties: false
+      required: [ playerCount, faction, winRate, missRate, extraPointsPerEra ]
+      properties:
+        playerCount: { type: integer, minimum: 3, maximum: 5 }
+        faction: { $ref: '#/components/schemas/Faction' }
+        winRate:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Chance of `WON` per era.
+        missRate:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Chance of `MISSED` per era. `winRate + missRate` is at most 1; the rest is `VOIDED`.
+        extraPointsPerEra:
+          type: number
+          minimum: -50
+          maximum: 50
+          description: >-
+            Mean of every other score per era, such as faction extras and cascade penalties, added each
+            era.
+    SweepParameter:
+      type: object
+      additionalProperties: false
+      required: [ parameter, step ]
+      properties:
+        parameter:
+          type: string
+          pattern: '^(winThreshold|factions\.(ERASERS|PROPHETS|REVISIONISTS|WEAVERS|ACTIVISTS)\.(winPoints\[[0-9]\]|missPoints|objectiveBonus)|rates\.[3-5]\.(ERASERS|PROPHETS|REVISIONISTS|WEAVERS|ACTIVISTS)\.winRate)$'
+          description: >-
+            The value to move. One of `winThreshold`, `factions.<FACTION>.winPoints[<i>]`,
+            `factions.<FACTION>.missPoints`, `factions.<FACTION>.objectiveBonus` or
+            `rates.<playerCount>.<FACTION>.winRate`.
+        step:
+          type: number
+          not: { enum: [ 0 ] }
+          description: The signed amount the value is moved up and, negated, down. Never 0.
+    ScoringModelRequest:
+      type: object
+      additionalProperties: false
+      required: [ engine, playerCounts, rates, seed ]
+      properties:
+        engine: { $ref: '#/components/schemas/ScoringEngine' }
+        playerCounts:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { type: integer, minimum: 3, maximum: 5 }
+        rates:
+          type: array
+          description: Exactly one item per requested player count and faction of `engine.factions`.
+          items: { $ref: '#/components/schemas/BetRates' }
+        gamesPerPlayerCount: { type: integer, minimum: 1000, maximum: 200000, default: 20000 }
+        seed: { type: integer, format: int64 }
+        sweep:
+          type: array
+          maxItems: 64
+          items: { $ref: '#/components/schemas/SweepParameter' }
+    ScoringCell:
+      type: object
+      additionalProperties: false
+      required: [ playerCount, faction, ratio, lower, upper ]
+      description: >-
+        One faction at one player count. `ratio` is the faction's wins divided by the games in which it
+        was present, times the player count; `lower` and `upper` bound its 95% normal-approximation
+        interval.
+      properties:
+        playerCount: { type: integer, minimum: 3, maximum: 5 }
+        faction: { $ref: '#/components/schemas/Faction' }
+        ratio: { type: number }
+        lower: { type: number }
+        upper: { type: number }
+    ScoringEnding:
+      type: object
+      additionalProperties: false
+      required: [ playerCount, meanEras, thresholdShare, finalEraShare ]
+      properties:
+        playerCount: { type: integer, minimum: 3, maximum: 5 }
+        meanEras: { type: number, minimum: 1 }
+        thresholdShare:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Share of games that ended on a qualifier.
+        finalEraShare:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Share of games that ended after `maxEras` with no qualifier.
+    ScoringSensitivity:
+      type: object
+      additionalProperties: false
+      required: [ parameter, delta, playerCount, faction, ratioChange ]
+      properties:
+        parameter: { type: string, description: The swept path exactly as the request wrote it. }
+        delta: { type: number, description: The signed step applied. }
+        playerCount: { type: integer, minimum: 3, maximum: 5 }
+        faction: { $ref: '#/components/schemas/Faction' }
+        ratioChange: { type: number, description: The moved ratio minus the unmoved ratio of the cell. }
+    ScoringModelEvaluation:
+      type: object
+      additionalProperties: false
+      required: [ cells, endings, sensitivity ]
+      properties:
+        cells:
+          type: array
+          description: One item per player count and faction.
+          items: { $ref: '#/components/schemas/ScoringCell' }
+        endings:
+          type: array
+          description: One item per player count.
+          items: { $ref: '#/components/schemas/ScoringEnding' }
+        sensitivity:
+          type: array
+          description: One item per sweep parameter, direction and cell; empty without a sweep.
+          items: { $ref: '#/components/schemas/ScoringSensitivity' }
+    RescoreRequest:
+      type: object
+      additionalProperties: false
+      required: [ engine, variantLabel, tableId ]
+      properties:
+        engine: { $ref: '#/components/schemas/ScoringEngine' }
+        variantLabel: { type: string, minLength: 1 }
+        tableId: { type: string, minLength: 1 }
+    RescoringPlayerCount:
+      type: object
+      additionalProperties: false
+      required: [ playerCount, judgedCases, truncatedCases, meanEras ]
+      properties:
+        playerCount: { type: integer, minimum: 3, maximum: 5 }
+        judgedCases: { type: integer, minimum: 0 }
+        truncatedCases:
+          type: integer
+          minimum: 0
+          description: Cases that enter no ratio because the re-scored race would outlast the recorded game.
+        meanEras:
+          type: number
+          minimum: 1
+          nullable: true
+          description: Mean eras of the re-scored races over the judged cases; null when `judgedCases` is 0.
+    Rescoring:
+      type: object
+      additionalProperties: false
+      required: [ complete, cells, playerCounts ]
+      properties:
+        complete:
+          type: boolean
+          description: False when the run has unfinished cases and only its succeeded cases were re-scored.
+        cells:
+          type: array
+          description: >-
+            One item per player count and faction that has at least one judged case; none for a player
+            count whose cases are all truncated.
+          items: { $ref: '#/components/schemas/ScoringCell' }
+        playerCounts:
+          type: array
+          items: { $ref: '#/components/schemas/RescoringPlayerCount' }
 
     CampaignBaseline:
       type: object
