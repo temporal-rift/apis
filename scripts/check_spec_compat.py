@@ -249,8 +249,57 @@ def resolve_refs(node, root_doc, loader, spec_path, seen=None):
     return node
 
 
+MISSING = object()
+
+
 def follow_ref(ref, root_doc, loader, spec_path):
-    """Follow a single $ref to its target document node."""
+    """Follow a single $ref to its target document node; an unresolvable ref yields an empty node."""
+    target = lookup_ref(ref, root_doc, loader, spec_path)
+    return {} if target is MISSING else target
+
+
+def collect_refs(node):
+    """Every `$ref` string found anywhere in a document."""
+    if isinstance(node, dict):
+        found = [node["$ref"]] if isinstance(node.get("$ref"), str) else []
+        for value in node.values():
+            found.extend(collect_refs(value))
+        return found
+    if isinstance(node, list):
+        return [ref for item in node for ref in collect_refs(item)]
+    return []
+
+
+def spec_integrity_errors(spec_path, loader):
+    """Problems that make a spec unusable: it does not parse, or a `$ref` leads nowhere."""
+    doc = loader.load(spec_path)
+    if not isinstance(doc, dict):
+        return [f"{spec_path} does not parse as a YAML mapping"]
+    if "openapi" not in doc and "asyncapi" not in doc:
+        return [f"{spec_path} declares neither `openapi` nor `asyncapi`"]
+    errors = [
+        f"{spec_path} has an unresolvable $ref {ref!r}"
+        for ref in sorted(set(collect_refs(doc)))
+        if lookup_ref(ref, doc, loader, spec_path) is MISSING
+    ]
+    if has_date_time_pattern(doc):
+        errors.append(f"{spec_path} gives a date-time property a string pattern, which no generated validator accepts")
+    return errors
+
+
+def has_date_time_pattern(node):
+    """True when any schema combines `format: date-time` with a `pattern`."""
+    if isinstance(node, dict):
+        if node.get("format") == "date-time" and "pattern" in node:
+            return True
+        return any(has_date_time_pattern(value) for value in node.values())
+    if isinstance(node, list):
+        return any(has_date_time_pattern(item) for item in node)
+    return False
+
+
+def lookup_ref(ref, root_doc, loader, spec_path):
+    """Follow a single $ref to its target document node, or MISSING when it leads nowhere."""
     if ref.startswith("#"):
         target = root_doc
         for part in ref[1:].split("/"):
@@ -260,14 +309,14 @@ def follow_ref(ref, root_doc, loader, spec_path):
             if isinstance(target, dict) and key in target:
                 target = target[key]
             else:
-                return {}
+                return MISSING
         return target if target is not None else {}
     if "#" in ref:
         file_part, fragment = ref.split("#", 1)
     else:
         file_part, fragment = ref, ""
     if file_part and spec_path is None:
-        return {}
+        return MISSING
     base_dir = str(Path(spec_path).parent) if spec_path else "."
     candidate = (Path(base_dir) / file_part).as_posix() if file_part else spec_path
     # AsyncAPI specs reference packaged 'shared/...' paths; fall back to the
@@ -285,7 +334,7 @@ def follow_ref(ref, root_doc, loader, spec_path):
             candidate = option
             break
     if target_doc is None:
-        return {}
+        return MISSING
     if not fragment:
         return target_doc
     target = target_doc
@@ -296,7 +345,7 @@ def follow_ref(ref, root_doc, loader, spec_path):
         if isinstance(target, dict) and key in target:
             target = target[key]
         else:
-            return {}
+            return MISSING
     return target if target is not None else {}
 
 
@@ -954,6 +1003,11 @@ def evaluate_module(module, base_commit, base_loader, head_loader, touched, shar
             {path: (REPO_ROOT / path).read_text(encoding="utf-8") for path in owned})
     except ValueError as error:
         return fail(f"{module}: {error}")
+    for spec_path in owned:
+        broken = spec_integrity_errors(spec_path, head_loader)
+        if broken:
+            return fail("; ".join(broken))
+
     base_texts = {path: file_at_revision(path, base_commit) for path in owned}
     try:
         base_version = spec_version.agreed_version({k: v for k, v in base_texts.items() if v is not None})

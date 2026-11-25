@@ -76,6 +76,53 @@ class SpecVersionTests(unittest.TestCase):
             spec_version.agreed_version({"a": "info:\n  title: T\n"})
 
 
+class FakeLoader:
+    def __init__(self, docs):
+        self.docs = docs
+
+    def load(self, path):
+        return self.docs.get(path)
+
+
+class SpecIntegrityTests(unittest.TestCase):
+    SPEC = "m/src/main/resources/openapi/v1/m.yml"
+
+    def errors(self, doc, extra=None):
+        return gate.spec_integrity_errors(self.SPEC, FakeLoader({self.SPEC: doc, **(extra or {})}))
+
+    def test_a_sound_spec_has_no_errors(self):
+        doc = {"openapi": "3.0.3", "components": {"schemas": {"A": {"type": "string"}, "B": {"$ref": "#/components/schemas/A"}}}}
+        self.assertEqual(self.errors(doc), [])
+
+    def test_a_missing_local_ref_is_reported(self):
+        doc = {"openapi": "3.0.3", "components": {"schemas": {"B": {"$ref": "#/components/schemas/Nope"}}}}
+        self.assertEqual(len(self.errors(doc)), 1)
+        self.assertIn("#/components/schemas/Nope", self.errors(doc)[0])
+
+    def test_a_ref_to_an_empty_schema_is_not_missing(self):
+        doc = {"openapi": "3.0.3", "components": {"schemas": {"Any": {}, "B": {"$ref": "#/components/schemas/Any"}}}}
+        self.assertEqual(self.errors(doc), [])
+
+    def test_a_missing_file_ref_is_reported(self):
+        doc = {"openapi": "3.0.3", "components": {"schemas": {"B": {"$ref": "../shared/enums.yaml#/Faction"}}}}
+        self.assertEqual(len(self.errors(doc)), 1)
+
+    def test_a_shared_schema_ref_resolves_through_the_source_tree(self):
+        doc = {"openapi": "3.0.3", "components": {"schemas": {"B": {"$ref": "../shared/enums.yaml#/Faction"}}}}
+        shared = {"shared-schemas/enums.yaml": {"Faction": {"type": "string"}}}
+        self.assertEqual(self.errors(doc, shared), [])
+
+    def test_a_date_time_with_a_pattern_is_reported(self):
+        bad = {"openapi": "3.0.3", "components": {"schemas": {"T": {"type": "string", "format": "date-time", "pattern": "^x$"}}}}
+        good = {"openapi": "3.0.3", "components": {"schemas": {"T": {"type": "string", "format": "date-time"}}}}
+        self.assertEqual(len(self.errors(bad)), 1)
+        self.assertEqual(self.errors(good), [])
+
+    def test_an_unparseable_or_untyped_spec_is_reported(self):
+        self.assertEqual(len(self.errors(None)), 1)
+        self.assertEqual(len(self.errors({"info": {}})), 1)
+
+
 class SchemaDiffTests(unittest.TestCase):
     def compare(self, base, head):
         return gate.compare_schemas(base, head, "test", gate.NONE, [])
