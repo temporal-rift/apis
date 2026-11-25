@@ -844,8 +844,9 @@ paths:
       operationId: rescoreRun
       summary: Re-score a run's recorded bet outcomes under a scoring engine, without persisting anything
       description: >-
-        Requires `simulation:read`. Synchronous and stateless: nothing is stored, and the same run and
-        request return an identical response.
+        Requires `simulation:read`. Synchronous and stateless: nothing is stored, and the same request
+        returns an identical response while the run's recorded cases are unchanged. A run that is still
+        playing can return more judged cases on a later request.
 
         The cases used are the run's succeeded cases of the variant `variantLabel` and the table
         `tableId`. Each seat-era's recorded bet outcome is scored under the engine; every recorded score
@@ -857,8 +858,14 @@ paths:
         no ratio and is counted in `truncatedCases`. A run with unfinished cases is re-scored over its
         succeeded cases and returns `complete` false.
 
+        A player count and faction with no judged case has no cell, and a player count with no judged
+        case reports `judgedCases` 0 and a null `meanEras`; so a run whose cases are all truncated
+        returns an empty `cells`.
+
         A refused engine returns `400 INVALID_REQUEST` whose `field` names the offending value, such as
-        `engine.factions[1].winPoints`. An unknown run, or a `variantLabel` or `tableId` that the run
+        `engine.factions[1].winPoints`. An engine that lacks a faction seated in any succeeded case of
+        the variant and table is refused with `field` `engine.factions`, because that seat has no scoring
+        rule. An unknown run, or a `variantLabel` or `tableId` that the run
         does not contain, returns `404 RESOURCE_NOT_FOUND`.
       x-required-scopes: [ simulation:read ]
       parameters:
@@ -3348,7 +3355,11 @@ components:
           type: integer
           minimum: 0
           description: Cases that enter no ratio because the re-scored race would outlast the recorded game.
-        meanEras: { type: number, minimum: 0, description: Mean eras of the re-scored races over the judged cases. }
+        meanEras:
+          type: number
+          minimum: 1
+          nullable: true
+          description: Mean eras of the re-scored races over the judged cases; null when `judgedCases` is 0.
     Rescoring:
       type: object
       additionalProperties: false
@@ -3359,7 +3370,9 @@ components:
           description: False when the run has unfinished cases and only its succeeded cases were re-scored.
         cells:
           type: array
-          description: One item per player count and faction, over judged cases.
+          description: >-
+            One item per player count and faction that has at least one judged case; none for a player
+            count whose cases are all truncated.
           items: { $ref: '#/components/schemas/ScoringCell' }
         playerCounts:
           type: array

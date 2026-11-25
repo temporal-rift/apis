@@ -157,6 +157,26 @@ class SimulationScoringModelTest {
     }
 
     @Test
+    void anAllTruncatedRescoringHasNoCellsAndANullMeanEras() {
+        assertValid(validator.validateResponse("/api/v1/runs/{runId}/rescorings", Request.Method.POST, json("""
+                { "complete": true, "cells": [],
+                  "playerCounts": [ { "playerCount": 3, "judgedCases": 0, "truncatedCases": 12, "meanEras": null } ] }
+                """)));
+    }
+
+    @Test
+    void rescoringStatesTheEmptyAndMissingFactionRules() {
+        var description = openApi.getPaths()
+                .get("/api/v1/runs/{runId}/rescorings")
+                .getPost()
+                .getDescription();
+
+        assertTrue(description.contains("null `meanEras`"));
+        assertTrue(description.contains("`field` `engine.factions`"));
+        assertTrue(description.contains("while the run's recorded cases are unchanged"));
+    }
+
+    @Test
     void rescoringDocumentsAnUnknownRunAsNotFound() {
         assertValid(validator.validateResponse(
                 "/api/v1/runs/{runId}/rescorings", Request.Method.POST, problemJson(404, """
