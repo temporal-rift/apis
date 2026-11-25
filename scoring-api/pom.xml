@@ -9,10 +9,6 @@
     <version>${revision}</version>
     <packaging>jar</packaging>
 
-    <properties>
-        <revision>0-LOCAL</revision>
-    </properties>
-
     <name>Temporal Rift Scoring API</name>
     <description>OpenAPI contract for game-service's scoring module REST endpoints.</description>
 

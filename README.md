@@ -61,8 +61,8 @@ version:
 Choose the increment based on the compatibility of the change with consumers of the previously published version.
 
 A module's version is written once, in the `info.version` of its spec. The module's `pom.xml` declares
-`<version>${revision}</version>` and never a number: publishing passes the spec's version as `-Drevision` (read by
-`scripts/spec_version.py <module>`), and a local build without it uses the placeholder `0-LOCAL`. A module with
+`<version>${revision}</version>` and never a number: every build passes the spec's version as `-Drevision`, read by `scripts/spec_version.py <module>`, for example
+`mvn -pl simulation-api test -Drevision=$(python3 scripts/spec_version.py simulation-api)`. A module with
 several specs, such as two OpenAPI path versions, keeps them all on the same version. To release, bump
 `info.version` in the spec; there is no second place to edit.
 

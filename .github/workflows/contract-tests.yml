@@ -33,4 +33,7 @@ jobs:
           restore-keys: ${{ runner.os }}-m2-verify-
 
       - name: Verify all contract modules
-        run: mvn --batch-mode verify
+        run: |
+          for module in $(ls -d */pom.xml | cut -d/ -f1); do
+            mvn --batch-mode -pl "$module" verify -Drevision="$(python3 scripts/spec_version.py "$module")"
+          done

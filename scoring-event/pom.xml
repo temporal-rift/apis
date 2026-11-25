@@ -9,10 +9,6 @@
     <version>${revision}</version>
     <packaging>jar</packaging>
 
-    <properties>
-        <revision>0-LOCAL</revision>
-    </properties>
-
     <name>Temporal Rift Scoring Events</name>
     <description>AsyncAPI contract for scoring events.</description>
 
