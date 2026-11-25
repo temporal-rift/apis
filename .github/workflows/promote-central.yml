@@ -74,9 +74,9 @@ jobs:
         working-directory: ${{ matrix.module }}
         run: |
           echo "--- Resolving $MODULE groupId + artifactId + version ---"
-          GROUP_ID=$(mvn help:evaluate -Dexpression=project.groupId -DforceStdout -q -N)
-          ARTIFACT_ID=$(mvn help:evaluate -Dexpression=project.artifactId -DforceStdout -q -N)
-          VERSION=$(mvn help:evaluate -Dexpression=project.version -DforceStdout -q -N)
+          VERSION=$(python3 "$GITHUB_WORKSPACE/scripts/spec_version.py" "$MODULE")
+          GROUP_ID=$(mvn help:evaluate -Dexpression=project.groupId -DforceStdout -q -N -Drevision="$VERSION")
+          ARTIFACT_ID=$(mvn help:evaluate -Dexpression=project.artifactId -DforceStdout -q -N -Drevision="$VERSION")
           echo "Resolved: $GROUP_ID:$ARTIFACT_ID:$VERSION"
 
           if [[ "$VERSION" == *-SNAPSHOT ]]; then
@@ -112,5 +112,9 @@ jobs:
           MODULE: ${{ matrix.module }}
         # The Central plugin stages Maven 4's consumer POM as an extra
         # "-consumer.pom" next to the build POM, and Central rejects bundles
-        # whose two POMs differ. Publish the single, self-contained build POM.
-        run: mvn --batch-mode -pl "$MODULE" deploy -Pcentral -Dmaven.consumer.pom=false
+        # whose two POMs differ. Publish the single, self-contained build POM. That POM is uploaded as
+        # written, so the version from the spec's info.version is written into the checked-out copy first.
+        run: |
+          sed -i "0,/<version>\${revision}<\/version>/s//<version>${VERSION}<\/version>/" "$MODULE/pom.xml"
+          grep -q "<version>${VERSION}</version>" "$MODULE/pom.xml"
+          mvn --batch-mode -pl "$MODULE" deploy -Pcentral -Dmaven.consumer.pom=false

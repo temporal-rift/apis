@@ -13,6 +13,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import check_spec_compat as gate
+import spec_version
 
 
 def schema(properties, required=None, **extra):
@@ -48,9 +49,78 @@ class VersionTests(unittest.TestCase):
         self.assertIsNone(gate.bump_type((2, 0, 0), (1, 9, 9)))
         self.assertIsNone(gate.bump_type((1, 2, 3), None))
 
-    def test_pom_version_reads_first_version(self):
-        pom = "<project><artifactId>m</artifactId><version>3.0.3</version></project>"
-        self.assertEqual(gate.pom_version(pom), "3.0.3")
+
+class SpecVersionTests(unittest.TestCase):
+    OPENAPI = "openapi: 3.0.3\ninfo:\n  title: T\n  version: 8.1.0\n  description: d\npaths: {}\n"
+
+    def test_reads_info_version(self):
+        self.assertEqual(spec_version.declared_version(self.OPENAPI), "8.1.0")
+
+    def test_ignores_a_version_outside_info(self):
+        text = "info:\n  title: T\ncomponents:\n  version: 9.9.9\n"
+        self.assertIsNone(spec_version.declared_version(text))
+
+    def test_accepts_quoted_versions(self):
+        self.assertEqual(spec_version.declared_version("info:\n  version: '2.0.1'\n"), "2.0.1")
+
+    def test_specs_of_a_module_must_agree(self):
+        other = self.OPENAPI.replace("8.1.0", "8.2.0")
+        self.assertEqual(spec_version.agreed_version({"a": self.OPENAPI, "b": self.OPENAPI}), "8.1.0")
+        with self.assertRaises(ValueError):
+            spec_version.agreed_version({"a": self.OPENAPI, "b": other})
+
+    def test_a_missing_version_or_spec_is_an_error(self):
+        with self.assertRaises(ValueError):
+            spec_version.agreed_version({})
+        with self.assertRaises(ValueError):
+            spec_version.agreed_version({"a": "info:\n  title: T\n"})
+
+
+class FakeLoader:
+    def __init__(self, docs):
+        self.docs = docs
+
+    def load(self, path):
+        return self.docs.get(path)
+
+
+class SpecIntegrityTests(unittest.TestCase):
+    SPEC = "m/src/main/resources/openapi/v1/m.yml"
+
+    def errors(self, doc, extra=None):
+        return gate.spec_integrity_errors(self.SPEC, FakeLoader({self.SPEC: doc, **(extra or {})}))
+
+    def test_a_sound_spec_has_no_errors(self):
+        doc = {"openapi": "3.0.3", "components": {"schemas": {"A": {"type": "string"}, "B": {"$ref": "#/components/schemas/A"}}}}
+        self.assertEqual(self.errors(doc), [])
+
+    def test_a_missing_local_ref_is_reported(self):
+        doc = {"openapi": "3.0.3", "components": {"schemas": {"B": {"$ref": "#/components/schemas/Nope"}}}}
+        self.assertEqual(len(self.errors(doc)), 1)
+        self.assertIn("#/components/schemas/Nope", self.errors(doc)[0])
+
+    def test_a_ref_to_an_empty_schema_is_not_missing(self):
+        doc = {"openapi": "3.0.3", "components": {"schemas": {"Any": {}, "B": {"$ref": "#/components/schemas/Any"}}}}
+        self.assertEqual(self.errors(doc), [])
+
+    def test_a_missing_file_ref_is_reported(self):
+        doc = {"openapi": "3.0.3", "components": {"schemas": {"B": {"$ref": "../shared/enums.yaml#/Faction"}}}}
+        self.assertEqual(len(self.errors(doc)), 1)
+
+    def test_a_shared_schema_ref_resolves_through_the_source_tree(self):
+        doc = {"openapi": "3.0.3", "components": {"schemas": {"B": {"$ref": "../shared/enums.yaml#/Faction"}}}}
+        shared = {"shared-schemas/enums.yaml": {"Faction": {"type": "string"}}}
+        self.assertEqual(self.errors(doc, shared), [])
+
+    def test_a_date_time_with_a_pattern_is_reported(self):
+        bad = {"openapi": "3.0.3", "components": {"schemas": {"T": {"type": "string", "format": "date-time", "pattern": "^x$"}}}}
+        good = {"openapi": "3.0.3", "components": {"schemas": {"T": {"type": "string", "format": "date-time"}}}}
+        self.assertEqual(len(self.errors(bad)), 1)
+        self.assertEqual(self.errors(good), [])
+
+    def test_an_unparseable_or_untyped_spec_is_reported(self):
+        self.assertEqual(len(self.errors(None)), 1)
+        self.assertEqual(len(self.errors({"info": {}})), 1)
 
 
 class SchemaDiffTests(unittest.TestCase):

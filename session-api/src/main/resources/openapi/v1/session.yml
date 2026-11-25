@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Temporal Rift — Session API
   description: Lobby management and game session endpoints
-  version: 1.0.0
+  version: 3.0.0
 
 servers:
   - url: /

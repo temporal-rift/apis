@@ -73,9 +73,9 @@ jobs:
         working-directory: ${{ matrix.module }}
         run: |
           echo "--- Resolving $MODULE groupId + artifactId + version ---"
-          GROUP_ID=$(mvn help:evaluate -Dexpression=project.groupId -DforceStdout -q -N)
-          ARTIFACT_ID=$(mvn help:evaluate -Dexpression=project.artifactId -DforceStdout -q -N)
-          VERSION=$(mvn help:evaluate -Dexpression=project.version -DforceStdout -q -N)
+          VERSION=$(python3 "$GITHUB_WORKSPACE/scripts/spec_version.py" "$MODULE")
+          GROUP_ID=$(mvn help:evaluate -Dexpression=project.groupId -DforceStdout -q -N -Drevision="$VERSION")
+          ARTIFACT_ID=$(mvn help:evaluate -Dexpression=project.artifactId -DforceStdout -q -N -Drevision="$VERSION")
           echo "Resolved: $GROUP_ID:$ARTIFACT_ID:$VERSION"
 
           if [[ "$VERSION" == *-SNAPSHOT ]]; then
@@ -109,7 +109,7 @@ jobs:
         if: env.VERSION_CHANGED == 'true' && github.ref == 'refs/heads/main'
         env:
           MODULE: ${{ matrix.module }}
-        run: mvn --batch-mode -pl "$MODULE" deploy -Pgithub
+        run: mvn --batch-mode -pl "$MODULE" deploy -Pgithub -Drevision="$VERSION"
 
       - name: Create and push tag
         if: github.ref == 'refs/heads/main'
