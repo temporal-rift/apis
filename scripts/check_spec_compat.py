@@ -33,6 +33,9 @@ except ImportError:  # pragma: no cover
     sys.stderr.write("ERROR: PyYAML is required (pip install pyyaml)\n")
     sys.exit(2)
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import spec_version  # noqa: E402
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 NONE = 0
@@ -89,16 +92,6 @@ def bump_type(base, head):
     if head[1] != base[1]:
         return MINOR
     return PATCH
-
-
-def pom_version(pom_text):
-    """Extract the module version from a pom.xml document.
-
-    Uses the first top-level <version> after <artifactId>, falling back to
-    the first <version> found.
-    """
-    versions = re.findall(r"<version>\s*([^<>\s]+)\s*</version>", pom_text or "")
-    return versions[0].strip() if versions else None
 
 
 def run_git(*args):
@@ -946,11 +939,28 @@ def evaluate_module(module, base_commit, base_loader, head_loader, touched, shar
             "severity": "none", "bump": "n/a", "findings": [],
         }
 
-    base_version = pom_version(base_pom)
-    head_version = pom_version(head_pom)
-    bump = bump_type(parse_version(base_version), parse_version(head_version))
+    def fail(reason):
+        return {"module": module, "status": "fail", "reason": reason,
+                "severity": "none", "bump": "invalid", "findings": []}
+
+    pom_declares = re.search(r"<artifactId>[^<]+</artifactId>\s*<version>([^<]+)</version>", head_pom or "")
+    if pom_declares is None or pom_declares.group(1).strip() != "${revision}":
+        return fail(f"{pom_path} must declare <version>${{revision}}</version>; "
+                    "the version is the specs' info.version and is never written in the pom")
 
     owned = spec_files_for_module(module)
+    try:
+        head_version = spec_version.agreed_version(
+            {path: (REPO_ROOT / path).read_text(encoding="utf-8") for path in owned})
+    except ValueError as error:
+        return fail(f"{module}: {error}")
+    base_texts = {path: file_at_revision(path, base_commit) for path in owned}
+    try:
+        base_version = spec_version.agreed_version({k: v for k, v in base_texts.items() if v is not None})
+    except ValueError:
+        base_version = None
+    bump = bump_type(parse_version(base_version), parse_version(head_version))
+
     severity, findings = NONE, []
     for spec_path in owned:
         in_base = file_at_revision(spec_path, base_commit) is not None

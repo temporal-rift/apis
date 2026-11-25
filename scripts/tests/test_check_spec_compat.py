@@ -13,6 +13,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import check_spec_compat as gate
+import spec_version
 
 
 def schema(properties, required=None, **extra):
@@ -48,9 +49,31 @@ class VersionTests(unittest.TestCase):
         self.assertIsNone(gate.bump_type((2, 0, 0), (1, 9, 9)))
         self.assertIsNone(gate.bump_type((1, 2, 3), None))
 
-    def test_pom_version_reads_first_version(self):
-        pom = "<project><artifactId>m</artifactId><version>3.0.3</version></project>"
-        self.assertEqual(gate.pom_version(pom), "3.0.3")
+
+class SpecVersionTests(unittest.TestCase):
+    OPENAPI = "openapi: 3.0.3\ninfo:\n  title: T\n  version: 8.1.0\n  description: d\npaths: {}\n"
+
+    def test_reads_info_version(self):
+        self.assertEqual(spec_version.declared_version(self.OPENAPI), "8.1.0")
+
+    def test_ignores_a_version_outside_info(self):
+        text = "info:\n  title: T\ncomponents:\n  version: 9.9.9\n"
+        self.assertIsNone(spec_version.declared_version(text))
+
+    def test_accepts_quoted_versions(self):
+        self.assertEqual(spec_version.declared_version("info:\n  version: '2.0.1'\n"), "2.0.1")
+
+    def test_specs_of_a_module_must_agree(self):
+        other = self.OPENAPI.replace("8.1.0", "8.2.0")
+        self.assertEqual(spec_version.agreed_version({"a": self.OPENAPI, "b": self.OPENAPI}), "8.1.0")
+        with self.assertRaises(ValueError):
+            spec_version.agreed_version({"a": self.OPENAPI, "b": other})
+
+    def test_a_missing_version_or_spec_is_an_error(self):
+        with self.assertRaises(ValueError):
+            spec_version.agreed_version({})
+        with self.assertRaises(ValueError):
+            spec_version.agreed_version({"a": "info:\n  title: T\n"})
 
 
 class SchemaDiffTests(unittest.TestCase):

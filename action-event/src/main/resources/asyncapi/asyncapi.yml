@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Action events
-  version: 3.0.0
+  version: 9.8.0
   description: Action module domain events published to game.events
 
 servers:

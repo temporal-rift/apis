@@ -16,7 +16,7 @@ apis/
 │   ├── envelope-headers.yaml
 │   └── enums.yaml
 ├── session-event/       ← AsyncAPI contract for session events
-│   ├── pom.xml           (own artifactId + version — published independently)
+│   ├── pom.xml           (own artifactId; version comes from the spec — published independently)
 │   └── src/main/resources/asyncapi/asyncapi.yml
 ├── action-event/
 ├── timeline-event/
@@ -60,6 +60,12 @@ version:
 
 Choose the increment based on the compatibility of the change with consumers of the previously published version.
 
+A module's version is written once, in the `info.version` of its spec. The module's `pom.xml` declares
+`<version>${revision}</version>` and never a number: publishing passes the spec's version as `-Drevision` (read by
+`scripts/spec_version.py <module>`), and a local build without it uses the placeholder `0-LOCAL`. A module with
+several specs, such as two OpenAPI path versions, keeps them all on the same version. To release, bump
+`info.version` in the spec; there is no second place to edit.
+
 `session-event`, `action-event`, and `scoring-event` publish to the `game.events` topic; `timeline-event`
 publishes to `timeline.events`.
 
@@ -70,7 +76,8 @@ The versioning table above is enforced by CI, not just documented. The `spec-com
 module whose spec changed relative to the PR base, it structurally diffs the base and head specs (operations,
 messages, paths, schema properties, `required` sets, types, formats, enums, and constraints — local and
 `shared/` `$ref`s resolved, descriptions and comments ignored) and requires a matching version bump in that
-module's `pom.xml`:
+module's spec `info.version`. It also fails a module whose `pom.xml` writes a version number instead of
+`${revision}`:
 
 | Spec change | Required bump | Examples |
 |---|---|---|
@@ -123,7 +130,7 @@ Consuming-side codegen notes (role config, header typing, transactional outbox w
 
 ## Adding a new OpenAPI contract module
 
-1. Copy an existing `*-api/pom.xml` and give the module its own artifact ID and version.
+1. Copy an existing `*-api/pom.xml` and give the module its own artifact ID. Its version is `${revision}`; set the spec's `info.version` instead.
 2. Place the OpenAPI spec under `src/main/resources/openapi/v1/`. The resource path is part of the consumer build
    contract, so use a stable module-specific filename (`v1/{name}.yml`).
 3. Write every operation's `paths:` key with the version prefix included literally (e.g. `/api/v1/lobbies`), and
@@ -150,7 +157,7 @@ collision.
 ## Publishing
 
 `.github/workflows/publish.yml` discovers every top-level module automatically, checks whether its current
-`pom.xml` version is already in GitHub Packages, and publishes only the ones that changed — each module tagged
+spec `info.version` is already in GitHub Packages, and publishes only the ones that changed — each module tagged
 and versioned independently (`{module}/v{version}`), triggered on push to `main`. Consumers resolve these from
 the GitHub Packages registry `https://maven.pkg.github.com/temporal-rift/apis`; GitHub Packages requires
 authentication even for public packages, so declare a `github` server with a token that has `read:packages` (in

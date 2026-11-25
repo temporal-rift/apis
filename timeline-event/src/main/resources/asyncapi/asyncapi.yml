@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Timeline events
-  version: 4.1.0
+  version: 7.7.0
   description: Timeline service domain events published to timeline.events
 
 servers:

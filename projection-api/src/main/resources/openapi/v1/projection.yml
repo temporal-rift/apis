@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: Temporal Rift — Projection API
   description: Per-player game state and shared game history queries
-  version: 2.0.0
+  version: 10.7.0
 
 servers:
   - url: /
