@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Temporal Rift Simulation Workbench API
-  version: 8.2.0
+  version: 8.3.0
   description: >-
     Creates immutable experiment manifests whose seat tables assign one policy bundle to each seat,
     and provides durable run control, evidence inspection,
@@ -27,6 +27,7 @@ tags:
   - name: Cases
   - name: Policies
   - name: ParameterSpaces
+  - name: PolicyParameterSpaces
   - name: VariantRules
   - name: Criteria
   - name: Evaluations
@@ -732,6 +733,46 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ParameterSpace' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/InsufficientScope' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /api/v1/policy-parameter-spaces:
+    get:
+      tags: [ PolicyParameterSpaces ]
+      operationId: listPolicyParameterSpaces
+      summary: List every policy parameter space version the workbench serves
+      description: >-
+        Requires `simulation:read`. Returns every served version of the parameter space of the
+        parameterized policy bundle `faction-search`, ordered ascending by `version`.
+      x-required-scopes: [ simulation:read ]
+      responses:
+        '200':
+          description: Every served policy parameter space version in version order
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PolicyParameterSpaceCatalog' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/InsufficientScope' }
+
+  /api/v1/policy-parameter-spaces/{version}:
+    get:
+      tags: [ PolicyParameterSpaces ]
+      operationId: getPolicyParameterSpace
+      summary: Get one served policy parameter space version
+      description: Requires `simulation:read`. An unknown version is not found.
+      x-required-scopes: [ simulation:read ]
+      parameters:
+        - name: version
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: The requested policy parameter space
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PolicyParameterSpace' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/InsufficientScope' }
         '404': { $ref: '#/components/responses/NotFound' }
@@ -1587,6 +1628,12 @@ components:
         policyVersion:
           type: string
           minLength: 1
+        policyDigest:
+          allOf: [ { $ref: '#/components/schemas/Sha256Digest' } ]
+          description: >-
+            The artifact digest of the `policies` entry the seat plays. Required to tell apart entries
+            that share an id and version, such as two parameter sets of a parameterized bundle; when
+            absent it names the only entry of that id and version.
     PolicyBundleReference:
       type: object
       additionalProperties: false
@@ -1661,7 +1708,7 @@ components:
       additionalProperties: false
       description: >-
         The manifest a request carries, always `schemaVersion` 2. `policies` lists bundles only,
-        unique by `id` and `version`; every entry is used by at least one seat of `tables`. The case
+        unique by `id`, `version` and `artifactDigest`; every entry is used by at least one seat of `tables`. The case
         matrix crosses variants, tables, seeds, player counts, faction sets and rotations, and each
         case's seat `i` plays the policy of its table's seat `i`.
       required:
@@ -1885,6 +1932,9 @@ components:
         faction: { $ref: '#/components/schemas/Faction' }
         policyId: { type: string, minLength: 1 }
         policyVersion: { type: string, minLength: 1 }
+        policyDigest:
+          allOf: [ { $ref: '#/components/schemas/Sha256Digest' } ]
+          description: The artifact digest of the policy bundle entry the seat plays.
     CaseResult:
       type: object
       additionalProperties: false
@@ -2098,6 +2148,12 @@ components:
           minLength: 1
           nullable: true
           description: The version of `policyId`; null exactly when `policyId` is null.
+        policyDigest:
+          allOf: [ { $ref: '#/components/schemas/Sha256Digest' } ]
+          nullable: true
+          description: >-
+            The artifact digest of the pooled policy entry; null when `policyId` is null or the entry is
+            not told apart from another of its id and version.
         playerCount: { type: integer, enum: [ 3, 4, 5 ] }
         factionSet:
           allOf: [ { $ref: '#/components/schemas/FactionSet' } ]
@@ -2532,6 +2588,14 @@ components:
           type: object
           additionalProperties: true
           description: The parameters the bundle accepts; empty when it accepts none.
+        parameterDefinitions:
+          type: array
+          items: { $ref: '#/components/schemas/PolicyParameterDefinition' }
+          description: >-
+            The declared parameters of a parameterized bundle, each with its default, range and step.
+            Absent for a bundle that accepts none. A manifest entry naming a parameter outside this
+            list, or a value outside its range or off its step, is refused with `INVALID_EXPERIMENT`;
+            a digest that does not match the entry's parameters is refused with `MANIFEST_MISMATCH`.
     PolicyCatalog:
       type: object
       additionalProperties: false
@@ -3484,6 +3548,134 @@ components:
           type: integer
           minimum: 1
           description: Candidates confirmed on fresh seeds.
+    PolicyParameterDefinition:
+      type: object
+      additionalProperties: false
+      required: [ key, defaultValue, min, max, step ]
+      description: >-
+        One integer parameter of a parameterized policy bundle: its value lies on the grid from `min`
+        to `max` in steps of `step`. A boolean parameter is `0` or `1`.
+      properties:
+        key: { type: string, minLength: 1 }
+        defaultValue: { type: integer }
+        min: { type: integer }
+        max: { type: integer }
+        step: { type: integer, minimum: 1 }
+    SearchedSubset:
+      type: object
+      additionalProperties: false
+      required: [ faction, keys ]
+      description: The parameters a hunt of one faction searches; every other parameter stays at its default.
+      properties:
+        faction: { $ref: '#/components/schemas/Faction' }
+        keys:
+          type: array
+          minItems: 12
+          maxItems: 16
+          uniqueItems: true
+          items: { type: string, minLength: 1 }
+    PolicyParameterSpace:
+      type: object
+      additionalProperties: false
+      required: [ version, policyId, policyVersion, parameters, searchedSubsets ]
+      description: >-
+        One immutable version of the parameter space of a parameterized policy bundle, with the
+        subset each faction's hunt searches.
+      properties:
+        version: { type: integer, minimum: 1 }
+        policyId: { type: string, minLength: 1 }
+        policyVersion: { type: string, minLength: 1 }
+        parameters:
+          type: array
+          items: { $ref: '#/components/schemas/PolicyParameterDefinition' }
+        searchedSubsets:
+          type: array
+          items: { $ref: '#/components/schemas/SearchedSubset' }
+    PolicyParameterSpaceCatalog:
+      type: object
+      additionalProperties: false
+      required: [ items ]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/PolicyParameterSpace' }
+    CampaignKind:
+      type: string
+      enum: [ RULES_SEARCH, POLICY_HUNT ]
+      description: >-
+        `RULES_SEARCH` searches the rules of a baseline against the balance criterion. `POLICY_HUNT`
+        searches the parameters of one seat's `faction-search` policy for one faction at one player
+        count, against `faction-spread` seats, to find a strategy that wins disproportionately.
+    HuntInterval:
+      type: object
+      additionalProperties: false
+      required: [ lower, upper ]
+      properties:
+        lower: { type: number }
+        upper: { type: number }
+    HuntScreening:
+      type: object
+      additionalProperties: false
+      required: [ candidates, screeningRatioOfBest, noise, shareAboveFlagLine ]
+      description: What the search measured, so the first hunt can re-derive its sizing.
+      properties:
+        candidates: { type: integer, minimum: 1 }
+        screeningRatioOfBest:
+          type: number
+          description: The best candidate's win ratio over its games of the last round.
+        noise:
+          type: number
+          description: >-
+            The standard deviation of the candidates' win ratios in round 0 (every candidate on the same
+            seeds), the realized screening noise.
+        shareAboveFlagLine:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: The share of round-0 candidates whose win ratio is at least 1.25.
+    HuntConfirmation:
+      type: object
+      additionalProperties: false
+      required: [ candidateRatio, candidateInterval, standardRatio, normalRatio, parameters ]
+      properties:
+        candidateRatio: { type: number }
+        candidateInterval: { $ref: '#/components/schemas/HuntInterval' }
+        standardRatio:
+          type: number
+          description: The `faction-spread` seat's win ratio on the same fresh seeds.
+        normalRatio:
+          type: number
+          description: The larger of 1.0 and `standardRatio`.
+        parameters:
+          type: object
+          additionalProperties: { type: integer }
+          description: The searched candidate's non-default parameters.
+    HuntClassification:
+      type: string
+      enum: [ NOT_CONFIRMED, BALANCE_NOISE, FLAGGED, EXPLOIT ]
+      description: >-
+        `NOT_CONFIRMED` the best candidate did not pass the screening gate, so nothing was confirmed.
+        With a confirmation: `EXPLOIT` at a candidate ratio of at least 1.5 times the normal ratio,
+        `FLAGGED` at least 1.25 times, otherwise `BALANCE_NOISE`.
+    HuntReport:
+      type: object
+      additionalProperties: false
+      required: [ faction, playerCount, screening, classification, confirmation, limitations ]
+      description: >-
+        The result of a policy hunt cell. A cell without a flag is evidence, not a guarantee, that no
+        exploit exists; results characterize bot strategies only and say nothing about balance among
+        human players.
+      properties:
+        faction: { $ref: '#/components/schemas/Faction' }
+        playerCount: { type: integer, enum: [ 3, 4, 5 ] }
+        screening: { $ref: '#/components/schemas/HuntScreening' }
+        classification: { $ref: '#/components/schemas/HuntClassification' }
+        confirmation:
+          allOf: [ { $ref: '#/components/schemas/HuntConfirmation' } ]
+          nullable: true
+        limitations:
+          type: array
+          items: { type: string, minLength: 1 }
     CampaignDefinition:
       type: object
       additionalProperties: false
@@ -3502,6 +3694,20 @@ components:
           type: string
           minLength: 1
           maxLength: 120
+        kind:
+          allOf: [ { $ref: '#/components/schemas/CampaignKind' } ]
+          description: Defaults to `RULES_SEARCH`.
+        faction:
+          allOf: [ { $ref: '#/components/schemas/Faction' } ]
+          description: >-
+            Required for `POLICY_HUNT`, where it is the faction the searched seat plays; refused for
+            `RULES_SEARCH`. A hunt names exactly one entry of `playerCounts`, and its candidates, tables
+            and algorithm default to the hunt plan (64 candidates on 32 games, `eta` 4, short list 4).
+        policyParameterSpaceVersion:
+          type: integer
+          minimum: 1
+          description: >-
+            `POLICY_HUNT` only: defaults to the newest policy parameter space version the service knows.
         baseline: { $ref: '#/components/schemas/CampaignBaseline' }
         parameterSpaceVersion:
           type: integer
@@ -3587,6 +3793,22 @@ components:
           type: string
           minLength: 1
           maxLength: 120
+        kind:
+          allOf: [ { $ref: '#/components/schemas/CampaignKind' } ]
+          description: Absent reads as `RULES_SEARCH`.
+        faction:
+          allOf: [ { $ref: '#/components/schemas/Faction' } ]
+          nullable: true
+          description: The faction of a `POLICY_HUNT`; null for `RULES_SEARCH`.
+        policyParameterSpaceVersion:
+          type: integer
+          minimum: 1
+          nullable: true
+          description: The policy parameter space a `POLICY_HUNT` searches; null for `RULES_SEARCH`.
+        huntReport:
+          allOf: [ { $ref: '#/components/schemas/HuntReport' } ]
+          nullable: true
+          description: A `POLICY_HUNT`'s report once its search has completed; null before and for `RULES_SEARCH`.
         baseline: { $ref: '#/components/schemas/CampaignBaseline' }
         parameterSpaceVersion:
           type: integer
