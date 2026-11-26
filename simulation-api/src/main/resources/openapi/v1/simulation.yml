@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Temporal Rift Simulation Workbench API
-  version: 8.3.0
+  version: 9.0.0
   description: >-
     Creates immutable experiment manifests whose seat tables assign one policy bundle to each seat,
     and provides durable run control, evidence inspection,
@@ -310,8 +310,9 @@ paths:
                   denominator, status, intervalLower, intervalUpper, unknownCount. `failureCode` is empty for a
                   metric not split by failure code, including the all-codes `failure_share` metric, and holds the
                   `AttemptFailureCode` of a per-code `failure_share` metric. `scoreReason` holds the score reason
-                  of a `score_by_reason` metric and `winPath` the path of a `win_path_rate` metric; both are empty
-                  for every other metric. An empty field is a null value,
+                  of a `score_by_reason` or `reason_occurrences_per_era` metric and `winPath` the path of a
+                  `win_path_rate` metric; both are empty for every other metric. `bet_voided_rate_per_era`
+                  needs no new dimension. An empty field is a null value,
                   such as `policyId` and `policyVersion` on a cohort pooling several policies.
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/InsufficientScope' }
@@ -837,31 +838,60 @@ paths:
 
         For each requested player count it plays `gamesPerPlayerCount` games of the scoring layer alone.
         At three and four players each game draws its faction set uniformly from the combinations of
-        `engine.factions`; at five players the set is all five factions, so the engine must name all of
-        them. A player count above the number of engine factions is refused with `field` `playerCounts`.
-        In each era every
-        seat draws one bet outcome from its `BetRates` item, scores it under its faction's engine entry
-        and adds the item's `extraPointsPerEra`. The race ends at the first era end that has a
-        qualifier, or after `engine.maxEras`; when both apply in the same era the end counts as a
-        threshold ending. A shared win counts `1/k` to each of its `k` winners.
+        `factions`; at five players the set is all five factions, so all five must be named.
+        A player count above the number of `factions` is refused with `field` `playerCounts`.
+        In each era every seat draws exactly one of: one of its bet reasons, `VOIDED` or `NOT_PLACED`.
+        A drawn bet reason is scored by the engine, and its class in the bet-reason table below gives the
+        outcome used for resets: the outcome is `WON` when the seat-era lists a win reason of its faction,
+        `MISSED` when it lists only a miss reason, `VOIDED` when the bet was placed but recorded neither,
+        `NOT_PLACED` when no bet was placed. Each `otherReasons` item then adds `perEra x points` of its
+        reason, as an expected value, as `extraPointsPerEra` did. Every game lasts `maxEras`. The model
+        assumes at most one bet reason per seat-era.
 
-        Each cell's `ratio` is the faction's wins divided by the games in which it was present, times
-        the player count, so 1 is an even share. `lower` and `upper` are its 95% normal-approximation
-        interval.
+        The bet reasons are:
+
+        | Faction | Win reasons | Miss reasons |
+        |---|---|---|
+        | Erasers | `ANNIHILATED_OUTCOME` | `ANNIHILATION_WASTED` |
+        | Prophets | `EVENT_RESOLVED_AS_WRITTEN`, `FULFILLMENT_SUCCEEDED` | `EVENT_RESOLVED_DIFFERENTLY_THAN_WRITTEN` |
+        | Revisionists | `SECRET_OUTCOME_WON` | `SECRET_OUTCOME_MISSED` |
+        | Weavers | `CHAIN_LINK_ADDED` | `CHAIN_LINK_MISSED` |
+        | Activists | `DECLARED_OUTCOME_WON`, `DECLARED_OUTCOME_WON_WITH_RALLY` | `DECLARED_OUTCOME_MISSED`, `DECLARED_OUTCOME_MISSED_WITH_RALLY` |
+
+        Scoring, per seat, era by era: every occurrence of a score reason in the seat-era is scored one by
+        one and joined reasons count separately; an occurrence of an escalated reason extends that
+        escalation's run to n and scores `base + increment x (n - 1)`, and any other occurrence scores its
+        `reasonPoints`; after the era's reasons are scored, every escalation whose `resetOn` holds the
+        seat-era's bet outcome resets its run to 0; banked points never change. The approved design as an
+        engine holds `weaver-link` (`[CHAIN_LINK_ADDED]`, base 6, increment 3, `resetOn [VOIDED]`) and
+        `activist-streak` (`[DECLARED_OUTCOME_WON, DECLARED_OUTCOME_WON_WITH_RALLY]`, base 6, increment 2,
+        `resetOn [MISSED, VOIDED, NOT_PLACED]`) with `ANNIHILATED_OUTCOME` 6, `ANNIHILATION_WASTED` -1,
+        `EVENT_RESOLVED_AS_WRITTEN` 7, `FULFILLMENT_SUCCEEDED` 14 and every other reason in `reasonPoints`
+        (`CHAIN_COMPLETED` and `CHAIN_BROKEN` at 0). The engine has no win threshold and no objectives.
+
+        A shared win counts `1/k` to each of its `k` winners. Each cell's `ratio` is the faction's wins
+        divided by the games in which it was present, times the player count, so 1 is an even share.
+        `lower` and `upper` are its 95% normal-approximation interval.
 
         Every `sweep` parameter is then re-evaluated twice with the same seed, with its value moved by
         `+step` and by `-step`, and each cell's `ratioChange` is the moved ratio minus the unmoved one.
-        A sweep value that the schema would refuse once moved (outside its range, a `winRate` that
-        breaks `winRate + missRate <= 1`, a `winPoints` index past the last entry, or a faction or
-        player count the request does not contain) is refused.
+        `SweepParameter.parameter` is one of `maxEras`, `reasonPoints.<REASON>`,
+        `escalations.<name>.base`, `escalations.<name>.increment`,
+        `rates.<playerCount>.<FACTION>.betReasons.<REASON>`,
+        `rates.<playerCount>.<FACTION>.voidedRate` or
+        `rates.<playerCount>.<FACTION>.otherReasons.<REASON>`. A terminal `<REASON>` is the rest of the
+        path, so any 1–64-character score reason the request contains can be swept. Moving a `betReasons` rate or `voidedRate`
+        takes the difference from `NOT_PLACED`, or gives it back to it. A sweep is refused when its path
+        names something the request does not contain, a non-integer step is given for an integer value, the
+        moved value leaves its range, or a moved rate makes the rates sum above 1 or a rate fall below 0.
 
-        A refused request returns `400 INVALID_REQUEST` whose `field` names the offending value, such
-        as `engine.factions[1].winPoints`, `rates[3]` for a `BetRates` item whose `winRate + missRate`
-        exceeds 1, `sweep[2].parameter` or `sweep[2].step`. A missing `BetRates` item for a requested
-        player count and faction of the engine is refused with `field` `rates`, as is a surplus or
-        repeated one; a repeated `faction` in `engine.factions` is refused with `field`
-        `engine.factions[i].faction`; an `objectiveWins` without an `objectiveBonus` is refused with
-        `field` `engine.factions[i].objectiveBonus`.
+        A refused request returns `400 INVALID_REQUEST` whose `field` names the offending value: a `betReasons`
+        reason that is not a bet reason of the item's faction; an `otherReasons` reason that is a bet reason
+        of any faction or that belongs to an escalation; a reason in `rates` that the engine does not price;
+        `betReasons` rates plus `voidedRate` above 1 (`field` `rates[i]`); a missing, surplus or repeated
+        `rates` item (`field` `rates`); a repeated reason in `reasonPoints`, a reason both in `reasonPoints`
+        and in an escalation, a reason in two escalations, or a repeated escalation `name`; `sweep[2].parameter`
+        or `sweep[2].step` for a bad sweep path or step.
       x-required-scopes: [ simulation:read ]
       requestBody:
         required: true
@@ -871,7 +901,7 @@ paths:
               $ref: '#/components/schemas/ScoringModelRequest'
       responses:
         '200':
-          description: The ratios, endings and sensitivity of the scoring model
+          description: The ratios and sensitivity of the scoring model
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ScoringModelEvaluation' }
@@ -883,43 +913,38 @@ paths:
     post:
       tags: [ ScoringModels ]
       operationId: rescoreRun
-      summary: Re-score a run's recorded bet outcomes under a scoring engine, without persisting anything
+      summary: Re-score a run's recorded score reasons under a scoring engine, without persisting anything
       description: >-
         Requires `simulation:read`. Synchronous and stateless: nothing is stored, and the same request
         returns an identical response while the run's recorded cases are unchanged. A run that is still
         playing can return more judged cases on a later request.
 
         The cases used are the run's succeeded cases of the variant `variantLabel` and the table
-        `tableId`. Each seat-era's recorded bet outcome is scored under the engine; every recorded score
-        that does not settle the faction's bet (faction extras, cascade penalties) is added at its
-        recorded value unless named in `otherReasonPoints`. For each seat-era of a re-scored case, every
-        listed occurrence of a named reason counts `points` instead of the points the run's variant
-        configured for it; joined reasons are counted one by one, as for bet outcomes. Reasons not named
-        keep their recorded value. Bet outcomes are scored by the engine exactly as before. The re-scored
-        race ends where the engine ends it.
+        `tableId`. Every occurrence of a score reason recorded in a seat-era is scored by the engine.
+        The recorded points are not used at all, so there is no longer an "other" score kept at its
+        recorded value. Joined reasons are counted one by one. The seat-era bet outcome is derived as
+        today (a win reason of the seat's faction wins over a miss in the same era) and drives resets:
+        every occurrence of an escalated reason extends that escalation's run to n and scores
+        `base + increment x (n - 1)`; any other occurrence scores its `reasonPoints`; after the era's
+        reasons are scored, every escalation whose `resetOn` holds the seat-era's bet outcome resets its
+        run to 0; banked points never change.
 
-        A case is `TRUNCATED` when the re-scored race would continue past the era where the recorded
-        game ended for a reason other than its final era or a timeline collapse. A truncated case enters
-        no ratio and is counted in `truncatedCases`. A run with unfinished cases is re-scored over its
-        succeeded cases and returns `complete` false.
+        The race is judged after `maxEras`. A case whose game ended earlier by a timeline collapse or at
+        its final era is judged where it ended. Any other earlier end is `TRUNCATED`, as today. A truncated
+        case enters no ratio and is counted in `truncatedCases`. A run with unfinished cases is re-scored
+        over its succeeded cases and returns `complete` false.
 
         A player count and faction with no judged case has no cell, and a player count with no judged
         case reports `judgedCases` 0 and a null `meanEras`; so a run whose cases are all truncated
         returns an empty `cells`.
 
-        A refused engine returns `400 INVALID_REQUEST` whose `field` names the offending value, such as
-        `engine.factions[1].winPoints`. An engine that lacks a faction seated in any succeeded case of
-        the variant and table is refused with `field` `engine.factions`, because that seat has no scoring
-        rule. An `otherReasonPoints` item is refused with `400 INVALID_REQUEST` whose `field` names the
-        item when its `scoreReason` settles a bet of any faction (`ANNIHILATED_OUTCOME`,
-        `ANNIHILATION_WASTED`, `EVENT_RESOLVED_AS_WRITTEN`, `FULFILLMENT_SUCCEEDED`,
-        `EVENT_RESOLVED_DIFFERENTLY_THAN_WRITTEN`, `SECRET_OUTCOME_WON`, `SECRET_OUTCOME_MISSED`,
-        `CHAIN_LINK_ADDED`, `CHAIN_LINK_MISSED`, `DECLARED_OUTCOME_WON`,
-        `DECLARED_OUTCOME_WON_WITH_RALLY`, `DECLARED_OUTCOME_MISSED`,
-        `DECLARED_OUTCOME_MISSED_WITH_RALLY`), because the engine already scores those; when its
-        `scoreReason` is not configured by the run's variant; and when its `scoreReason` appears twice.
-        An unknown run, or a `variantLabel` or `tableId` that the run
-        does not contain, returns `404 RESOURCE_NOT_FOUND`.
+        A refused engine returns `400 INVALID_REQUEST` whose `field` names the offending value, checked
+        before any case is read: a reason the run's variant configures that the engine does not price
+        (`field` `engine`, the message naming every such reason); an engine reason the run's variant does
+        not configure (`field` `engine.reasonPoints[i].scoreReason` or
+        `engine.escalations[i].scoreReasons[j]`). A recorded reason that the variant does not configure
+        fails the request the same way, never counting 0. An unknown run, or a `variantLabel` or `tableId`
+        that the run does not contain, returns `404 RESOURCE_NOT_FOUND`.
       x-required-scopes: [ simulation:read ]
       parameters:
         - $ref: '#/components/parameters/RunId'
@@ -1506,7 +1531,7 @@ components:
     InvalidRequest:
       description: >-
         The request is invalid, such as paging outside 1 to 500, a missing or invalid evaluation query
-        parameter, a refused variant-rules preview, or a refused scoring engine, `BetRates` item or
+        parameter, a refused variant-rules preview, or a refused scoring engine, `SeatEraRates` item or
         sweep (code INVALID_REQUEST). A refused variant's overrides carry a `reason`; a refusal
         attributable to one value names it in `field`.
       content:
@@ -2064,9 +2089,14 @@ components:
           type: string
           minLength: 1
           description: >-
-            The score reason of a `score_by_reason` metric, as the scoring contract names it (for example
-            `ANNIHILATED_OUTCOME` or `PARADOX_CASCADE_PENALTY`). A string, not an enumeration: the reasons are the
-            scoring contract's vocabulary and grow with it.
+            The score reason of a `score_by_reason` or `reason_occurrences_per_era` metric, as the
+            scoring contract names it (for example `ANNIHILATED_OUTCOME` or `PARADOX_CASCADE_PENALTY`).
+            A string, not an enumeration: the reasons are the scoring contract's vocabulary and grow with
+            it. `reason_occurrences_per_era` is `MEAN` per faction and score reason: occurrences per
+            seat-era, joined reasons counted one by one, reasons configured at 0 points included.
+            `bet_voided_rate_per_era` is `RATE` per faction and needs no new dimension: the share of
+            seat-eras whose placed bet recorded no bet reason. Both are the inputs of `SeatEraRates`, so
+            a report gives a model request directly.
         winPath: { $ref: '#/components/schemas/WinPath' }
     WinPath:
       type: string
@@ -3225,98 +3255,147 @@ components:
       type: string
       enum: [ WON, MISSED, VOIDED, NOT_PLACED ]
       description: >-
-        What happened to a faction's signature bet in one era, using the same win and miss reasons as
-        the `bets_placed`, `bets_scored` and `bet_win_rate_per_era` metrics. `WON`: the bet was placed
-        and recorded its win reason. `MISSED`: the bet was placed and recorded its miss reason.
-        `VOIDED`: the bet was placed and recorded neither, because it was annihilated, stalled,
-        cascaded or shielded. `NOT_PLACED`: no bet was placed. The win run of a seat is the number of
-        `WON` outcomes it has counted since the start of the game or since its last reset.
+        What happened to a faction's signature bet in one era. It serves only `resetOn`.
+        A seat-era is `WON` when it lists a win reason of its faction, and `MISSED` when it
+        lists only a miss reason. It is `VOIDED` when the bet was placed but recorded neither,
+        because it was annihilated, stalled, cascaded or shielded. It is `NOT_PLACED` when no
+        bet was placed. The bet reasons are:
+
+        | Faction | Win reasons | Miss reasons |
+        |---|---|---|
+        | Erasers | `ANNIHILATED_OUTCOME` | `ANNIHILATION_WASTED` |
+        | Prophets | `EVENT_RESOLVED_AS_WRITTEN`, `FULFILLMENT_SUCCEEDED` | `EVENT_RESOLVED_DIFFERENTLY_THAN_WRITTEN` |
+        | Revisionists | `SECRET_OUTCOME_WON` | `SECRET_OUTCOME_MISSED` |
+        | Weavers | `CHAIN_LINK_ADDED` | `CHAIN_LINK_MISSED` |
+        | Activists | `DECLARED_OUTCOME_WON`, `DECLARED_OUTCOME_WON_WITH_RALLY` | `DECLARED_OUTCOME_MISSED`, `DECLARED_OUTCOME_MISSED_WITH_RALLY` |
     ScoringEngine:
       type: object
       additionalProperties: false
-      required: [ winThreshold, maxEras, factions ]
-      description: The rules that turn bet outcomes into points and decide the race.
+      required: [ maxEras, reasonPoints ]
+      description: >-
+        The rules that turn score reasons into points and decide the race. Every occurrence of
+        a score reason in a seat-era is scored one by one; joined reasons count separately. An
+        occurrence of an escalated reason extends that escalation's run to n and scores
+        `base + increment x (n - 1)`; any other occurrence scores its `reasonPoints`. After the
+        era's reasons are scored, every escalation whose `resetOn` holds the seat-era's bet
+        outcome resets its run to 0. Banked points never change. The engine has no win threshold
+        and no objectives. A reason repeated in `reasonPoints`, a reason both in `reasonPoints`
+        and in an escalation, a reason in two escalations, or a repeated escalation `name` is
+        refused with `400 INVALID_REQUEST` and `field` naming the value.
       properties:
-        winThreshold:
-          type: integer
-          minimum: 1
-          maximum: 500
-          description: >-
-            At an era end, every seat at or above it qualifies; the qualifiers with the highest total
-            win and share ties.
         maxEras:
           type: integer
           minimum: 1
           maximum: 10
-          description: After this era, the highest total wins and ties share.
-        factions:
+          description: The race ends after this era; the highest total wins, ties share.
+        reasonPoints:
           type: array
           minItems: 1
-          maxItems: 5
-          description: One entry per faction; `faction` is unique within the array.
-          items: { $ref: '#/components/schemas/FactionScoringEngine' }
-    FactionScoringEngine:
+          maxItems: 64
+          description: >-
+            Flat points per occurrence of a reason, one entry per reason; `scoreReason` is unique
+            within the array. The same shape as the served `score-deltas`.
+          items: { $ref: '#/components/schemas/ReasonPoints' }
+        escalations:
+          type: array
+          minItems: 0
+          maxItems: 8
+          default: []
+          description: Reasons whose points grow within a run; `name` is unique within the array.
+          items: { $ref: '#/components/schemas/Escalation' }
+    ReasonPoints:
       type: object
       additionalProperties: false
-      required: [ faction, winPoints, missPoints, resetOn ]
+      required: [ scoreReason, points ]
+      description: Flat points per occurrence of a score reason.
       properties:
-        faction: { $ref: '#/components/schemas/Faction' }
-        winPoints:
-          type: array
-          minItems: 1
-          maxItems: 10
-          description: >-
-            The n-th win of the current win run scores `winPoints[n-1]`; past the last entry, the last
-            value repeats.
-          items: { type: integer, minimum: -50, maximum: 50 }
-        missPoints:
+        scoreReason:
+          type: string
+          minLength: 1
+          maxLength: 64
+        points:
           type: integer
           minimum: -50
-          maximum: 0
-          description: Added on `MISSED`.
+          maximum: 50
+    Escalation:
+      type: object
+      additionalProperties: false
+      required: [ name, scoreReasons, base, increment, resetOn ]
+      description: >-
+        Reasons whose points grow within a run. For example `weaver-link`: `[CHAIN_LINK_ADDED]`,
+        base 6, increment 3, `resetOn [VOIDED]`; `activist-streak`:
+        `[DECLARED_OUTCOME_WON, DECLARED_OUTCOME_WON_WITH_RALLY]`, base 6, increment 2,
+        `resetOn [MISSED, VOIDED, NOT_PLACED]`.
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 32
+          pattern: '^[a-z][a-z0-9-]{0,31}$'
+          description: Names it in sweep paths, for example `weaver-link`.
+        scoreReasons:
+          type: array
+          minItems: 1
+          maxItems: 8
+          uniqueItems: true
+          description: Each occurrence of any of them extends the run.
+          items: { type: string, minLength: 1, maxLength: 64 }
+        base:
+          type: integer
+          minimum: -50
+          maximum: 50
+          description: Points of the first occurrence of a run.
+        increment:
+          type: integer
+          minimum: -20
+          maximum: 20
+          description: Added for each further occurrence of the run.
         resetOn:
           type: array
+          minItems: 1
+          maxItems: 3
           uniqueItems: true
-          description: >-
-            The `BetOutcome` values that reset the win run to 0; banked points never change. May be
-            empty. `WON` is not accepted.
+          description: Seat-era bet outcomes that end the run; banked points never change.
           items:
             type: string
             enum: [ MISSED, VOIDED, NOT_PLACED ]
-        objectiveWins:
-          type: integer
-          minimum: 1
-          maximum: 10
-          description: Total `WON` outcomes that earn `objectiveBonus` once.
-        objectiveBonus:
-          type: integer
-          minimum: 0
-          maximum: 100
-          description: Required with `objectiveWins`.
-    BetRates:
+    SeatEraRates:
       type: object
       additionalProperties: false
-      required: [ playerCount, faction, winRate, missRate, extraPointsPerEra ]
+      required: [ playerCount, faction, betReasons, voidedRate ]
       properties:
         playerCount: { type: integer, minimum: 3, maximum: 5 }
         faction: { $ref: '#/components/schemas/Faction' }
-        winRate:
-          type: number
-          minimum: 0
-          maximum: 1
-          description: Chance of `WON` per era.
-        missRate:
-          type: number
-          minimum: 0
-          maximum: 1
-          description: Chance of `MISSED` per era. `winRate + missRate` is at most 1; the rest is `VOIDED`.
-        extraPointsPerEra:
-          type: number
-          minimum: -50
-          maximum: 50
+        betReasons:
+          type: array
           description: >-
-            Mean of every other score per era, such as faction extras and cascade penalties, added each
-            era.
+            Chance per seat-era that the bet settles with that reason; only the item faction's own
+            bet reasons from the bet-reason table. `scoreReason` is unique within the array.
+          items:
+            type: object
+            additionalProperties: false
+            required: [ scoreReason, rate ]
+            properties:
+              scoreReason: { type: string, minLength: 1, maxLength: 64 }
+              rate: { type: number, minimum: 0, maximum: 1 }
+        voidedRate:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Chance per seat-era that a placed bet records no bet reason.
+        otherReasons:
+          type: array
+          default: []
+          description: >-
+            Mean occurrences per seat-era of every other reason. `scoreReason` is unique within the
+            array.
+          items:
+            type: object
+            additionalProperties: false
+            required: [ scoreReason, perEra ]
+            properties:
+              scoreReason: { type: string, minLength: 1, maxLength: 64 }
+              perEra: { type: number, minimum: 0, maximum: 10 }
     SweepParameter:
       type: object
       additionalProperties: false
@@ -3324,11 +3403,14 @@ components:
       properties:
         parameter:
           type: string
-          pattern: '^(winThreshold|factions\.(ERASERS|PROPHETS|REVISIONISTS|WEAVERS|ACTIVISTS)\.(winPoints\[[0-9]\]|missPoints|objectiveBonus)|rates\.[3-5]\.(ERASERS|PROPHETS|REVISIONISTS|WEAVERS|ACTIVISTS)\.winRate)$'
+          pattern: '^(maxEras|reasonPoints\..{1,64}|escalations\.[a-z][a-z0-9-]{0,31}\.(base|increment)|rates\.[3-5]\.(ERASERS|PROPHETS|REVISIONISTS|WEAVERS|ACTIVISTS)\.(betReasons\..{1,64}|voidedRate|otherReasons\..{1,64}))$'
           description: >-
-            The value to move. One of `winThreshold`, `factions.<FACTION>.winPoints[<i>]`,
-            `factions.<FACTION>.missPoints`, `factions.<FACTION>.objectiveBonus` or
-            `rates.<playerCount>.<FACTION>.winRate`.
+            The value to move. One of `maxEras`, `reasonPoints.<REASON>`,
+            `escalations.<name>.base`, `escalations.<name>.increment`,
+            `rates.<playerCount>.<FACTION>.betReasons.<REASON>`,
+            `rates.<playerCount>.<FACTION>.voidedRate` or
+            `rates.<playerCount>.<FACTION>.otherReasons.<REASON>`. A terminal `<REASON>` is the rest
+            of the path, so every 1–64-character score reason the request contains can be addressed.
         step:
           type: number
           not: { enum: [ 0 ] }
@@ -3336,9 +3418,16 @@ components:
     ScoringModelRequest:
       type: object
       additionalProperties: false
-      required: [ engine, playerCounts, rates, seed ]
+      required: [ engine, factions, playerCounts, rates, seed ]
       properties:
         engine: { $ref: '#/components/schemas/ScoringEngine' }
+        factions:
+          type: array
+          minItems: 1
+          maxItems: 5
+          uniqueItems: true
+          description: Replaces `engine.factions`. At 3 and 4 players each game draws its set uniformly from the combinations; at 5 players all five must be named.
+          items: { $ref: '#/components/schemas/Faction' }
         playerCounts:
           type: array
           minItems: 1
@@ -3346,8 +3435,8 @@ components:
           items: { type: integer, minimum: 3, maximum: 5 }
         rates:
           type: array
-          description: Exactly one item per requested player count and faction of `engine.factions`.
-          items: { $ref: '#/components/schemas/BetRates' }
+          description: Exactly one item per requested player count and faction.
+          items: { $ref: '#/components/schemas/SeatEraRates' }
         gamesPerPlayerCount: { type: integer, minimum: 1000, maximum: 200000, default: 20000 }
         seed: { type: integer, format: int64 }
         sweep:
@@ -3368,23 +3457,6 @@ components:
         ratio: { type: number }
         lower: { type: number }
         upper: { type: number }
-    ScoringEnding:
-      type: object
-      additionalProperties: false
-      required: [ playerCount, meanEras, thresholdShare, finalEraShare ]
-      properties:
-        playerCount: { type: integer, minimum: 3, maximum: 5 }
-        meanEras: { type: number, minimum: 1 }
-        thresholdShare:
-          type: number
-          minimum: 0
-          maximum: 1
-          description: Share of games that ended on a qualifier.
-        finalEraShare:
-          type: number
-          minimum: 0
-          maximum: 1
-          description: Share of games that ended after `maxEras` with no qualifier.
     ScoringSensitivity:
       type: object
       additionalProperties: false
@@ -3398,16 +3470,12 @@ components:
     ScoringModelEvaluation:
       type: object
       additionalProperties: false
-      required: [ cells, endings, sensitivity ]
+      required: [ cells, sensitivity ]
       properties:
         cells:
           type: array
           description: One item per player count and faction.
           items: { $ref: '#/components/schemas/ScoringCell' }
-        endings:
-          type: array
-          description: One item per player count.
-          items: { $ref: '#/components/schemas/ScoringEnding' }
         sensitivity:
           type: array
           description: One item per sweep parameter, direction and cell; empty without a sweep.
@@ -3420,31 +3488,6 @@ components:
         engine: { $ref: '#/components/schemas/ScoringEngine' }
         variantLabel: { type: string, minLength: 1 }
         tableId: { type: string, minLength: 1 }
-        otherReasonPoints:
-          type: array
-          maxItems: 32
-          default: []
-          description: >-
-            Points each named score reason counts in the re-scored game. `scoreReason` is unique
-            within the array; a reason the run's variant configures that settles no faction's bet.
-            Reasons not named keep their recorded value. Bet outcomes are scored by the engine.
-          items: { $ref: '#/components/schemas/ReasonPoints' }
-    ReasonPoints:
-      type: object
-      additionalProperties: false
-      required: [ scoreReason, points ]
-      description: >-
-        Points one score reason counts in a re-scored game. A reason the run's variant configures
-        that settles no faction's bet.
-      properties:
-        scoreReason:
-          type: string
-          minLength: 1
-          maxLength: 64
-        points:
-          type: integer
-          minimum: -50
-          maximum: 50
     RescoringPlayerCount:
       type: object
       additionalProperties: false
