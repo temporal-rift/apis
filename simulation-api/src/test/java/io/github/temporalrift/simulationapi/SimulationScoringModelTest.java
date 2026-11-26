@@ -49,7 +49,7 @@ class SimulationScoringModelTest {
     }
 
     @Test
-    void definesTheEightSchemasAndTheBetOutcome() {
+    void definesTheScoringSchemasAndTheBetOutcome() {
         var schemas = openApi.getComponents().getSchemas();
 
         List.of(
@@ -60,11 +60,17 @@ class SimulationScoringModelTest {
                         "SweepParameter",
                         "ScoringModelEvaluation",
                         "RescoreRequest",
+                        "ReasonPoints",
                         "Rescoring")
                 .forEach(name -> assertNotNull(schemas.get(name), name));
         assertEquals(
                 List.of("WON", "MISSED", "VOIDED", "NOT_PLACED"),
                 schemas.get("BetOutcome").getEnum());
+    }
+
+    @Test
+    void specVersionIs8_2_0() {
+        assertEquals("8.2.0", openApi.getInfo().getVersion());
     }
 
     @Test
@@ -162,6 +168,50 @@ class SimulationScoringModelTest {
                 { "complete": true, "cells": [],
                   "playerCounts": [ { "playerCount": 3, "judgedCases": 0, "truncatedCases": 12, "meanEras": null } ] }
                 """)));
+    }
+
+    @Test
+    void aRescoringWithOtherReasonPointsValidates() {
+        assertValid(validator.validateRequest(rescore("""
+                { "engine": %s, "variantLabel": "baseline", "tableId": "mixed",
+                  "otherReasonPoints": [
+                    { "scoreReason": "CHAIN_COMPLETED", "points": 0 },
+                    { "scoreReason": "CORRUPTED_OPPONENT_CARD", "points": 2 } ] }
+                """.formatted(ENGINE))));
+    }
+
+    @Test
+    void anEmptyOtherReasonPointsValidates() {
+        assertValid(validator.validateRequest(rescore("""
+                { "engine": %s, "variantLabel": "baseline", "tableId": "mixed",
+                  "otherReasonPoints": [] }
+                """.formatted(ENGINE))));
+    }
+
+    @Test
+    void otherReasonPointsBeyondFiftyAreRejected() {
+        assertFalse(validator
+                .validateRequest(rescore("""
+                        { "engine": %s, "variantLabel": "baseline", "tableId": "mixed",
+                          "otherReasonPoints": [ { "scoreReason": "CHAIN_COMPLETED", "points": 51 } ] }
+                        """.formatted(ENGINE)))
+                .getMessages()
+                .isEmpty());
+    }
+
+    @Test
+    void rescoringStatesTheOtherReasonRules() {
+        var description = openApi.getPaths()
+                .get("/api/v1/runs/{runId}/rescorings")
+                .getPost()
+                .getDescription();
+
+        assertTrue(description.contains("unless named in `otherReasonPoints`"));
+        assertTrue(description.contains("Reasons not named"));
+        assertTrue(description.contains("keep their recorded value"));
+        assertTrue(description.contains("`ANNIHILATED_OUTCOME`"));
+        assertTrue(description.contains("not configured by the run's variant"));
+        assertTrue(description.contains("appears twice"));
     }
 
     @Test
