@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Temporal Rift Simulation Workbench API
-  version: 8.1.0
+  version: 8.2.0
   description: >-
     Creates immutable experiment manifests whose seat tables assign one policy bundle to each seat,
     and provides durable run control, evidence inspection,
@@ -851,7 +851,11 @@ paths:
         The cases used are the run's succeeded cases of the variant `variantLabel` and the table
         `tableId`. Each seat-era's recorded bet outcome is scored under the engine; every recorded score
         that does not settle the faction's bet (faction extras, cascade penalties) is added at its
-        recorded value. The re-scored race ends where the engine ends it.
+        recorded value unless named in `otherReasonPoints`. For each seat-era of a re-scored case, every
+        listed occurrence of a named reason counts `points` instead of the points the run's variant
+        configured for it; joined reasons are counted one by one, as for bet outcomes. Reasons not named
+        keep their recorded value. Bet outcomes are scored by the engine exactly as before. The re-scored
+        race ends where the engine ends it.
 
         A case is `TRUNCATED` when the re-scored race would continue past the era where the recorded
         game ended for a reason other than its final era or a timeline collapse. A truncated case enters
@@ -865,7 +869,15 @@ paths:
         A refused engine returns `400 INVALID_REQUEST` whose `field` names the offending value, such as
         `engine.factions[1].winPoints`. An engine that lacks a faction seated in any succeeded case of
         the variant and table is refused with `field` `engine.factions`, because that seat has no scoring
-        rule. An unknown run, or a `variantLabel` or `tableId` that the run
+        rule. An `otherReasonPoints` item is refused with `400 INVALID_REQUEST` whose `field` names the
+        item when its `scoreReason` settles a bet of any faction (`ANNIHILATED_OUTCOME`,
+        `ANNIHILATION_WASTED`, `EVENT_RESOLVED_AS_WRITTEN`, `FULFILLMENT_SUCCEEDED`,
+        `EVENT_RESOLVED_DIFFERENTLY_THAN_WRITTEN`, `SECRET_OUTCOME_WON`, `SECRET_OUTCOME_MISSED`,
+        `CHAIN_LINK_ADDED`, `CHAIN_LINK_MISSED`, `DECLARED_OUTCOME_WON`,
+        `DECLARED_OUTCOME_WON_WITH_RALLY`, `DECLARED_OUTCOME_MISSED`,
+        `DECLARED_OUTCOME_MISSED_WITH_RALLY`), because the engine already scores those; when its
+        `scoreReason` is not configured by the run's variant; and when its `scoreReason` appears twice.
+        An unknown run, or a `variantLabel` or `tableId` that the run
         does not contain, returns `404 RESOURCE_NOT_FOUND`.
       x-required-scopes: [ simulation:read ]
       parameters:
@@ -3344,6 +3356,31 @@ components:
         engine: { $ref: '#/components/schemas/ScoringEngine' }
         variantLabel: { type: string, minLength: 1 }
         tableId: { type: string, minLength: 1 }
+        otherReasonPoints:
+          type: array
+          maxItems: 32
+          default: []
+          description: >-
+            Points each named score reason counts in the re-scored game. `scoreReason` is unique
+            within the array; a reason the run's variant configures that settles no faction's bet.
+            Reasons not named keep their recorded value. Bet outcomes are scored by the engine.
+          items: { $ref: '#/components/schemas/ReasonPoints' }
+    ReasonPoints:
+      type: object
+      additionalProperties: false
+      required: [ scoreReason, points ]
+      description: >-
+        Points one score reason counts in a re-scored game. A reason the run's variant configures
+        that settles no faction's bet.
+      properties:
+        scoreReason:
+          type: string
+          minLength: 1
+          maxLength: 64
+        points:
+          type: integer
+          minimum: -50
+          maximum: 50
     RescoringPlayerCount:
       type: object
       additionalProperties: false
