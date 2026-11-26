@@ -3,6 +3,7 @@ package io.github.temporalrift.simulationapi;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -25,11 +26,27 @@ class SimulationScoringModelTest {
     private static final String SPECIFICATION = "openapi/v1/simulation.yml";
     private static final String RUN_ID = "6f3f2a52-4f0a-4c69-9a39-2a8f0e2b9d11";
     private static final String ENGINE = """
-            { "winThreshold": 24, "maxEras": 3,
-              "factions": [
-                { "faction": "WEAVERS", "winPoints": [2, 4, 6], "missPoints": -1, "resetOn": ["MISSED"],
-                  "objectiveWins": 3, "objectiveBonus": 5 },
-                { "faction": "ACTIVISTS", "winPoints": [3, 5, 7], "missPoints": 0, "resetOn": [] } ] }
+            { "maxEras": 5,
+              "reasonPoints": [
+                { "scoreReason": "ANNIHILATED_OUTCOME", "points": 6 },
+                { "scoreReason": "ANNIHILATION_WASTED", "points": -1 },
+                { "scoreReason": "EVENT_RESOLVED_AS_WRITTEN", "points": 7 },
+                { "scoreReason": "FULFILLMENT_SUCCEEDED", "points": 14 },
+                { "scoreReason": "EVENT_RESOLVED_DIFFERENTLY_THAN_WRITTEN", "points": -4 },
+                { "scoreReason": "SECRET_OUTCOME_WON", "points": 6 },
+                { "scoreReason": "SECRET_OUTCOME_MISSED", "points": -2 },
+                { "scoreReason": "CHAIN_LINK_MISSED", "points": 0 },
+                { "scoreReason": "DECLARED_OUTCOME_MISSED", "points": -2 },
+                { "scoreReason": "DECLARED_OUTCOME_MISSED_WITH_RALLY", "points": -4 },
+                { "scoreReason": "CHAIN_COMPLETED", "points": 0 },
+                { "scoreReason": "CHAIN_BROKEN", "points": 0 },
+                { "scoreReason": "CORRUPTED_OPPONENT_CARD", "points": 2 } ],
+              "escalations": [
+                { "name": "weaver-link", "scoreReasons": ["CHAIN_LINK_ADDED"],
+                  "base": 6, "increment": 3, "resetOn": ["VOIDED"] },
+                { "name": "activist-streak",
+                  "scoreReasons": ["DECLARED_OUTCOME_WON", "DECLARED_OUTCOME_WON_WITH_RALLY"],
+                  "base": 6, "increment": 2, "resetOn": ["MISSED", "VOIDED", "NOT_PLACED"] } ] }
             """;
     private final String url = Objects.requireNonNull(getClass().getClassLoader().getResource(SPECIFICATION))
             .toString();
@@ -54,74 +71,94 @@ class SimulationScoringModelTest {
 
         List.of(
                         "ScoringEngine",
-                        "FactionScoringEngine",
+                        "Escalation",
+                        "ReasonPoints",
+                        "SeatEraRates",
                         "ScoringModelRequest",
-                        "BetRates",
                         "SweepParameter",
                         "ScoringModelEvaluation",
                         "RescoreRequest",
-                        "ReasonPoints",
                         "Rescoring")
                 .forEach(name -> assertNotNull(schemas.get(name), name));
+        assertNull(schemas.get("FactionScoringEngine"));
+        assertNull(schemas.get("BetRates"));
+        assertNull(schemas.get("ScoringEnding"));
         assertEquals(
                 List.of("WON", "MISSED", "VOIDED", "NOT_PLACED"),
                 schemas.get("BetOutcome").getEnum());
     }
 
     @Test
-    void specVersionIs8_3_0() {
-        assertEquals("8.3.0", openApi.getInfo().getVersion());
+    void specVersionIs9_0_0() {
+        assertEquals("9.0.0", openApi.getInfo().getVersion());
     }
 
     @Test
     void anEvaluationRequestAndResponseValidate() {
-        assertValid(validator.validateRequest(evaluate(request(ENGINE, "0.4", "0.3"))));
+        assertValid(validator.validateRequest(evaluate(request())));
         assertValid(validator.validateResponse("/api/v1/scoring-models/evaluations", Request.Method.POST, json("""
                 { "cells": [ { "playerCount": 3, "faction": "WEAVERS", "ratio": 1.04, "lower": 1.0, "upper": 1.08 } ],
-                  "endings": [ { "playerCount": 3, "meanEras": 2.4, "thresholdShare": 0.7, "finalEraShare": 0.3 } ],
-                  "sensitivity": [ { "parameter": "factions.WEAVERS.winPoints[2]", "delta": 1,
+                  "sensitivity": [ { "parameter": "reasonPoints.ANNIHILATED_OUTCOME", "delta": 1,
                                      "playerCount": 3, "faction": "WEAVERS", "ratioChange": 0.3 } ] }
                 """)));
     }
 
     @Test
-    void anEmptyWinPointsListIsRejected() {
-        var engine = ENGINE.replace("[2, 4, 6]", "[]");
+    void theApprovedDesignAsAnEngineValidates() {
+        assertValid(validator.validateRequest(evaluate(request())));
+    }
+
+    @Test
+    void anIncrementBeyondTwentyIsRejected() {
+        var engine = ENGINE.replace("\"increment\": 3", "\"increment\": 21");
 
         assertFalse(validator
-                .validateRequest(evaluate(request(engine, "0.4", "0.3")))
+                .validateRequest(evaluate(request(engine)))
                 .getMessages()
                 .isEmpty());
     }
 
     @Test
-    void theWinPointsListMayNotExceedTenEntries() {
-        var engine = ENGINE.replace("[2, 4, 6]", "[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]");
+    void aBaseBeyondFiftyIsRejected() {
+        var engine = ENGINE.replace("\"base\": 6, \"increment\": 3", "\"base\": 51, \"increment\": 3");
 
         assertFalse(validator
-                .validateRequest(evaluate(request(engine, "0.4", "0.3")))
+                .validateRequest(evaluate(request(engine)))
                 .getMessages()
                 .isEmpty());
     }
 
     @Test
-    void aWonOutcomeCannotResetTheWinRun() {
-        var engine = ENGINE.replace("\"resetOn\": [\"MISSED\"]", "\"resetOn\": [\"WON\"]");
+    void aWonOutcomeCannotResetTheRun() {
+        var engine = ENGINE.replace("\"resetOn\": [\"VOIDED\"]", "\"resetOn\": [\"WON\"]");
 
         assertFalse(validator
-                .validateRequest(evaluate(request(engine, "0.4", "0.3")))
+                .validateRequest(evaluate(request(engine)))
                 .getMessages()
                 .isEmpty());
+    }
+
+    @Test
+    void aSeatEraRatesItemWithoutVoidedRateIsRejected() {
+        var body = """
+                { "engine": %s, "factions": ["WEAVERS"],
+                  "playerCounts": [3],
+                  "rates": [ { "playerCount": 3, "faction": "WEAVERS",
+                    "betReasons": [ { "scoreReason": "CHAIN_LINK_ADDED", "rate": 0.4 } ] } ],
+                  "seed": 42 }
+                """.formatted(ENGINE);
+
+        assertFalse(validator.validateRequest(evaluate(body)).getMessages().isEmpty());
     }
 
     @Test
     void aSweepStepOfZeroOrAnUnknownPathIsRejected() {
         assertFalse(validator
-                .validateRequest(evaluate(request(ENGINE, "0.4", "0.3", sweep("winThreshold", "0"))))
+                .validateRequest(evaluate(requestWithSweep(sweep("maxEras", "0"))))
                 .getMessages()
                 .isEmpty());
         assertFalse(validator
-                .validateRequest(evaluate(request(ENGINE, "0.4", "0.3", sweep("factions.WEAVERS.winPoints", "1"))))
+                .validateRequest(evaluate(requestWithSweep(sweep("factions.WEAVERS.winPoints", "1"))))
                 .getMessages()
                 .isEmpty());
     }
@@ -129,13 +166,15 @@ class SimulationScoringModelTest {
     @Test
     void everyAcceptedSweepPathFormValidates() {
         List.of(
-                        "winThreshold",
-                        "factions.WEAVERS.winPoints[2]",
-                        "factions.WEAVERS.missPoints",
-                        "factions.WEAVERS.objectiveBonus",
-                        "rates.3.WEAVERS.winRate")
+                        "maxEras",
+                        "reasonPoints.ANNIHILATED_OUTCOME",
+                        "escalations.weaver-link.base",
+                        "escalations.weaver-link.increment",
+                        "rates.3.WEAVERS.betReasons.CHAIN_LINK_ADDED",
+                        "rates.3.WEAVERS.voidedRate",
+                        "rates.3.WEAVERS.otherReasons.CORRUPTED_OPPONENT_CARD")
                 .forEach(path -> assertValid(
-                        validator.validateRequest(evaluate(request(ENGINE, "0.4", "0.3", sweep(path, "-1.5"))))));
+                        validator.validateRequest(evaluate(requestWithSweep(sweep(path, "1"))))));
     }
 
     @Test
@@ -146,8 +185,22 @@ class SimulationScoringModelTest {
                 .getDescription();
 
         assertTrue(description.contains("400 INVALID_REQUEST"));
-        assertTrue(description.contains("`rates[3]`"));
-        assertTrue(description.contains("`winRate + missRate`"));
+        assertTrue(description.contains("`field` `rates`"));
+        assertTrue(description.contains("at most one bet reason per seat-era"));
+    }
+
+    @Test
+    void theOperationDescriptionStatesScoringOrderAndBetTable() {
+        var description = openApi.getPaths()
+                .get("/api/v1/scoring-models/evaluations")
+                .getPost()
+                .getDescription();
+
+        assertTrue(description.contains("every occurrence of a score reason"));
+        assertTrue(description.contains("resets its run to 0"));
+        assertTrue(description.contains("ANNIHILATED_OUTCOME"));
+        assertTrue(description.contains("DECLARED_OUTCOME_WON_WITH_RALLY"));
+        assertTrue(description.contains("no win threshold and no objectives"));
     }
 
     @Test
@@ -171,58 +224,38 @@ class SimulationScoringModelTest {
     }
 
     @Test
-    void aRescoringWithOtherReasonPointsValidates() {
-        assertValid(validator.validateRequest(rescore("""
-                { "engine": %s, "variantLabel": "baseline", "tableId": "mixed",
-                  "otherReasonPoints": [
-                    { "scoreReason": "CHAIN_COMPLETED", "points": 0 },
-                    { "scoreReason": "CORRUPTED_OPPONENT_CARD", "points": 2 } ] }
-                """.formatted(ENGINE))));
-    }
-
-    @Test
-    void anEmptyOtherReasonPointsValidates() {
-        assertValid(validator.validateRequest(rescore("""
-                { "engine": %s, "variantLabel": "baseline", "tableId": "mixed",
-                  "otherReasonPoints": [] }
-                """.formatted(ENGINE))));
-    }
-
-    @Test
-    void otherReasonPointsBeyondFiftyAreRejected() {
+    void aRescoringWithOtherReasonPointsIsRejected() {
         assertFalse(validator
                 .validateRequest(rescore("""
                         { "engine": %s, "variantLabel": "baseline", "tableId": "mixed",
-                          "otherReasonPoints": [ { "scoreReason": "CHAIN_COMPLETED", "points": 51 } ] }
+                          "otherReasonPoints": [ { "scoreReason": "CHAIN_COMPLETED", "points": 0 } ] }
                         """.formatted(ENGINE)))
                 .getMessages()
                 .isEmpty());
     }
 
     @Test
-    void rescoringStatesTheOtherReasonRules() {
+    void rescoringStatesTheRecordedPointsRule() {
         var description = openApi.getPaths()
                 .get("/api/v1/runs/{runId}/rescorings")
                 .getPost()
                 .getDescription();
 
-        assertTrue(description.contains("unless named in `otherReasonPoints`"));
-        assertTrue(description.contains("Reasons not named"));
-        assertTrue(description.contains("keep their recorded value"));
-        assertTrue(description.contains("`ANNIHILATED_OUTCOME`"));
-        assertTrue(description.contains("not configured by the run's variant"));
-        assertTrue(description.contains("appears twice"));
+        assertTrue(description.contains("recorded points are not used"));
+        assertTrue(description.contains("never counting 0"));
+        assertTrue(description.contains("`field` `engine`"));
+        assertTrue(description.contains("`TRUNCATED`"));
     }
 
     @Test
-    void rescoringStatesTheEmptyAndMissingFactionRules() {
+    void rescoringStatesTheEmptyAndUnchangedCasesRules() {
         var description = openApi.getPaths()
                 .get("/api/v1/runs/{runId}/rescorings")
                 .getPost()
                 .getDescription();
 
         assertTrue(description.contains("null `meanEras`"));
-        assertTrue(description.contains("`field` `engine.factions`"));
+        assertTrue(description.contains("before any case is read"));
         assertTrue(description.contains("while the run's recorded cases are unchanged"));
     }
 
@@ -240,19 +273,33 @@ class SimulationScoringModelTest {
                 .containsKey("404"));
     }
 
-    private static String request(String engine, String winRate, String missRate) {
-        return request(engine, winRate, missRate, "");
+    private static String request() {
+        return request(ENGINE);
     }
 
-    private static String request(String engine, String winRate, String missRate, String sweep) {
+    private static String request(String engine) {
+        return request(engine, "");
+    }
+
+    private static String request(String engine, String sweep) {
         return """
-                { "engine": %s,
+                { "engine": %s, "factions": ["WEAVERS", "ACTIVISTS"],
                   "playerCounts": [3],
                   "rates": [
-                    { "playerCount": 3, "faction": "WEAVERS", "winRate": %s, "missRate": %s, "extraPointsPerEra": 1.5 },
-                    { "playerCount": 3, "faction": "ACTIVISTS", "winRate": %s, "missRate": %s, "extraPointsPerEra": 0 } ],
+                    { "playerCount": 3, "faction": "WEAVERS",
+                      "betReasons": [ { "scoreReason": "CHAIN_LINK_ADDED", "rate": 0.4 } ],
+                      "voidedRate": 0.3,
+                      "otherReasons": [ { "scoreReason": "CORRUPTED_OPPONENT_CARD", "perEra": 0.5 } ] },
+                    { "playerCount": 3, "faction": "ACTIVISTS",
+                      "betReasons": [ { "scoreReason": "DECLARED_OUTCOME_WON", "rate": 0.4 } ],
+                      "voidedRate": 0.3,
+                      "otherReasons": [ { "scoreReason": "CORRUPTED_OPPONENT_CARD", "perEra": 0.5 } ] } ],
                   "seed": 42%s }
-                """.formatted(engine, winRate, missRate, winRate, missRate, sweep);
+                """.formatted(engine, sweep);
+    }
+
+    private static String requestWithSweep(String sweep) {
+        return request(ENGINE, sweep);
     }
 
     private static String sweep(String parameter, String step) {
