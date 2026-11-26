@@ -69,8 +69,8 @@ class SimulationScoringModelTest {
     }
 
     @Test
-    void specVersionIs8_2_0() {
-        assertEquals("8.2.0", openApi.getInfo().getVersion());
+    void specVersionIs8_3_0() {
+        assertEquals("8.3.0", openApi.getInfo().getVersion());
     }
 
     @Test
