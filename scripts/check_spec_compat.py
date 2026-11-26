@@ -610,6 +610,13 @@ def compare_combiner(base_list, head_list, key, where, severity, findings):
     if base_norm == head_norm:
         return severity
     if key in ("oneOf", "anyOf"):
+        if len(head_norm) == len(base_norm):
+            # Same branch count: classify each positional pair by what changed inside it, as allOf does below, so a
+            # branch that only gained an optional property is a minor change and a removed or retyped one stays
+            # breaking.
+            for base_branch, head_branch in zip(base_list, head_list):
+                severity = compare_schemas(base_branch, head_branch, f"{where} {key} branch", severity, findings)
+            return severity
         if len(head_norm) > len(base_norm) and all(
             any(b == h for h in head_norm) for b in base_norm
         ):

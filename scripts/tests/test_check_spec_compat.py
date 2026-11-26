@@ -209,6 +209,31 @@ class SchemaDiffTests(unittest.TestCase):
         head = {"allOf": [schema({"a": prop("string")}, ["a"])]}
         self.assertEqual(self.compare(base, head), gate.PATCH)
 
+    def test_oneof_same_branch_count_recurses_into_optional_addition(self):
+        base = {"oneOf": [schema({"a": prop("string")}, ["a"]), schema({"b": prop("string")}, ["b"])]}
+        head = {
+            "oneOf": [
+                schema({"a": prop("string"), "c": prop("string")}, ["a"]),
+                schema({"b": prop("string")}, ["b"]),
+            ]
+        }
+        self.assertEqual(self.compare(base, head), gate.MINOR)
+
+    def test_oneof_same_branch_count_recurses_into_required_addition(self):
+        base = {"oneOf": [schema({"a": prop("string")}, ["a"]), schema({"b": prop("string")}, ["b"])]}
+        head = {
+            "oneOf": [
+                schema({"a": prop("string"), "c": prop("string")}, ["a", "c"]),
+                schema({"b": prop("string")}, ["b"]),
+            ]
+        }
+        self.assertEqual(self.compare(base, head), gate.MAJOR)
+
+    def test_oneof_same_branch_count_with_removed_property_is_breaking(self):
+        base = {"oneOf": [schema({"a": prop("string"), "c": prop("string")}, ["a"])]}
+        head = {"oneOf": [schema({"a": prop("string")}, ["a"])]}
+        self.assertEqual(self.compare(base, head), gate.MAJOR)
+
     def test_single_branch_allof_wrapper_is_equivalent(self):
         wrapped = {"type": "string", "enum": ["A", "B"]}
         self.assertEqual(self.compare(wrapped, {"allOf": [wrapped]}), gate.NONE)
