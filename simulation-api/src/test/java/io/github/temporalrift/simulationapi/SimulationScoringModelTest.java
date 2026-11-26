@@ -178,6 +178,18 @@ class SimulationScoringModelTest {
     }
 
     @Test
+    void aReasonNameWithDotsCanBeSwept() {
+        var dottedEngine = """
+                { "maxEras": 5,
+                  "reasonPoints": [ { "scoreReason": "A.B", "points": 1 } ],
+                  "escalations": [] }
+                """;
+
+        assertValid(validator.validateRequest(
+                evaluate(request(dottedEngine, sweep("reasonPoints.A.B", "1")))));
+    }
+
+    @Test
     void theOperationDescriptionStatesTheRatesRefusal() {
         var description = openApi.getPaths()
                 .get("/api/v1/scoring-models/evaluations")

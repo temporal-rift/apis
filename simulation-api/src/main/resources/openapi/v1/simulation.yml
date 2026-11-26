@@ -879,7 +879,8 @@ paths:
         `escalations.<name>.base`, `escalations.<name>.increment`,
         `rates.<playerCount>.<FACTION>.betReasons.<REASON>`,
         `rates.<playerCount>.<FACTION>.voidedRate` or
-        `rates.<playerCount>.<FACTION>.otherReasons.<REASON>`. Moving a `betReasons` rate or `voidedRate`
+        `rates.<playerCount>.<FACTION>.otherReasons.<REASON>`. A terminal `<REASON>` is the rest of the
+        path, so any 1–64-character score reason the request contains can be swept. Moving a `betReasons` rate or `voidedRate`
         takes the difference from `NOT_PLACED`, or gives it back to it. A sweep is refused when its path
         names something the request does not contain, a non-integer step is given for an integer value, the
         moved value leaves its range, or a moved rate makes the rates sum above 1 or a rate fall below 0.
@@ -3402,13 +3403,14 @@ components:
       properties:
         parameter:
           type: string
-          pattern: '^(maxEras|reasonPoints\.[A-Za-z0-9_-]{1,64}|escalations\.[a-z][a-z0-9-]{0,31}\.(base|increment)|rates\.[3-5]\.(ERASERS|PROPHETS|REVISIONISTS|WEAVERS|ACTIVISTS)\.(betReasons\.[A-Za-z0-9_-]{1,64}|voidedRate|otherReasons\.[A-Za-z0-9_-]{1,64}))$'
+          pattern: '^(maxEras|reasonPoints\..{1,64}|escalations\.[a-z][a-z0-9-]{0,31}\.(base|increment)|rates\.[3-5]\.(ERASERS|PROPHETS|REVISIONISTS|WEAVERS|ACTIVISTS)\.(betReasons\..{1,64}|voidedRate|otherReasons\..{1,64}))$'
           description: >-
             The value to move. One of `maxEras`, `reasonPoints.<REASON>`,
             `escalations.<name>.base`, `escalations.<name>.increment`,
             `rates.<playerCount>.<FACTION>.betReasons.<REASON>`,
             `rates.<playerCount>.<FACTION>.voidedRate` or
-            `rates.<playerCount>.<FACTION>.otherReasons.<REASON>`.
+            `rates.<playerCount>.<FACTION>.otherReasons.<REASON>`. A terminal `<REASON>` is the rest
+            of the path, so every 1–64-character score reason the request contains can be addressed.
         step:
           type: number
           not: { enum: [ 0 ] }
