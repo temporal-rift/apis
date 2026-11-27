@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
@@ -105,7 +106,7 @@ class SimulationApiFixtureTest {
         assertEquals(
                 Set.of("application/json", "text/csv"),
                 comparison.getResponses().get("200").getContent().keySet());
-        assertEquals(java.util.List.of("Reports"), report.getTags());
+        assertEquals(List.of("Reports"), report.getTags());
     }
 
     private static Request createComparison(String body) {
