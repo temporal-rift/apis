@@ -4,9 +4,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
@@ -90,8 +92,8 @@ class SimulationFidelityTest {
         var environment = openApi.getComponents().getSchemas().get("FidelityEnvironment");
         var provenance = openApi.getComponents().getSchemas().get("ServiceProvenance");
 
-        assertEquals(java.util.Set.of("services", "contentDigest", "contracts"), java.util.Set.copyOf(environment.getRequired()));
-        assertEquals(java.util.Set.of("imageDigest", "sourceRevision"), java.util.Set.copyOf(provenance.getRequired()));
+        assertEquals(Set.of("services", "contentDigest", "contracts"), Set.copyOf(environment.getRequired()));
+        assertEquals(Set.of("imageDigest", "sourceRevision"), Set.copyOf(provenance.getRequired()));
         assertFalse(validator
                 .validateResponse(
                         "/api/v1/fidelity-checks/" + ID,
@@ -106,7 +108,7 @@ class SimulationFidelityTest {
         Schema<?> verdict = (Schema<?>) openApi.getComponents().getSchemas().get("FidelityCheck").getProperties().get("verdict");
 
         assertEquals(Boolean.TRUE, verdict.getNullable());
-        assertEquals(java.util.Arrays.asList("PASSED", "FAILED", null), verdict.getEnum());
+        assertEquals(Arrays.asList("PASSED", "FAILED", null), verdict.getEnum());
     }
 
     @Test

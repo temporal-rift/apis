@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -122,7 +123,7 @@ class SimulationControlRulesTest {
     private String specificationText() {
         try (var stream = getClass().getClassLoader().getResourceAsStream(SPECIFICATION)) {
             return new String(Objects.requireNonNull(stream).readAllBytes(), StandardCharsets.UTF_8);
-        } catch (java.io.IOException exception) {
+        } catch (IOException exception) {
             throw new IllegalStateException(exception);
         }
     }

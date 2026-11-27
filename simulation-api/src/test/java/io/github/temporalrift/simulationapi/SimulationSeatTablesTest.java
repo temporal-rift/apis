@@ -9,6 +9,8 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.junit.jupiter.api.Test;
 
@@ -119,8 +121,8 @@ class SimulationSeatTablesTest {
         assertInvalid(validator.validateRequest(post(
                 "/api/v1/experiments",
                 MIXED_MANIFEST.replaceFirst(
-                        java.util.regex.Pattern.quote(bundle),
-                        java.util.regex.Matcher.quoteReplacement(
+                        Pattern.quote(bundle),
+                        Matcher.quoteReplacement(
                                 bundle.replace(" }", ", \"seatAssignment\": [] }"))))));
         assertInvalid(validator.validateRequest(post(
                 "/api/v1/experiments", MIXED_MANIFEST.replace("\"id\": \"random-seat-0\"", "\"id\": \"Random Seat\""))));
