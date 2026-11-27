@@ -78,7 +78,9 @@ class SimulationScoringModelTest {
                         "SweepParameter",
                         "ScoringModelEvaluation",
                         "RescoreRequest",
-                        "Rescoring")
+                        "Rescoring",
+                        "RescoringSensitivity",
+                        "RescoringSensitivityCell")
                 .forEach(name -> assertNotNull(schemas.get(name), name));
         assertNull(schemas.get("FactionScoringEngine"));
         assertNull(schemas.get("BetRates"));
@@ -89,8 +91,8 @@ class SimulationScoringModelTest {
     }
 
     @Test
-    void specVersionIs9_0_0() {
-        assertEquals("9.0.0", openApi.getInfo().getVersion());
+    void specVersionIs9_1_0() {
+        assertEquals("9.1.0", openApi.getInfo().getVersion());
     }
 
     @Test
@@ -244,6 +246,73 @@ class SimulationScoringModelTest {
                         """.formatted(ENGINE)))
                 .getMessages()
                 .isEmpty());
+    }
+
+    @Test
+    void aRescoringSweepRequestValidates() {
+        assertValid(validator.validateRequest(rescore("""
+                { "engine": %s, "variantLabel": "baseline", "tableId": "mixed",
+                  "sweep": ["reasonPoints.CORRUPTED_OPPONENT_CARD",
+                    "escalations.weaver-link.base", "escalations.activist-streak.increment"] }
+                """.formatted(ENGINE))));
+    }
+
+    @Test
+    void aRescoringSweepWithDuplicateOrUnknownPathIsRejected() {
+        assertFalse(validator
+                .validateRequest(rescore("""
+                        { "engine": %s, "variantLabel": "baseline", "tableId": "mixed",
+                          "sweep": ["reasonPoints.CORRUPTED_OPPONENT_CARD",
+                            "reasonPoints.CORRUPTED_OPPONENT_CARD"] }
+                        """.formatted(ENGINE)))
+                .getMessages()
+                .isEmpty());
+        assertFalse(validator
+                .validateRequest(rescore("""
+                        { "engine": %s, "variantLabel": "baseline", "tableId": "mixed",
+                          "sweep": ["factions.WEAVERS.winPoints"] }
+                        """.formatted(ENGINE)))
+                .getMessages()
+                .isEmpty());
+        assertFalse(validator
+                .validateRequest(rescore("""
+                        { "engine": %s, "variantLabel": "baseline", "tableId": "mixed",
+                          "sweep": [] }
+                        """.formatted(ENGINE)))
+                .getMessages()
+                .isEmpty());
+    }
+
+    @Test
+    void aRescoringSensitivityResponseValidates() {
+        assertValid(validator.validateResponse("/api/v1/runs/{runId}/rescorings", Request.Method.POST, json("""
+                { "complete": true,
+                  "cells": [ { "playerCount": 4, "faction": "ACTIVISTS", "ratio": 0.97, "lower": 0.9, "upper": 1.04 } ],
+                  "playerCounts": [ { "playerCount": 4, "judgedCases": 90, "truncatedCases": 10, "meanEras": 2.2 } ],
+                  "sensitivity": [
+                    { "parameter": "reasonPoints.CORRUPTED_OPPONENT_CARD", "direction": -1, "status": "EVALUATED",
+                      "cells": [ { "playerCount": 4, "faction": "ACTIVISTS", "ratio": 0.9, "delta": -0.07 } ] },
+                    { "parameter": "reasonPoints.CORRUPTED_OPPONENT_CARD", "direction": 1, "status": "EVALUATED",
+                      "cells": [ { "playerCount": 4, "faction": "ACTIVISTS", "ratio": 1.02, "delta": 0.05 } ] },
+                    { "parameter": "escalations.activist-streak.increment", "direction": -1, "status": "EVALUATED",
+                      "cells": [ { "playerCount": 4, "faction": "ACTIVISTS", "ratio": 0.95, "delta": -0.02 } ] },
+                    { "parameter": "escalations.activist-streak.increment", "direction": 1, "status": "OUT_OF_RANGE",
+                      "cells": [] } ] }
+                """)));
+    }
+
+    @Test
+    void rescoringStatesTheSweepRule() {
+        var description = openApi.getPaths()
+                .get("/api/v1/runs/{runId}/rescorings")
+                .getPost()
+                .getDescription();
+
+        assertTrue(description.contains("`sweep`"));
+        assertTrue(description.contains("`OUT_OF_RANGE`"));
+        assertTrue(description.contains("`sweep[i]`"));
+        assertTrue(description.contains("-1 then +1"));
+        assertTrue(description.contains("reasonPoints.CORRUPTED_OPPONENT_CARD"));
     }
 
     @Test
