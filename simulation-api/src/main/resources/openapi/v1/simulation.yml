@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Temporal Rift Simulation Workbench API
-  version: 9.0.0
+  version: 9.1.0
   description: >-
     Creates immutable experiment manifests whose seat tables assign one policy bundle to each seat,
     and provides durable run control, evidence inspection,
@@ -945,6 +945,17 @@ paths:
         `engine.escalations[i].scoreReasons[j]`). A recorded reason that the variant does not configure
         fails the request the same way, never counting 0. An unknown run, or a `variantLabel` or `tableId`
         that the run does not contain, returns `404 RESOURCE_NOT_FOUND`.
+
+        An opt-in `sweep` replays the same recording under one-point neighbors of scoring parameters,
+        still synchronous and stateless. Each entry names one of `reasonPoints.<scoreReason>`,
+        `escalations.<name>.base` or `escalations.<name>.increment`, and is evaluated twice with that
+        value moved by -1 and by +1 on the same cases. For example `reasonPoints.CORRUPTED_OPPONENT_CARD`
+        at 2 compares 1 and 3 to the base. Every valid direction reports its observed change against the
+        base by faction and player count in `sensitivity`, in request order with -1 then +1. A direction
+        whose moved value leaves the engine range (for example the +1 direction of an `increment` of 20)
+        is flagged explicitly as `OUT_OF_RANGE` with an empty `cells` array, never mistaken for zero
+        effect. A sensitivity cell is omitted when its base has no judged game. A repeated or unknown
+        parameter is refused with `400 INVALID_REQUEST` whose `field` is the offending `sweep[i]`.
       x-required-scopes: [ simulation:read ]
       parameters:
         - $ref: '#/components/parameters/RunId'
@@ -3488,6 +3499,20 @@ components:
         engine: { $ref: '#/components/schemas/ScoringEngine' }
         variantLabel: { type: string, minLength: 1 }
         tableId: { type: string, minLength: 1 }
+        sweep:
+          type: array
+          minItems: 1
+          maxItems: 24
+          uniqueItems: true
+          description: >-
+            Opt-in one-point checks. Each entry names one of `reasonPoints.<scoreReason>`,
+            `escalations.<name>.base` or `escalations.<name>.increment`, and requests that value
+            moved by -1 and by +1 on the same recording.
+          items:
+            type: string
+            minLength: 1
+            maxLength: 110
+            pattern: '^(reasonPoints\..{1,64}|escalations\.[a-z][a-z0-9-]{0,31}\.(base|increment))$'
     RescoringPlayerCount:
       type: object
       additionalProperties: false
@@ -3521,6 +3546,48 @@ components:
         playerCounts:
           type: array
           items: { $ref: '#/components/schemas/RescoringPlayerCount' }
+        sensitivity:
+          type: array
+          description: >-
+            One item per sweep parameter and direction, in request order with -1 then +1. Returned for
+            requests with a sweep; absent otherwise.
+          items: { $ref: '#/components/schemas/RescoringSensitivity' }
+    RescoringSensitivity:
+      type: object
+      additionalProperties: false
+      required: [ parameter, direction, status, cells ]
+      properties:
+        parameter:
+          type: string
+          description: The swept path exactly as the request wrote it.
+        direction:
+          type: integer
+          enum: [ -1, 1 ]
+          description: The one-point move applied to the parameter.
+        status:
+          type: string
+          enum: [ EVALUATED, OUT_OF_RANGE ]
+          description: >-
+            `EVALUATED` the moved engine was scored; `OUT_OF_RANGE` the moved value leaves the engine
+            range, with an empty `cells` array.
+        cells:
+          type: array
+          description: >-
+            One item per player count and faction whose base has at least one judged case; empty when
+            `status` is `OUT_OF_RANGE`.
+          items: { $ref: '#/components/schemas/RescoringSensitivityCell' }
+    RescoringSensitivityCell:
+      type: object
+      additionalProperties: false
+      required: [ playerCount, faction, ratio, delta ]
+      description: >-
+        One faction at one player count under the moved engine. `ratio` is the moved ratio;
+        `delta` is the moved ratio minus the base ratio.
+      properties:
+        playerCount: { type: integer, minimum: 3, maximum: 5 }
+        faction: { $ref: '#/components/schemas/Faction' }
+        ratio: { type: number }
+        delta: { type: number }
 
     CampaignBaseline:
       type: object
